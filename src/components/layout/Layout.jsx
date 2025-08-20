@@ -1,5 +1,5 @@
 import { Outlet, useLocation } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import TopNavigation from './TopNavigation'
 import BottomNavigation from './BottomNavigation'
 import WelcomeDrawer from '../ui/WelcomeDrawer'

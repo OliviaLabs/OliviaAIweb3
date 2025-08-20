@@ -8,7 +8,6 @@ import { TonConnectUIProvider } from '@tonconnect/ui-react';
 import { ChatProvider } from './contexts/ChatContext.jsx'
 import { WebSocketProvider } from './contexts/WebSocketContext.jsx'
 
-
 import { AuthProviderLogin } from './contexts/AuthContext.jsx'
 import { InternetIdentityProvider } from './contexts/InternetIdentityContext.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
@@ -47,11 +46,11 @@ try {
               <AuthProviderLogin>
                 <InternetIdentityProvider>
                   <WebSocketProvider>
-                  <ChatProvider>
+                    <ChatProvider>
                       <main className="dark text-foreground bg-background">
-                          <App />
+                        <App />
                       </main>
-                  </ChatProvider>
+                    </ChatProvider>
                   </WebSocketProvider>
                 </InternetIdentityProvider>
               </AuthProviderLogin>

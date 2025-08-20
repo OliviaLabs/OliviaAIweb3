@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useWebSocket } from '../contexts/WebSocketContext'
 import { useInternetIdentity } from '../contexts/InternetIdentityContext'
+import { isPluginEnabled } from '../utils/pluginManager'
 import { useAccountUpgrade } from '../hooks/useAccountUpgrade';
 import { icpService } from '../api/services/icp.service.js';
 import { lurkyService, coingeckoService, coinstatsService, hgraphService, changeNowService } from '../api';
@@ -380,58 +381,60 @@ export default function Home() {
       const { searchTerm, coinData } = tokenResult;
       log(`🚀 Creating bubble for validated token: ${searchTerm} -> ${coinData.name}`);
       
-      // Create CoinStats bubble for this validated token
-      const coinName = coinData.name;
-      const coinStatsBubble = {
-        id: Date.now() + Math.random() + Math.random(), // Extra unique ID
-        title: `${coinName} (Olivia thought) - CoinStats`,
-        content: `Loading ${coinName} live data from Olivia's suggestion...`,
-        loading: true
-      };
+      // Create CoinStats bubble for this validated token - only if plugin enabled
+      if (isPluginEnabled('coinstats')) {
+        const coinName = coinData.name;
+        const coinStatsBubble = {
+          id: Date.now() + Math.random() + Math.random(), // Extra unique ID
+          title: `${coinName} (Olivia thought) - CoinStats`,
+          content: `Loading ${coinName} live data from Olivia's suggestion...`,
+          loading: true
+        };
+        
+        setCoinstatsBubbles(prev => [...prev, coinStatsBubble]);
       
-      setCoinstatsBubbles(prev => [...prev, coinStatsBubble]);
-      
-      // We already have the coin data from validation, so format it for display
-      const change = coinData.priceChange1d || 0;
-      const changeDirection = change > 0 ? '+' : '';
-      const price = coinData.price > 1000 ? `${(coinData.price/1000).toFixed(2)}k` : 
-                   coinData.price > 1 ? coinData.price.toFixed(2) : 
-                   coinData.price > 0.01 ? coinData.price.toFixed(4) :
-                   coinData.price.toFixed(8);
-      const marketCap = coinData.marketCap ? `$${(coinData.marketCap/1e9).toFixed(2)}B` : 'N/A';
-      const volume = coinData.volume ? `$${(coinData.volume/1e6).toFixed(1)}M` : 'N/A';
-      
-      let marketText = `${coinData.name} (${coinData.symbol}) - Olivia thought\n\n`;
-      marketText += `Price: $${price}\n`;
-      marketText += `24h: ${changeDirection}${change.toFixed(2)}%\n`;
-      marketText += `Market Cap: ${marketCap}\n`;
-      marketText += `Volume: ${volume}\n`;
-      marketText += `Rank: #${coinData.rank || 'N/A'}\n\n`;
-      marketText += `Successfully loaded`;
-      
-      // Update context awareness with CoinStats data
-      updateContextAwareness('market_data', searchTerm.toLowerCase(), {
-        source: 'CoinStats (Olivia thought)',
-        name: coinData.name,
-        symbol: coinData.symbol,
-        price: coinData.price,
-        change_24h: coinData.priceChange1d,
-        market_cap: coinData.marketCap,
-        volume_24h: coinData.volume,
-        rank: coinData.rank,
-        mentioned_by_olivia: true,
-        discovered_by_ai: true
-      });
-      
-      // Update the bubble with live data
-      setCoinstatsBubbles(prev => prev.map(bubble => 
-        bubble.id === coinStatsBubble.id 
-          ? { ...bubble, content: marketText, loading: false }
-          : bubble
-      ));
-      
-      // Small delay between token lookups to avoid rate limits
-      await new Promise(resolve => setTimeout(resolve, 500));
+        // We already have the coin data from validation, so format it for display
+        const change = coinData.priceChange1d || 0;
+        const changeDirection = change > 0 ? '+' : '';
+        const price = coinData.price > 1000 ? `${(coinData.price/1000).toFixed(2)}k` : 
+                     coinData.price > 1 ? coinData.price.toFixed(2) : 
+                     coinData.price > 0.01 ? coinData.price.toFixed(4) :
+                     coinData.price.toFixed(8);
+        const marketCap = coinData.marketCap ? `$${(coinData.marketCap/1e9).toFixed(2)}B` : 'N/A';
+        const volume = coinData.volume ? `$${(coinData.volume/1e6).toFixed(1)}M` : 'N/A';
+        
+        let marketText = `${coinData.name} (${coinData.symbol}) - Olivia thought\n\n`;
+        marketText += `Price: $${price}\n`;
+        marketText += `24h: ${changeDirection}${change.toFixed(2)}%\n`;
+        marketText += `Market Cap: ${marketCap}\n`;
+        marketText += `Volume: ${volume}\n`;
+        marketText += `Rank: #${coinData.rank || 'N/A'}\n\n`;
+        marketText += `Successfully loaded`;
+        
+        // Update context awareness with CoinStats data
+        updateContextAwareness('market_data', searchTerm.toLowerCase(), {
+          source: 'CoinStats (Olivia thought)',
+          name: coinData.name,
+          symbol: coinData.symbol,
+          price: coinData.price,
+          change_24h: coinData.priceChange1d,
+          market_cap: coinData.marketCap,
+          volume_24h: coinData.volume,
+          rank: coinData.rank,
+          mentioned_by_olivia: true,
+          discovered_by_ai: true
+        });
+        
+        // Update the bubble with live data
+        setCoinstatsBubbles(prev => prev.map(bubble => 
+          bubble.id === coinStatsBubble.id 
+            ? { ...bubble, content: marketText, loading: false }
+            : bubble
+        ));
+        
+        // Small delay between token lookups to avoid rate limits
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
     }
   }, [updateContextAwareness]);
 
@@ -643,6 +646,8 @@ export default function Home() {
       'theta', 'mana', 'decentraland', 'sand', 'sandbox', 'axs', 'axie',
       'cfx', 'conflux', 'pudgy', 'penguins', 'ethena', 'curve', 'dao', 'crv'
     ];
+    
+    log('🔍 Known cryptos detected in message:', words.filter(word => knownCryptos.includes(word)));
     
     // Only consider words that are actually known cryptocurrencies
     const potentialTokens = words.filter(word => 
@@ -1262,10 +1267,91 @@ export default function Home() {
     }
     // Keep ChangeNOW bubble visible - building conversation bubble map
 
-    // Send message to Olivia - new waitForConnection() logic handles everything
+    // Send message to Olivia - SMART CONTEXT OPTIMIZATION
     try {
       log('📤 Sending message to Olivia AI...')
-      const result = await sendMessage(message)
+      
+      // 🧠 SMART DECISION: Check if we have relevant bubble context
+      const hasRelevantContext = () => {
+        const contextData = window.contextAwarenessData || {};
+        
+        // Check if user mentions any tokens we have context for
+        const mentionedTokens = words.filter(word => knownCryptos.includes(word));
+        log('🧠 Checking context for mentioned tokens:', mentionedTokens);
+        log('🧠 Available context data:', Object.keys(contextData));
+        
+        for (const category in contextData) {
+          for (const token in contextData[category]) {
+            if (mentionedTokens.includes(token)) {
+              log(`🎯 Found relevant bubble context for: ${token} in ${category}`);
+              return true;
+            }
+          }
+        }
+        log('❌ No relevant bubble context found');
+        return false;
+      };
+      
+      // 🚀 OPTIMIZATION: Use bubble-first approach
+      const useSearchFromStart = /\b(news|latest|why|what happened|breaking|analysis|expert|opinion|trend)\b/i.test(message);
+      const hasContext = hasRelevantContext();
+      
+      // 🚀 INSTANT RESPONSE: For simple price queries with bubble data (handle typos)
+      const priceWords = ['price', 'cost', 'value', 'worth', 'much'];
+      const isSimplePriceQuery = words.some(word => {
+        // Check exact matches
+        if (priceWords.includes(word)) return true;
+        // Check for common typos (edit distance = 1)
+        if (word === 'rpeice' || word === 'pirce' || word === 'peice') return true;
+        return false;
+      }) && !useSearchFromStart;
+      
+      log('🔍 Price query detection:', { isSimplePriceQuery, useSearchFromStart, words });
+      
+      if (hasContext && isSimplePriceQuery) {
+        log('⚡ INSTANT MODE: Responding immediately with bubble data');
+        
+        // Get bubble data for mentioned tokens
+        const contextData = window.contextAwarenessData || {};
+        const mentionedTokens = words.filter(word => knownCryptos.includes(word));
+        
+        log('🔍 INSTANT MODE Debug:', { 
+          contextData, 
+          mentionedTokens,
+          availableContextTokens: Object.keys(contextData).map(cat => Object.keys(contextData[cat])).flat()
+        });
+        
+        let instantResponse = '';
+        for (const token of mentionedTokens) {
+          for (const category in contextData) {
+            if (contextData[category][token]) {
+              const data = contextData[category][token].data;
+              if (data.price) {
+                const change = data.change_24h || 0;
+                const changeDir = change > 0 ? '+' : '';
+                instantResponse += `${data.name || token.toUpperCase()}: $${data.price.toFixed(data.price > 1 ? 2 : 6)} (${changeDir}${change.toFixed(2)}%)\n`;
+              }
+            }
+          }
+        }
+        
+        if (instantResponse) {
+          // Add instant response immediately
+          setMessages(prev => [...prev, { type: 'ai', content: instantResponse.trim() }]);
+          setIsLoading(false);
+          setShowInput(true);
+          return; // Skip the AI call completely!
+        }
+      }
+      
+      let result;
+      if (hasContext && !useSearchFromStart) {
+        log('⚡ FAST MODE: Using bubble context first, no search needed');
+        result = await sendMessage(message, [], false, false); // Bubble data only
+      } else {
+        log('🌐 COMPLETE MODE: Enabling search for comprehensive answer');
+        result = await sendMessage(message, [], true, false); // With search
+      }
       
       if (!result) {
         // sendMessage returned false - connection failed after waiting
@@ -1472,8 +1558,8 @@ export default function Home() {
             )}
           </div>
         </div>
-      {/* Render all Lurky bubble instances */}
-      {lurkyBubbles.map(bubble => (
+      {/* Render all Lurky bubble instances - only if plugin enabled */}
+      {isPluginEnabled('lurky') && lurkyBubbles.map(bubble => (
         <FloatingLurkyBubble
           key={bubble.id}
           isOpen={true}
@@ -1485,8 +1571,8 @@ export default function Home() {
         />
       ))}
       
-      {/* Render all CoinGecko bubble instances */}
-      {coinGeckoBubbles.map(bubble => (
+      {/* Render all CoinGecko bubble instances - only if plugin enabled */}
+      {isPluginEnabled('coingecko') && coinGeckoBubbles.map(bubble => (
         <FloatingCoinGeckoBubble
           key={bubble.id}
           isOpen={true}
@@ -1498,8 +1584,8 @@ export default function Home() {
         />
       ))}
       
-      {/* Render all CoinStats bubble instances */}
-      {coinstatsBubbles.map(bubble => (
+      {/* Render all CoinStats bubble instances - only if plugin enabled */}
+      {isPluginEnabled('coinstats') && coinstatsBubbles.map(bubble => (
         <FloatingCoinStatsBubble
           key={bubble.id}
           isOpen={true}
@@ -1511,8 +1597,8 @@ export default function Home() {
         />
       ))}
       
-      {/* Render all ICP bubble instances */}
-      {icpBubbles.map(bubble => (
+      {/* Render all ICP bubble instances - only if plugin enabled */}
+      {isPluginEnabled('icp') && icpBubbles.map(bubble => (
         <FloatingICPBubble
           key={bubble.id}
           isOpen={true}
@@ -1524,8 +1610,8 @@ export default function Home() {
         />
       ))}
       
-      {/* Render all Hedera bubble instances */}
-      {hederaBubbles.map(bubble => (
+      {/* Render all Hedera bubble instances - only if plugin enabled */}
+      {isPluginEnabled('hedera') && hederaBubbles.map(bubble => (
         <FloatingHederaBubble
           key={bubble.id}
           isOpen={true}
@@ -1536,8 +1622,8 @@ export default function Home() {
         />
       ))}
       
-      {/* Render all ChangeNOW bubble instances */}
-      {changeNowBubbles.map(bubble => (
+      {/* Render all ChangeNOW bubble instances - only if plugin enabled */}
+      {isPluginEnabled('changenow') && changeNowBubbles.map(bubble => (
         <FloatingChangeNowBubble
           key={bubble.id}
           isOpen={true}

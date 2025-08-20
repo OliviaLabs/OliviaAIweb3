@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import ReactMarkdown from 'react-markdown';
 import { createPortal } from 'react-dom';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import lurkyCharacter from '../../assets/lurky-character.png';
 
 const FloatingLurkyBubble = ({ isOpen, onClose, title = 'Lurky', content = '', loading = false, addParticlesToSwarm }) => {

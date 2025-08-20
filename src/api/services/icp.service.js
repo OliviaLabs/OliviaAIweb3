@@ -169,9 +169,9 @@ export const icpService = {
       const actorInstance = await createActor(this._currentIdentity);
       const result = await actorInstance.greet('Frontend');
       return { success: true, message: result };
-    } catch (error) {
-      error('ICP connection test failed:', error);
-      return { success: false, error: error.message };
+    } catch (err) {
+      error('ICP connection test failed:', err);
+      return { success: false, error: err.message };
     }
   },
 
@@ -186,9 +186,9 @@ export const icpService = {
       } else {
         return { success: false, error: result.err };
       }
-    } catch (error) {
-      error('Create user failed:', error);
-      return { success: false, error: error.message };
+    } catch (err) {
+      error('Create user failed:', err);
+      return { success: false, error: err.message };
     }
   },
 
@@ -202,9 +202,9 @@ export const icpService = {
       } else {
         return { success: false, error: result.err };
       }
-    } catch (error) {
-      error('Create guest user failed:', error);
-      return { success: false, error: error.message };
+    } catch (err) {
+      error('Create guest user failed:', err);
+      return { success: false, error: err.message };
     }
   },
 
@@ -218,9 +218,9 @@ export const icpService = {
       } else {
         return { success: false, error: result.err };
       }
-    } catch (error) {
-      error('Get user failed:', error);
-      return { success: false, error: error.message };
+    } catch (err) {
+      error('Get user failed:', err);
+      return { success: false, error: err.message };
     }
   },
 
@@ -247,9 +247,9 @@ export const icpService = {
       } else {
         return { success: false, error: result.err };
       }
-    } catch (error) {
-      error('🟦 ICP Service: Save message failed:', error);
-      return { success: false, error: error.message };
+    } catch (err) {
+      error('🟦 ICP Service: Save message failed:', err);
+      return { success: false, error: err.message };
     }
   },
 
@@ -263,9 +263,9 @@ export const icpService = {
       } else {
         return { success: false, error: result.err };
       }
-    } catch (error) {
-      error('Get user messages failed:', error);
-      return { success: false, error: error.message };
+    } catch (err) {
+      error('Get user messages failed:', err);
+      return { success: false, error: err.message };
     }
   },
 

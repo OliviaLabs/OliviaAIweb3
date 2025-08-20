@@ -2,7 +2,7 @@
 import { useAuth } from '../contexts/AuthContext';
 import { useInternetIdentity } from '../contexts/InternetIdentityContext';
 import Button from '../components/ui/Button';
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Login() {

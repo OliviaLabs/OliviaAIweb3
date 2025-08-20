@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
 import PropTypes from 'prop-types';
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useInternetIdentity } from '../../contexts/InternetIdentityContext';
 import { log } from '../../utils/logger.js';

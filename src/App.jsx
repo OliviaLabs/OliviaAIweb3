@@ -2,10 +2,11 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import Home from './pages/Home';
 import Login from './pages/Login';
+import Plugins from './pages/Plugins';
 
 import Layout from './components/layout/Layout';
 import { PrivateRoute, PublicRoute } from './components/auth/RouteGuards';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import QrCode from './pages/QrCode';
 
 function App() {
@@ -69,6 +70,7 @@ function App() {
               <Route element={<Layout />}>
                 <Route path="/home" element={<Home />} />
               </Route>
+              <Route path="/plugins" element={<Plugins />} />
             </Route>
 
             {/* Catch-all route for deleted/unknown pages */}

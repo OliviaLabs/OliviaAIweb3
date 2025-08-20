@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import coinstatsLogo from '../../api/services/coinstats-2.png';
 
 const FloatingCoinStatsBubble = ({ isOpen, onClose, title = 'CoinStats', content = '', loading = false, addParticlesToSwarm }) => {

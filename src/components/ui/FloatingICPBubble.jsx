@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { CheckCircle, AlertCircle, Loader, Wifi, WifiOff, Shield, User } from 'lucide-react';
 import icpLogo from '../../assets/icp-logo.jpg';

@@ -1,7 +1,7 @@
 // src/components/BottomNavigation.jsx
 import { useNavigate, useLocation } from 'react-router-dom';
 import Button from '../ui/Button';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import ConnectWalletModalComponent from '../ui/ConnectWalletModalComponent';
 import { startOliviaChat } from '../../utils/olivia';

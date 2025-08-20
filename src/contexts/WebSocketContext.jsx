@@ -90,8 +90,8 @@ export const WebSocketProvider = ({ children }) => {
       log('🟦 Conversation ID expires on:', new Date(expirationTime).toLocaleDateString());
       
       return newConversationId;
-    } catch (error) {
-      error('🟦 Error managing conversation ID localStorage:', error);
+    } catch (err) {
+      error('🟦 Error managing conversation ID localStorage:', err);
       // Fallback: generate temporary random ID without storage
       const fallbackId = generateConversationId();
       log('🟦 Using fallback conversation ID:', fallbackId);
@@ -160,8 +160,8 @@ export const WebSocketProvider = ({ children }) => {
         try {
           wsRef.current.send(JSON.stringify({ type: 'ping', timestamp: now }));
           log('💓 Ping sent');
-        } catch (error) {
-          error('💓 Failed to send ping:', error);
+        } catch (err) {
+          error('💓 Failed to send ping:', err);
           wsRef.current.close(1000, 'Ping failed');
         }
       }
@@ -213,8 +213,8 @@ export const WebSocketProvider = ({ children }) => {
       log('🟦 New conversation ID expires on:', new Date(expirationTime).toLocaleDateString());
       
       return newConversationId;
-    } catch (error) {
-      error('🟦 Error clearing conversation ID:', error);
+    } catch (err) {
+      error('🟦 Error clearing conversation ID:', err);
       return null;
     }
   }, []);
@@ -255,8 +255,8 @@ export const WebSocketProvider = ({ children }) => {
         setIcpInitialized(true);
         setConversationId(generateConversationId());
       }
-    } catch (error) {
-      error('🟦 ICP initialization error:', error);
+    } catch (err) {
+      error('🟦 ICP initialization error:', err);
       
       // FALLBACK: Set minimal state to make it work
       log('🟦 ERROR FALLBACK: Setting minimal ICP state');
@@ -310,8 +310,8 @@ export const WebSocketProvider = ({ children }) => {
         log('🟦 No conversation history found or failed to retrieve');
         return [];
       }
-    } catch (error) {
-      error('🟦 Error retrieving conversation history:', error);
+    } catch (err) {
+      error('🟦 Error retrieving conversation history:', err);
       return [];
     }
   }, [icpInitialized, icpUser, conversationId]);
@@ -401,8 +401,8 @@ export const WebSocketProvider = ({ children }) => {
         error('🟦 Failed to save message to ICP:', result.error);
       }
       
-    } catch (error) {
-      error('🔒 Error in privacy processing or ICP save:', error);
+    } catch (err) {
+      error('🔒 Error in privacy processing or ICP save:', err);
       
       // Fallback: if ICP is ready but privacy processing failed, save original messages
       if (icpInitialized && icpUser && conversationId) {
@@ -421,8 +421,8 @@ export const WebSocketProvider = ({ children }) => {
           if (result.success) {
             pendingMessagesRef.current.delete(requestId);
           }
-        } catch (fallbackError) {
-          error('🟦 Fallback save also failed:', fallbackError);
+        } catch (fallbackErr) {
+          error('🟦 Fallback save also failed:', fallbackErr);
         }
       }
     }
@@ -530,8 +530,8 @@ export const WebSocketProvider = ({ children }) => {
     messageHandlersRef.current.forEach(handler => {
       try {
         handler(data);
-      } catch (error) {
-        error('Error in message handler:', error);
+      } catch (err) {
+        error('Error in message handler:', err);
       }
     });
   }, [initializeICP, saveToICP]);
@@ -617,8 +617,8 @@ export const WebSocketProvider = ({ children }) => {
         const data = JSON.parse(event.data);
         log('📨 Received WebSocket message:', data);
         handleWebSocketMessage(data);
-      } catch (error) {
-        error('Error parsing WebSocket message:', error);
+      } catch (err) {
+        error('Error parsing WebSocket message:', err);
       }
     };
 
@@ -747,8 +747,8 @@ export const WebSocketProvider = ({ children }) => {
       
       try {
         wsRef.current.send(JSON.stringify(cancelMessage));
-      } catch (error) {
-        error('Error sending cancel message:', error);
+      } catch (err) {
+        error('Error sending cancel message:', err);
       }
     }
   }, []);
@@ -759,8 +759,8 @@ export const WebSocketProvider = ({ children }) => {
     try {
       // Wait for WebSocket to be connected
       await waitForConnection();
-    } catch (error) {
-      error('❌ Failed to establish WebSocket connection:', error);
+    } catch (err) {
+      error('❌ Failed to establish WebSocket connection:', err);
       return false;
     }
 
@@ -836,8 +836,8 @@ export const WebSocketProvider = ({ children }) => {
       
       // Return the requestId so upgrade tracking can be done by the caller
       return requestId;
-    } catch (error) {
-      error('Error sending message:', error);
+    } catch (err) {
+      error('Error sending message:', err);
       return false;
     }
   }, [extractUserOptions, getConversationHistory]);
@@ -933,8 +933,8 @@ export const WebSocketProvider = ({ children }) => {
       log('🟦 FORCING ICP initialization - user will be created as guest');
       try {
         initializeICP();
-      } catch (error) {
-        error('🟦 Error calling initializeICP:', error);
+      } catch (err) {
+        error('🟦 Error calling initializeICP:', err);
       }
     }
   }, [userData, isGuestUser, icpInitialized, initializeICP]);
@@ -946,8 +946,8 @@ export const WebSocketProvider = ({ children }) => {
         log('🟦 BACKUP: Force ICP init after 2 seconds');
         try {
           initializeICP();
-        } catch (error) {
-          error('🟦 BACKUP init error:', error);
+        } catch (err) {
+          error('🟦 BACKUP init error:', err);
         }
       }
     }, 2000);

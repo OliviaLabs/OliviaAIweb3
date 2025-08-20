@@ -1,16 +1,18 @@
 // src/components/TopNavigation.jsx
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { TonConnectButton, useTonWallet, useTonConnectUI } from '@tonconnect/ui-react';
 import { useInternetIdentity } from '../../contexts/InternetIdentityContext';
 
 import { useAuth } from '../../contexts/AuthContext';
 import { useWebSocket } from '../../contexts/WebSocketContext';
 import { useWalletAuthFlow } from '../../hooks/useWalletAuthFlow';
+import { getPluginCounts } from '../../utils/pluginManager';
 
 import Button from '../ui/Button';
 import { log } from '../../utils/logger.js';
 import { useNavigate } from 'react-router-dom';
 import { useAccountUpgrade } from '../../hooks/useAccountUpgrade';
+import { Settings, Puzzle } from 'lucide-react';
 import icpLogo from '../../assets/icp-logo.jpg';
 
 export default function TopNavigation() {
@@ -24,6 +26,17 @@ export default function TopNavigation() {
   // Dropdown state
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Plugin Manager state
+
+  const [pluginCounts, setPluginCounts] = useState(getPluginCounts());
+
+  // Refresh plugin counts periodically
+  useEffect(() => {
+    const refreshCounts = () => setPluginCounts(getPluginCounts());
+    const interval = setInterval(refreshCounts, 2000); // Every 2 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   // Use the shared hook for wallet authentication logic
   const {
@@ -154,8 +167,18 @@ export default function TopNavigation() {
 
       <div className="px-4 py-4" style={{ zIndex: 2147483646 }}>
         <div className="flex justify-between items-center">
-          {/* Left side - empty for now, could add logo */}
-          <div></div>
+          {/* Left side - Plugins button */}
+          <div className="flex items-center gap-3">
+                            <button
+                  onClick={() => navigate('/plugins')}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800/50 hover:bg-gray-700 transition-colors border border-gray-600 hover:border-gray-500"
+                >
+                  <Puzzle className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm text-gray-300">
+                    Plugins ({pluginCounts.enabled}/{pluginCounts.total})
+                  </span>
+                </button>
+          </div>
           
           {/* Right side - User dropdown */}
           <div className="relative" ref={dropdownRef}>
@@ -374,6 +397,8 @@ export default function TopNavigation() {
           </div>
         </div>
       </div>
+
+
     </>
   );
 }

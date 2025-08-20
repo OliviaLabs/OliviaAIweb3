@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import coingeckoIcon from '../../assets/coingecko-icon.png';
 
 const FloatingCoinGeckoBubble = ({ isOpen, onClose, title = 'CoinGecko', content = '', loading = false, addParticlesToSwarm }) => {
