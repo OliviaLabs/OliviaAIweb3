@@ -11,7 +11,19 @@ export default defineConfig({
   optimizeDeps: {
     include: ['@dfinity/agent', '@dfinity/candid', '@dfinity/principal', '@dfinity/identity']
   },
+  preview: {
+    host: '0.0.0.0',
+    port: process.env.PORT || 4173,
+    allowedHosts: [
+      'oliviaaiweb3-1.onrender.com',
+      '.onrender.com', // Allow all render.com subdomains
+      'localhost',
+      '127.0.0.1'
+    ]
+  },
   server: {
+    host: '0.0.0.0',
+    port: process.env.PORT || 3000,
     proxy: {
       '/lurky': {
         target: 'https://api.lurky.app',
