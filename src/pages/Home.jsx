@@ -1308,46 +1308,14 @@ export default function Home() {
       
       log('🔍 Price query detection:', { isSimplePriceQuery, useSearchFromStart, words });
       
-      if (hasContext && isSimplePriceQuery) {
-        log('⚡ INSTANT MODE: Responding immediately with bubble data');
-        
-        // Get bubble data for mentioned tokens
-        const contextData = window.contextAwarenessData || {};
-        const mentionedTokens = words.filter(word => knownCryptos.includes(word));
-        
-        log('🔍 INSTANT MODE Debug:', { 
-          contextData, 
-          mentionedTokens,
-          availableContextTokens: Object.keys(contextData).map(cat => Object.keys(contextData[cat])).flat()
-        });
-        
-        let instantResponse = '';
-        for (const token of mentionedTokens) {
-          for (const category in contextData) {
-            if (contextData[category][token]) {
-              const data = contextData[category][token].data;
-              if (data.price) {
-                const change = data.change_24h || 0;
-                const changeDir = change > 0 ? '+' : '';
-                instantResponse += `${data.name || token.toUpperCase()}: $${data.price.toFixed(data.price > 1 ? 2 : 6)} (${changeDir}${change.toFixed(2)}%)\n`;
-              }
-            }
-          }
-        }
-        
-        if (instantResponse) {
-          // Add instant response immediately
-          setMessages(prev => [...prev, { type: 'ai', content: instantResponse.trim() }]);
-          setIsLoading(false);
-          setShowInput(true);
-          return; // Skip the AI call completely!
-        }
-      }
-      
       let result;
       if (hasContext && !useSearchFromStart) {
-        log('⚡ FAST MODE: Using bubble context first, no search needed');
-        result = await sendMessage(message, [], false, false); // Bubble data only
+        if (isSimplePriceQuery) {
+          log('⚡ AI WITH BUBBLE DATA: Letting AI respond conversationally with bubble context, no search');
+        } else {
+          log('⚡ FAST MODE: Using bubble context first, no search needed');
+        }
+        result = await sendMessage(message, [], false, false); // Bubble context only, no search
       } else {
         log('🌐 COMPLETE MODE: Enabling search for comprehensive answer');
         result = await sendMessage(message, [], true, false); // With search
