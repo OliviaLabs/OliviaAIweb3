@@ -17,8 +17,14 @@ const FloatingPortfolioBubble = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [position, setPosition] = useState({ x: 100, y: 100 });
+  const [position, setPosition] = useState(() => {
+    // Spread bubbles across the bottom third of screen
+    const startX = Math.random() * (window.innerWidth - 300) + 100;
+    const startY = window.innerHeight - Math.random() * 300 - 100; // Random between bottom 100-400px
+    return { x: startX, y: startY };
+  });
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [lastClickTime, setLastClickTime] = useState(0);
   const bubbleRef = useRef(null);
   const bubbleId = useRef(`portfolio-${Date.now()}`).current;
   
@@ -56,16 +62,49 @@ const FloatingPortfolioBubble = ({
   const [isFetchingTokens, setIsFetchingTokens] = useState(false);
   const [pepePrice, setPepePrice] = useState(null);
   
-  // Fetch PEPE price from CoinGecko
-  const fetchPepePrice = useCallback(async () => {
+  // Fetch token prices from CoinStats for any tokens in the wallet
+  const fetchTokenPrices = useCallback(async (tokens) => {
     try {
-      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=pepe&vs_currencies=usd');
-      if (response.ok) {
-        const data = await response.json();
-        setPepePrice(data.pepe?.usd);
+      // Fetch prices for all tokens in parallel
+      const pricePromises = tokens.map(async (token) => {
+        try {
+          const response = await fetch(`http://localhost:3001/api/coinstats/search?query=${token.symbol}&currency=USD`, {
+            method: 'GET',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${import.meta.env.VITE_APP_ACCESS_TOKEN}`,
+              'Origin': window.location.origin
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data && data.data.length > 0) {
+              const tokenData = data.data[0];
+              return {
+                symbol: token.symbol,
+                price: tokenData.price,
+                name: tokenData.name
+              };
+            }
+          }
+          return null;
+        } catch (error) {
+          console.error(`Error fetching price for ${token.symbol}:`, error);
+          return null;
+        }
+      });
+
+      const prices = await Promise.all(pricePromises);
+      const validPrices = prices.filter(price => price !== null);
+      
+      // Update the state with all token prices
+      if (validPrices.length > 0) {
+        // For now, just use the first token's price (we can expand this later)
+        setPepePrice(validPrices[0].price);
       }
     } catch (error) {
-      console.error('Error fetching PEPE price:', error);
+      console.error('Error fetching token prices:', error);
     }
   }, []);
   
@@ -163,7 +202,7 @@ const FloatingPortfolioBubble = ({
           
           // Fetch PEPE price if we have tokens
           if (formattedTokens.length > 0) {
-            fetchPepePrice();
+            fetchTokenPrices(formattedTokens);
             
             // Update AI context with portfolio data
             const portfolioContext = {
@@ -194,13 +233,19 @@ const FloatingPortfolioBubble = ({
     }
     }, [address, chain, isExpanded, isFetchingTokens, tokenBalances.length]);
   
-  // Fetch tokens automatically when wallet connects
+  // Auto-fetch token balances when wallet connects
   useEffect(() => {
-    if (isConnected && address && !tokenBalances.length && !isFetchingTokens) {
-      console.log('🚀 Auto-fetching tokens for connected wallet');
+    if (isConnected && address && !isFetchingTokens) {
       fetchTokenBalances();
     }
-  }, [isConnected, address, fetchTokenBalances, tokenBalances.length, isFetchingTokens]);
+  }, [isConnected, address, fetchTokenBalances, isFetchingTokens]);
+
+  // Fetch token prices when token balances are updated
+  useEffect(() => {
+    if (tokenBalances.length > 0) {
+      fetchTokenPrices(tokenBalances);
+    }
+  }, [tokenBalances, fetchTokenPrices]);
   
   useEffect(() => {
     if (nativeBalance && !balanceLoading) {
@@ -253,40 +298,99 @@ const FloatingPortfolioBubble = ({
     }
   }, [isOpen, hasInitialized]);
 
-  const handleMouseDown = (e) => {
-    if (e.target.closest('button')) return;
+  // Create pop particles and add them to main swarm
+  const createPopEffect = () => {
+    if (!addParticlesToSwarm) return;
     
-    const rect = bubbleRef.current?.getBoundingClientRect();
-    if (rect) {
-      setDragOffset({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      });
-      setIsDragging(true);
+    // Use same dynamic sizing logic
+    let bubbleSize = 128;
+    if (isExpanded && typeof content === 'string') {
+      const lines = content.split('\n').length;
+      const avgLineLength = content.length / lines;
+      const estimatedWidth = Math.max(250, Math.min(450, avgLineLength * 8 + 100));
+      const estimatedHeight = Math.max(200, lines * 20 + 80);
+      bubbleSize = Math.max(estimatedWidth, estimatedHeight);
+    } else if (isExpanded) {
+      bubbleSize = 300;
     }
-    e.preventDefault();
+    const bubbleCenter = {
+      x: position.x + bubbleSize / 2, // Actual bubble center
+      y: position.y + bubbleSize / 2  // Actual bubble center
+    };
+
+    const newParticles = [];
+    for (let i = 0; i < 8; i++) { // Reduced from 25 to 8 particles
+      const angle = (Math.PI * 2 * i) / 8;
+      const speed = Math.random() * 8 + 3; // Faster initial speed
+      const drift = (Math.random() - 0.5) * 0.5; // Random drift
+      newParticles.push({
+        id: Math.random(),
+        x: bubbleCenter.x + (Math.random() - 0.5) * 20, // Slight random spread from center
+        y: bubbleCenter.y + (Math.random() - 0.5) * 20,
+        vx: Math.cos(angle) * speed + drift,
+        vy: Math.sin(angle) * speed - Math.random() * 3, // More varied upward velocity
+        size: Math.random() * 2 + 1.5, // Same as background particles: 1.5-3.5px
+      });
+    }
+    
+    // Add particles to main swarm
+    addParticlesToSwarm(newParticles);
+    
+    setTimeout(() => {
+      onClose();
+    }, 100);
+  };
+
+  const handleMouseDown = (e) => {
+    if (e.target.getAttribute('aria-label') === 'Close') return;
+    
+    setIsDragging(true);
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+  };
+
+  const handleClick = (e) => {
+    // Don't toggle if clicking close button
+    if (e.target.getAttribute('aria-label') === 'Close') return;
+    
+    // Check for double-click to pop
+    const currentTime = Date.now();
+    console.log('🔴 WalletConnect click:', { currentTime, lastClickTime, diff: currentTime - lastClickTime });
+    
+    if (currentTime - lastClickTime < 200) { // Reduced from 300ms to 200ms for better sensitivity
+      console.log('🔴 Double-click detected! Creating pop effect...');
+      createPopEffect();
+      return;
+    }
+    setLastClickTime(currentTime);
+    
+    // Toggle expanded state
+    setIsExpanded(prev => !prev);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    
+    const newX = e.clientX - dragOffset.x;
+    const newY = e.clientY - dragOffset.y;
+    
+    // Use requestAnimationFrame for smoother updates
+    requestAnimationFrame(() => {
+      setPosition({ x: newX, y: newY });
+    });
+  };
+
+  const handleMouseUp = () => {
+    if (isDragging) {
+      setIsDragging(false);
+      // Bubble will resume upward floating automatically
+    }
   };
 
   useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (isDragging) {
-        const newX = e.clientX - dragOffset.x;
-        const newY = e.clientY - dragOffset.y;
-        
-        const maxX = window.innerWidth - (isExpanded ? 350 : 140);
-        const maxY = window.innerHeight - (isExpanded ? 350 : 140);
-        
-        setPosition({
-          x: Math.max(0, Math.min(newX, maxX)),
-          y: Math.max(0, Math.min(newY, maxY))
-        });
-      }
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
     if (isDragging) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
@@ -295,72 +399,24 @@ const FloatingPortfolioBubble = ({
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isDragging, dragOffset, isExpanded]);
+  }, [isDragging, dragOffset]);
 
-  const handleClick = (e) => {
-    if (e.target.closest('button')) return;
-    if (!isDragging) {
-      setIsExpanded(!isExpanded);
-      if (addParticlesToSwarm && !isExpanded) {
-        // Create particle effect on expansion
-        const rect = e.currentTarget.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        
-        // Create array of particles for the effect
-        const particles = [];
-        const particleCount = 20;
-        for (let i = 0; i < particleCount; i++) {
-          const angle = (Math.PI * 2 * i) / particleCount;
-          const velocity = 2 + Math.random() * 3;
-          particles.push({
-            x: centerX,
-            y: centerY,
-            vx: Math.cos(angle) * velocity,
-            vy: Math.sin(angle) * velocity,
-            size: 2 + Math.random() * 3,
-            color: '#a855f7' // Purple color for portfolio
-          });
-        }
-        addParticlesToSwarm(particles);
-      }
-    }
-  };
-
-  useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === 'Escape' && isExpanded) {
-        setIsExpanded(false);
-      }
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isExpanded]);
-
-  if (!isOpen) return null;
-
-  // Dynamic bubble size
-  let bubbleSize = 140;
-  if (isExpanded) {
-    bubbleSize = 400; // Increased size for better layout
-  }
-  
-  const bubbleWidth = bubbleSize;
-  const bubbleHeight = bubbleSize;
-  
-  // Floating animation state
-  const [floatOffset, setFloatOffset] = useState(0);
-  
-  // Floating swarm effect like other bubbles
+  // Floating animation
   useEffect(() => {
     if (!isOpen || isDragging) return;
 
     const interval = setInterval(() => {
       setPosition(prev => {
         // Use same dynamic sizing as outside
-        let bubbleSize = 140;
-        if (isExpanded) {
-          bubbleSize = 400;
+        let bubbleSize = 128;
+        if (isExpanded && typeof content === 'string') {
+          const lines = content.split('\n').length;
+          const avgLineLength = content.length / lines;
+          const estimatedWidth = Math.max(250, Math.min(450, avgLineLength * 8 + 100));
+          const estimatedHeight = Math.max(200, lines * 20 + 80);
+          bubbleSize = Math.max(estimatedWidth, estimatedHeight);
+        } else if (isExpanded) {
+          bubbleSize = 300;
         }
         const margin = 20;
         
@@ -369,7 +425,7 @@ const FloatingPortfolioBubble = ({
         let newX = prev.x;
         
         // Always try to float up (like a balloon)
-        const floatForce = -1.0; // Faster upward force
+        const floatForce = -1.0; // Faster upward force (2x speed)
         newY += floatForce;
         
         // Stop at top of screen naturally
@@ -406,7 +462,7 @@ const FloatingPortfolioBubble = ({
             const overlap = minDistance - distance;
             
             // Very gentle push - small incremental movements
-            const pushForce = overlap * 0.02;
+            const pushForce = overlap * 0.02; // Much smaller force
             newX += Math.cos(angle) * pushForce;
             newY += Math.sin(angle) * pushForce;
           }
@@ -423,6 +479,27 @@ const FloatingPortfolioBubble = ({
 
     return () => clearInterval(interval);
   }, [isOpen, isDragging, isExpanded, bubbleId]);
+
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && isExpanded) {
+        setIsExpanded(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isExpanded]);
+
+  if (!isOpen) return null;
+
+  // Dynamic bubble size
+  let bubbleSize = 140;
+  if (isExpanded) {
+    bubbleSize = 400; // Increased size for better layout
+  }
+  
+  const bubbleWidth = bubbleSize;
+  const bubbleHeight = bubbleSize;
   
   const bubble = (
     <div 
