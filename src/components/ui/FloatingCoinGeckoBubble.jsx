@@ -278,7 +278,7 @@ const FloatingCoinGeckoBubble = ({ isOpen, onClose, title = 'CoinGecko', content
                 </div>
               ) : (
                 // Expanded: Spherical content organization
-                <div className="w-full h-full relative flex flex-col items-center justify-center p-6">
+                <div className="w-full h-full relative flex flex-col items-center p-6">
                   {/* Top section - Icon and title in circular arc */}
                   <div className="absolute top-2 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
                     <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-green-400 shadow-lg shadow-green-500/40 bg-gradient-to-br from-green-400/20 to-green-600/30 mb-2">
@@ -292,11 +292,11 @@ const FloatingCoinGeckoBubble = ({ isOpen, onClose, title = 'CoinGecko', content
                     <div className="text-xs text-white/70 font-medium">Market Data</div>
                   </div>
                   
-                  {/* Central content area - improved text flow */}
-                  <div className="flex-1 px-4 py-2 overflow-y-auto max-h-60">
-                    <div className="text-center space-y-2">
+                  {/* Central content area - no scrollbar, proper text layout */}
+                  <div className="flex-1 px-6 py-4 mt-24">
+                    <div className="text-center space-y-3">
                       {typeof content === 'string' ? (
-                        <div className="text-xs text-white/90 leading-normal space-y-3">
+                        <div className="text-sm text-white/90 leading-relaxed space-y-2">
                           {content.split('\n\n').map((paragraph, index) => (
                             <p key={index} className="text-center">
                               {paragraph.split('\n').map((line, lineIndex) => (

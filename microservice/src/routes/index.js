@@ -5,6 +5,7 @@ import coinStatsRoutes from './coinStatsRoutes.js';
 import lurkyRoutes from './lurkyRoutes.js';
 import okxRoutes from './okxRoutes.js';
 import zeroXRoutes from './zeroXRoutes.js';
+import alchemyRoutes from './alchemyRoutes.js';
 import { OpenAIController } from '../controllers/openaiController.js';
 
 const router = express.Router();
@@ -29,6 +30,9 @@ router.use('/okx', okxRoutes);
 
 // 0x Protocol routes
 router.use('/zerox', zeroXRoutes);
+
+// Alchemy routes
+router.use('/alchemy', alchemyRoutes);
 
 // Default route
 router.get('/', (req, res) => {

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { log, error as logError } from '../../utils/logger.js';
+import zeroXLogo from '../../assets/0x-logo.png';
 
 // 0x Protocol Trading Parameter Extraction Service
 const extractTradingParameters = async (input) => {
@@ -233,7 +234,7 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
               // Expanded: Spherical layout with enhanced content
               <div className="w-full h-full flex flex-col">
                 {/* Header section with logo and title */}
-                <div className="text-center mb-4">
+                <div className="text-center mb-6">
                   <div className="w-12 h-12 rounded-full overflow-hidden border-4 border-purple-400 shadow-2xl shadow-purple-500/60 bg-gradient-to-br from-purple-400/30 to-purple-600/40 mx-auto mb-2 flex items-center justify-center">
                     <span className="text-white font-bold text-lg">0x</span>
                     <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-purple-400/10 to-purple-300/20"></div>
@@ -243,10 +244,10 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
                 </div>
                 
                 {/* Central content area - improved text flow */}
-                <div className="flex-1 px-4 py-2 overflow-y-auto max-h-60">
+                <div className="flex-1 px-6 py-4">
                   <div className="text-center space-y-2">
                     {typeof content === 'string' ? (
-                      <div className="text-xs text-white/90 leading-normal space-y-3">
+                      <div className="text-sm text-white/90 leading-relaxed space-y-2">
                         {content.split('\n\n').map((paragraph, index) => (
                           <p key={index} className="text-center">
                             {paragraph.split('\n').map((line, lineIndex) => (

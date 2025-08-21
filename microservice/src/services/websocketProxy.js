@@ -127,7 +127,113 @@ export class WebSocketProxyService {
         try {
           const message = JSON.parse(data.toString());
           console.log(`📤 Forwarding message from client ${clientId}:`, message.type || 'unknown');
-          externalWs.send(data.toString());
+          
+          // Enhance message with context if it's a text message with context_awareness
+          if (message.type === 'text' && message.data?.options?.context_awareness) {
+            const context = message.data.options.context_awareness;
+            if (Object.keys(context).length > 0) {
+              // Build context string from the awareness data
+              let contextString = '\n\n[Current Market Data Available to You]:\n';
+              
+              // Process market data
+              if (context.market_data) {
+                Object.entries(context.market_data).forEach(([token, tokenData]) => {
+                  if (tokenData && typeof tokenData === 'object') {
+                    // Handle nested data structure (data.data)
+                    const data = tokenData.data || tokenData;
+                    if (data && typeof data === 'object') {
+                      contextString += `\n${token.toUpperCase()}:`;
+                      if (data.name) contextString += ` ${data.name}`;
+                      if (data.symbol) contextString += ` (${data.symbol})`;
+                      if (data.price) contextString += ` - Price: $${typeof data.price === 'number' ? data.price.toFixed(data.price > 1 ? 2 : 6) : data.price}`;
+                      if (data.change_24h) contextString += ` | 24h: ${data.change_24h > 0 ? '+' : ''}${data.change_24h.toFixed(2)}%`;
+                      if (data.market_cap) contextString += ` | MCap: $${(data.market_cap/1e9).toFixed(2)}B`;
+                      if (data.volume_24h) contextString += ` | Vol: $${(data.volume_24h/1e6).toFixed(1)}M`;
+                      if (data.rank) contextString += ` | Rank: #${data.rank}`;
+                    }
+                  }
+                });
+              }
+              
+              // Process sentiment data
+              if (context.sentiment_data) {
+                contextString += '\n\n[Sentiment Data]:';
+                Object.entries(context.sentiment_data).forEach(([token, tokenData]) => {
+                  if (tokenData && typeof tokenData === 'object') {
+                    // Handle nested data structure (data.data)
+                    const data = tokenData.data || tokenData;
+                    if (data && typeof data === 'object') {
+                      contextString += `\n${token.toUpperCase()}:`;
+                      if (data.sentiment_score) contextString += ` Sentiment: ${data.sentiment_score}`;
+                      if (data.social_volume) contextString += ` | Social Volume: ${data.social_volume}`;
+                    }
+                  }
+                });
+              }
+              
+              // Process exchange data
+              if (context.exchange_data) {
+                contextString += '\n\n[Exchange Data]:';
+                Object.entries(context.exchange_data).forEach(([token, tokenData]) => {
+                  if (tokenData && typeof tokenData === 'object') {
+                    const data = tokenData.data || tokenData;
+                    if (data && typeof data === 'object') {
+                      contextString += `\n${token.toUpperCase()}:`;
+                      if (data.from_currency) contextString += ` From: ${data.from_currency}`;
+                      if (data.to_currency) contextString += ` → To: ${data.to_currency}`;
+                      if (data.exchange_rate) contextString += ` | Rate: ${data.exchange_rate}`;
+                      if (data.available === false) contextString += ` | Status: Not Available`;
+                    }
+                  }
+                });
+              }
+              
+              // Process blockchain data
+              if (context.blockchain_data) {
+                contextString += '\n\n[Blockchain Data]:';
+                Object.entries(context.blockchain_data).forEach(([chain, chainData]) => {
+                  if (chainData && typeof chainData === 'object') {
+                    const data = chainData.data || chainData;
+                    if (data && typeof data === 'object') {
+                      contextString += `\n${chain.toUpperCase()}:`;
+                      if (data.token) contextString += ` Token: ${data.token}`;
+                      if (data.price) contextString += ` | Price: $${data.price}`;
+                      if (data.tps) contextString += ` | TPS: ${data.tps}`;
+                      if (data.total_supply) contextString += ` | Supply: ${data.total_supply}`;
+                    }
+                  }
+                });
+              }
+              
+              // Process portfolio data
+              if (context.portfolio_data) {
+                contextString += '\n\n[Portfolio Data]:';
+                Object.entries(context.portfolio_data).forEach(([key, portfolioData]) => {
+                  if (portfolioData && typeof portfolioData === 'object') {
+                    const data = portfolioData.data || portfolioData;
+                    if (data && typeof data === 'object') {
+                      if (data.connected) {
+                        contextString += '\nWallet: Connected';
+                        if (data.message) contextString += ` - ${data.message}`;
+                      } else {
+                        contextString += '\nWallet: Not Connected';
+                      }
+                      // Additional portfolio details can be added here when the bubble provides them
+                      if (data.address) contextString += ` | Address: ${data.address}`;
+                      if (data.balance) contextString += ` | Balance: ${data.balance}`;
+                      if (data.chain) contextString += ` | Chain: ${data.chain}`;
+                    }
+                  }
+                });
+              }
+              
+              // Add context to the message
+              message.data.text = message.data.text + contextString;
+              console.log(`💰 Enhanced message with cryptocurrency context for ${clientId}`);
+            }
+          }
+          
+          externalWs.send(JSON.stringify(message));
         } catch (error) {
           console.error(`Error forwarding message from client ${clientId}:`, error);
           externalWs.send(data.toString()); // Forward as-is if parsing fails

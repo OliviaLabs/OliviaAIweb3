@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Plugin Test</title>
+</head>
+<body>
+    <h1>Testing Plugin States</h1>
+    <div id="output"></div>
+    <script>
+        // Simulate the plugin manager functions
+        const AVAILABLE_PLUGINS = ['lurky', 'coingecko', 'coinstats', 'icp', 'hedera', 'changenow', 'zerox'];
+        
+        const getPluginStates = () => {
+            try {
+                const saved = localStorage.getItem('olivia-plugin-preferences');
+                if (saved) {
+                    return JSON.parse(saved);
+                }
+            } catch (error) {
+                console.warn('Failed to parse saved plugin preferences:', error);
+            }
+            
+            // Default: all plugins disabled
+            return AVAILABLE_PLUGINS.reduce((acc, pluginId) => {
+                acc[pluginId] = false;
+                return acc;
+            }, {});
+        };
+        
+        const states = getPluginStates();
+        document.getElementById('output').innerHTML = '<pre>' + JSON.stringify(states, null, 2) + '</pre>';
+        console.log('Current plugin states:', states);
+    </script>
+</body>
+</html>

@@ -298,7 +298,7 @@ const FloatingICPBubble = ({ isOpen, onClose, title = 'ICP Status', content = ''
                 </div>
               ) : (
                 // Expanded: Spherical content organization
-                <div className="w-full h-full relative flex flex-col items-center justify-center p-6">
+                <div className="w-full h-full relative flex flex-col items-center p-6">
                   {/* Top section - Icon and title in circular arc */}
                   <div className="absolute top-2 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
                     <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-green-400 shadow-lg shadow-green-500/40 bg-gradient-to-br from-green-400/20 to-green-600/30 mb-2">
@@ -312,8 +312,8 @@ const FloatingICPBubble = ({ isOpen, onClose, title = 'ICP Status', content = ''
                     <div className="text-xs text-white/70 font-medium">Network Status</div>
                   </div>
                   
-                  {/* Central content area - improved visual status display */}
-                  <div className="flex-1 px-4 py-2 overflow-y-auto max-h-60">
+                  {/* Central content area - no scrollbar, proper spacing */}
+                  <div className="flex-1 px-6 py-4 mt-28">
                     <div className="text-center space-y-3">
                       {/* Parse and display content with icons */}
                       {(() => {

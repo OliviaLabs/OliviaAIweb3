@@ -35,6 +35,7 @@
   "license": "ISC",
   "description": "OpenAI Microservice with authentication and rate limiting",
   "dependencies": {
+    "alchemy-sdk": "^3.6.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^4.21.2",

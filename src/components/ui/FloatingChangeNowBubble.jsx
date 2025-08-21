@@ -292,7 +292,7 @@ const FloatingChangeNowBubble = ({ isOpen, onClose, title = 'ChangeNOW', content
                 // Expanded: Spherical layout with enhanced content
                 <div className="w-full h-full flex flex-col">
                   {/* Header section with logo and title */}
-                  <div className="text-center mb-4">
+                  <div className="text-center mb-6">
                     <div className="w-12 h-12 rounded-full overflow-hidden border-4 border-orange-400 shadow-2xl shadow-orange-500/60 bg-gradient-to-br from-orange-400/30 to-orange-600/40 mx-auto mb-2">
                       <img 
                         src={changeNowLogo} 
@@ -306,10 +306,10 @@ const FloatingChangeNowBubble = ({ isOpen, onClose, title = 'ChangeNOW', content
                   </div>
                   
                   {/* Central content area - improved text flow */}
-                  <div className="flex-1 px-4 py-2 overflow-y-auto max-h-60">
+                  <div className="flex-1 px-6 py-4">
                     <div className="text-center space-y-2">
                       {typeof content === 'string' ? (
-                        <div className="text-xs text-white/90 leading-normal space-y-3">
+                        <div className="text-sm text-white/90 leading-relaxed space-y-2">
                           {content.split('\n\n').map((paragraph, index) => (
                             <p key={index} className="text-center">
                               {paragraph.split('\n').map((line, lineIndex) => (

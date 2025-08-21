@@ -14,6 +14,8 @@ import FloatingICPBubble from '../components/ui/FloatingICPBubble.jsx';
 import FloatingHederaBubble from '../components/ui/FloatingHederaBubble.jsx';
 import FloatingChangeNowBubble from '../components/ui/FloatingChangeNowBubble.jsx';
 import FloatingZeroXBubble from '../components/ui/FloatingZeroXBubble.jsx';
+import FloatingPortfolioBubble from '../components/ui/FloatingPortfolioBubble.jsx';
+import FloatingAlchemyBubble from '../components/ui/FloatingAlchemyBubble.jsx';
 import InAppBrowser from '../components/ui/InAppBrowser.jsx';
 
 export default function Home() {
@@ -33,6 +35,8 @@ export default function Home() {
   const [hederaBubbles, setHederaBubbles] = useState([])
   const [changeNowBubbles, setChangeNowBubbles] = useState([])
   const [zeroXBubbles, setZeroXBubbles] = useState([])
+  const [portfolioBubbles, setPortfolioBubbles] = useState([])
+  const [alchemyBubbles, setAlchemyBubbles] = useState([])
 
   // Context awareness data for AI chat
   const [contextAwarenessData, setContextAwarenessData] = useState({
@@ -40,6 +44,7 @@ export default function Home() {
     sentiment_data: {},
     exchange_data: {},
     blockchain_data: {},
+    portfolio_data: {},
     last_updated: null
   })
 
@@ -111,22 +116,50 @@ export default function Home() {
 
   // Helper function to update context awareness data
   const updateContextAwareness = useCallback((category, token, data) => {
-    setContextAwarenessData(prev => {
-      const newData = {
-        ...prev,
-        [category]: {
-          ...prev[category],
-          [token]: {
-            data: data,
-            timestamp: new Date().toISOString()
-          }
-        },
-        last_updated: new Date().toISOString()
-      };
-      // Make it globally available for WebSocket context
-      window.contextAwarenessData = newData;
-      return newData;
-    })
+    // Check which plugin this data is from and if it's enabled
+    const sourcePlugin = data?.source?.toLowerCase();
+    let shouldUpdate = true;
+    
+    // Map data sources to plugin IDs
+    const sourceToPlugin = {
+      'lurky': 'lurky',
+      'coingecko': 'coingecko',
+      'coinstats': 'coinstats',
+      'coinstats (olivia thought)': 'coinstats',
+      'hgraph': 'hedera',
+      'hedera': 'hedera',
+      'changenow': 'changenow',
+      '0x protocol': 'zerox',
+      'icp': 'icp',
+      'portfolio': 'portfolio'
+    };
+    
+    // Check if the plugin for this data source is enabled
+    if (sourcePlugin && sourceToPlugin[sourcePlugin]) {
+      shouldUpdate = isPluginEnabled(sourceToPlugin[sourcePlugin]);
+    }
+    
+    // Only update context if the plugin is enabled
+    if (shouldUpdate) {
+      setContextAwarenessData(prev => {
+        const newData = {
+          ...prev,
+          [category]: {
+            ...prev[category],
+            [token]: {
+              data: data,
+              timestamp: new Date().toISOString()
+            }
+          },
+          last_updated: new Date().toISOString()
+        };
+        // Make it globally available for WebSocket context
+        window.contextAwarenessData = newData;
+        return newData;
+      });
+    } else {
+      log(`📵 Skipping context update from disabled plugin: ${sourcePlugin}`);
+    }
   }, [])
 
   const inputRef = useRef(null)
@@ -673,6 +706,13 @@ export default function Home() {
     
     // Detect 0x Protocol mentions (dex and aggregator triggers)
     const mentions0x = /\b(dex|aggregator|0x|best rate|compare rates|cheapest swap)\b/i.test(message)
+    
+    // Detect Portfolio mentions (wallet, balance, holdings triggers)
+    const mentionsPortfolio = /\b(wallet|balance|holdings|portfolio|my tokens|my coins|what do i have|what's in my wallet)\b/i.test(message)
+    
+    // Detect Alchemy mentions (detailed tokens, all tokens, token list)
+    const mentionsAlchemy = /\b(all tokens|token list|detailed balance|all my tokens|every token|alchemy)\b/i.test(message)
+    console.log('🔮 Alchemy trigger check:', { message, mentionsAlchemy, isPluginEnabled: isPluginEnabled('alchemy') })
     
     // Add user message to conversation
     setMessages(prev => [...prev, { type: 'user', content: message }])
@@ -1360,6 +1400,66 @@ export default function Home() {
     }
     // Keep 0x Protocol bubble visible - building conversation bubble map
 
+    // Handle Portfolio bubble logic (wallet/balance mentions)
+    if (mentionsPortfolio && isPluginEnabled('portfolio')) {
+      // Create new Portfolio bubble instance
+      const newBubble = {
+        id: Date.now() + Math.random(), // Unique ID
+        title: 'Portfolio',
+        content: 'Loading wallet data...',
+        loading: true
+      }
+      
+      setPortfolioBubbles(prev => [...prev, newBubble])
+      
+      // The bubble component itself handles fetching wallet data via wagmi hooks
+      // Update context awareness with wallet connection status
+      updateContextAwareness('portfolio_data', 'wallet', {
+        source: 'Portfolio',
+        connected: true, // The bubble will update this with actual data
+        message: 'Portfolio bubble opened - wallet data available in bubble'
+      })
+      
+      // After a short delay, mark as loaded (the bubble component handles actual data)
+      setTimeout(() => {
+        setPortfolioBubbles(prev => prev.map(bubble => 
+          bubble.id === newBubble.id 
+            ? { ...bubble, loading: false }
+            : bubble
+        ))
+      }, 500)
+    }
+    // Keep Portfolio bubble visible - building conversation bubble map
+    
+    // Create Alchemy bubble if mentioned and plugin is enabled
+    if (mentionsAlchemy && isPluginEnabled('alchemy')) {
+      // Create new Alchemy bubble instance
+      const newBubble = {
+        id: Date.now() + Math.random(), // Unique ID
+        title: 'Alchemy',
+        content: 'Loading detailed token analytics...',
+        loading: true
+      }
+      
+      setAlchemyBubbles(prev => [...prev, newBubble])
+      
+      // Update context awareness with alchemy data
+      updateContextAwareness('blockchain_data', 'alchemy', {
+        source: 'Alchemy',
+        connected: true,
+        message: 'Alchemy bubble opened - detailed analytics available'
+      })
+      
+      // After a short delay, mark as loaded
+      setTimeout(() => {
+        setAlchemyBubbles(prev => prev.map(bubble => 
+          bubble.id === newBubble.id 
+            ? { ...bubble, loading: false }
+            : bubble
+        ))
+      }, 500)
+    }
+
     // Send message to Olivia - SMART CONTEXT OPTIMIZATION
     try {
       log('📤 Sending message to Olivia AI...')
@@ -1708,6 +1808,32 @@ export default function Home() {
           loading={bubble.loading}
           addParticlesToSwarm={addParticlesToSwarm}
           originalQuery={bubble.originalQuery} // Pass the original user query for OpenAI extraction
+        />
+      ))}
+      
+      {/* Render all Portfolio bubble instances - only if plugin enabled */}
+      {isPluginEnabled('portfolio') && portfolioBubbles.map(bubble => (
+        <FloatingPortfolioBubble
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setPortfolioBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          title={bubble.title}
+          content={bubble.content}
+          loading={bubble.loading}
+          addParticlesToSwarm={addParticlesToSwarm}
+        />
+      ))}
+      
+      {/* Render all Alchemy bubble instances - only if plugin enabled */}
+      {isPluginEnabled('alchemy') && alchemyBubbles.map(bubble => (
+        <FloatingAlchemyBubble
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setAlchemyBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          title={bubble.title}
+          content={bubble.content}
+          loading={bubble.loading}
+          addParticlesToSwarm={addParticlesToSwarm}
         />
       ))}
       
