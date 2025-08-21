@@ -60,15 +60,18 @@ const FloatingPortfolioBubble = ({
   
   // Track if we're already fetching to prevent duplicate calls
   const [isFetchingTokens, setIsFetchingTokens] = useState(false);
-  const [pepePrice, setPepePrice] = useState(null);
+  const [tokenPrices, setTokenPrices] = useState({});
   
   // Fetch token prices from CoinStats for any tokens in the wallet
   const fetchTokenPrices = useCallback(async (tokens) => {
     try {
       // Fetch prices for all tokens in parallel
+      console.log('💰 Fetching prices for tokens:', tokens.map(t => t.symbol));
+      
       const pricePromises = tokens.map(async (token) => {
         try {
-          const response = await fetch(`http://localhost:3001/api/coinstats/search?query=${token.symbol}&currency=USD`, {
+          console.log(`💰 Fetching price for ${token.symbol}...`);
+          const response = await fetch(`http://localhost:3001/api/coinstats/coins/${token.symbol.toLowerCase()}?currency=USD`, {
             method: 'GET',
             headers: { 
               'Content-Type': 'application/json',
@@ -79,18 +82,21 @@ const FloatingPortfolioBubble = ({
           
           if (response.ok) {
             const data = await response.json();
-            if (data.success && data.data && data.data.length > 0) {
-              const tokenData = data.data[0];
+            if (data.success && data.data) {
+              const tokenData = data.data;
+              console.log(`💰 ✅ Got price for ${token.symbol}: $${tokenData.price}`);
               return {
                 symbol: token.symbol,
                 price: tokenData.price,
                 name: tokenData.name
               };
             }
+          } else {
+            console.log(`💰 ❌ Failed to get price for ${token.symbol}: ${response.status} ${response.statusText}`);
           }
           return null;
         } catch (error) {
-          console.error(`Error fetching price for ${token.symbol}:`, error);
+          console.error(`💰 ❌ Error fetching price for ${token.symbol}:`, error);
           return null;
         }
       });
@@ -100,55 +106,70 @@ const FloatingPortfolioBubble = ({
       
       // Update the state with all token prices
       if (validPrices.length > 0) {
-        // For now, just use the first token's price (we can expand this later)
-        setPepePrice(validPrices[0].price);
+        const priceMap = {};
+        validPrices.forEach(price => {
+          priceMap[price.symbol] = price.price;
+        });
+        setTokenPrices(priceMap);
+        console.log('💰 Updated token prices:', priceMap);
       }
     } catch (error) {
       console.error('Error fetching token prices:', error);
     }
   }, []);
   
+  // Track fetch attempts to prevent infinite loops
+  const [fetchAttempts, setFetchAttempts] = useState(0);
+  const [lastFetchAddress, setLastFetchAddress] = useState(null);
+  
   // Fetch token balances from Alchemy via microservice
   const fetchTokenBalances = useCallback(async () => {
-    if (!address || isFetchingTokens || tokenBalances.length > 0) return;
+    if (!address || isFetchingTokens || (tokenBalances.length > 0 && address === lastFetchAddress)) return;
+    
+    // Prevent infinite loops - max 3 attempts per address
+    if (fetchAttempts >= 3 && address === lastFetchAddress) {
+      console.log('🚫 Max fetch attempts reached for address:', address);
+      return;
+    }
     
     setIsFetchingTokens(true);
+    setFetchAttempts(prev => address === lastFetchAddress ? prev + 1 : 1);
+    setLastFetchAddress(address);
     
     try {
-      // Call Alchemy directly to avoid microservice rate limits
+      // Use microservice to avoid CORS issues
       const network = chain?.id === 1 ? 'eth-mainnet' : 
                       chain?.id === 137 ? 'polygon-mainnet' : 
                       chain?.id === 42161 ? 'arb-mainnet' : 
                       chain?.id === 10 ? 'opt-mainnet' : 
                       'eth-mainnet';
       
-      const alchemyApiKey = '_pGB49JjZobNT7IahUuqg'; // Your API key that works
-      
-      // Get token balances directly from Alchemy
-      const response = await fetch(
-        `https://${network}.g.alchemy.com/v2/${alchemyApiKey}`,
-        {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            id: 1,
-            jsonrpc: '2.0',
-            method: 'alchemy_getTokenBalances',
-            params: [address]
-          })
-        }
-      );
+      // Get token balances via microservice
+      const response = await fetch(`http://localhost:3001/api/alchemy/token-balances`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_APP_ACCESS_TOKEN}`,
+          'Origin': window.location.origin
+        },
+        body: JSON.stringify({
+          address: address,
+          network: network
+        })
+      });
       
       if (response.ok) {
         const data = await response.json();
         console.log('📊 Alchemy response:', data);
-        if (data.result?.tokenBalances) {
-          console.log(`📊 Found ${data.result.tokenBalances.length} tokens from Alchemy`);
+        
+        // Handle both microservice wrapper format and direct Alchemy format
+        const tokenBalances = data.result?.tokenBalances || data.data?.tokenBalances || data.tokenBalances;
+        
+        if (tokenBalances) {
+          console.log(`📊 Found ${tokenBalances.length} tokens from Alchemy`);
           
           // Filter out zero balances
-          const nonZeroTokens = data.result.tokenBalances.filter(
+          const nonZeroTokens = tokenBalances.filter(
             token => token.tokenBalance !== '0x0' && 
                     token.tokenBalance !== '0x00' && 
                     token.tokenBalance !== '0x0000000000000000000000000000000000000000000000000000000000000000'
@@ -160,22 +181,25 @@ const FloatingPortfolioBubble = ({
           const tokenPromises = nonZeroTokens.slice(0, 10).map(async (token) => {
             try {
               const metadataResponse = await fetch(
-                `https://${network}.g.alchemy.com/v2/${alchemyApiKey}`,
+                `http://localhost:3001/api/alchemy/token-metadata`,
                 {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${import.meta.env.VITE_APP_ACCESS_TOKEN}`,
+                    'Origin': window.location.origin
+                  },
                   body: JSON.stringify({
-                    id: 1,
-                    jsonrpc: '2.0',
-                    method: 'alchemy_getTokenMetadata',
-                    params: [token.contractAddress]
+                    contractAddress: token.contractAddress,
+                    network: network
                   })
                 }
               );
               
               if (metadataResponse.ok) {
                 const metadataData = await metadataResponse.json();
-                const metadata = metadataData.result;
+                // Handle both microservice wrapper format and direct Alchemy format
+                const metadata = metadataData.result || metadataData.data || metadataData;
                 const balance = parseInt(token.tokenBalance, 16);
                 const decimals = metadata?.decimals || 18;
                 const formattedBalance = (balance / Math.pow(10, decimals)).toFixed(6);
@@ -199,6 +223,8 @@ const FloatingPortfolioBubble = ({
           console.log(`📊 Showing ${formattedTokens.length} tokens:`, formattedTokens.map(t => `${t.symbol}: ${t.balance}`));
           console.log(`📊 All token details:`, formattedTokens);
           setTokenBalances(formattedTokens);
+          
+          console.log('📊 ✅ Token balances set, will now fetch prices...');
           
           // Fetch PEPE price if we have tokens
           if (formattedTokens.length > 0) {
@@ -228,17 +254,22 @@ const FloatingPortfolioBubble = ({
       }
     } catch (error) {
       console.error('Error fetching token balances:', error);
+      // On error, wait before allowing retry
+      setTimeout(() => {
+        setIsFetchingTokens(false);
+      }, 5000); // 5 second delay before retry
+      return;
     } finally {
       setIsFetchingTokens(false);
     }
-    }, [address, chain, isExpanded, isFetchingTokens, tokenBalances.length]);
+    }, [address, chain, isExpanded, isFetchingTokens, tokenBalances.length, fetchAttempts, lastFetchAddress]);
   
   // Auto-fetch token balances when wallet connects
   useEffect(() => {
-    if (isConnected && address && !isFetchingTokens) {
+    if (isConnected && address && !isFetchingTokens && fetchAttempts < 3) {
       fetchTokenBalances();
     }
-  }, [isConnected, address, fetchTokenBalances, isFetchingTokens]);
+  }, [isConnected, address, fetchTokenBalances, isFetchingTokens, fetchAttempts]);
 
   // Fetch token prices when token balances are updated
   useEffect(() => {
@@ -263,8 +294,10 @@ const FloatingPortfolioBubble = ({
       };
       setPortfolioData(formatted);
       
-      // Fetch ERC-20 token balances
-      fetchTokenBalances();
+      // Fetch ERC-20 token balances (only if not already fetched)
+      if (tokenBalances.length === 0 && fetchAttempts < 3) {
+        fetchTokenBalances();
+      }
       
       // Update AI context with wallet data
       if (isExpanded && isConnected) {
@@ -600,18 +633,25 @@ const FloatingPortfolioBubble = ({
 
                           
                           {/* Simple Token Display */}
-                          <div className="mt-4 text-sm text-white">
+                          <div className="mt-4 text-sm text-white space-y-2">
                             {tokenBalances.length > 0 ? (
-                              <div>
-                                <span className="text-gray-400">{tokenBalances[0].symbol}:</span> {tokenBalances[0].balance}
-                                {pepePrice ? (
-                                  <div className="text-xs text-green-400 mt-1">
-                                    ≈ ${(parseFloat(tokenBalances[0].balance) * pepePrice).toFixed(2)} USD
+                              tokenBalances.map((token, index) => {
+                                const price = tokenPrices[token.symbol];
+                                const usdValue = price ? (parseFloat(token.balance) * price).toFixed(2) : null;
+                                
+                                return (
+                                  <div key={index}>
+                                    <span className="text-gray-400">{token.symbol}:</span> {token.balance}
+                                    {usdValue ? (
+                                      <div className="text-xs text-green-400 mt-1">
+                                        ≈ ${usdValue} USD
+                                      </div>
+                                    ) : (
+                                      <div className="text-xs text-yellow-400 mt-1">Loading price...</div>
+                                    )}
                                   </div>
-                                ) : (
-                                  <div className="text-xs text-yellow-400 mt-1">Loading price...</div>
-                                )}
-                              </div>
+                                );
+                              })
                             ) : (
                               <div className="text-gray-500">Loading...</div>
                             )}
@@ -619,7 +659,7 @@ const FloatingPortfolioBubble = ({
                           
                           {/* Debug info */}
                           <div className="mt-2 text-xs text-gray-600">
-                            Price: ${pepePrice || 'loading'} | Tokens: {tokenBalances.length}
+                            Prices: {Object.keys(tokenPrices).length} | Tokens: {tokenBalances.length}
                           </div>
                         </div>
                       ) : (
