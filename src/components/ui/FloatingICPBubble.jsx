@@ -312,9 +312,9 @@ const FloatingICPBubble = ({ isOpen, onClose, title = 'ICP Status', content = ''
                     <div className="text-xs text-white/70 font-medium">Network Status</div>
                   </div>
                   
-                  {/* Central content area - visual status display */}
-                  <div className="flex-1 flex items-center justify-center mt-16 mb-6 max-w-full">
-                    <div className="text-center px-4 space-y-4">
+                  {/* Central content area - improved visual status display */}
+                  <div className="flex-1 px-4 py-2 overflow-y-auto max-h-60">
+                    <div className="text-center space-y-3">
                       {/* Parse and display content with icons */}
                       {(() => {
                         if (typeof content !== 'string') return null;

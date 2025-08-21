@@ -15,6 +15,7 @@ export const config = {
   okxSecretKey: process.env.OKX_SECRET_KEY,
   okxPassphrase: process.env.OKX_PASSPHRASE,
   okxDexBaseUrl: process.env.OKX_DEX_BASE_URL || 'https://www.okx.com/api/v5/dex/aggregator',
+  zeroXApiKey: process.env.ZEROX_API_KEY,
   allowedOrigin: process.env.ALLOWED_ORIGIN || 'http://localhost:3000',
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000, // 15 minutes
   rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
@@ -45,6 +46,10 @@ if (!config.changeNowApiKey) {
 
 if (!config.coinStatsApiKey) {
   console.warn('Warning: COINSTATS_API_KEY is not set. You will need to set this to use CoinStats features.');
+}
+
+if (!config.zeroXApiKey) {
+  console.warn('Warning: ZEROX_API_KEY is not set. You will need to set this to use 0x Protocol features.');
 }
 
 if (!config.lurkyApiKey) {

@@ -305,16 +305,27 @@ const FloatingChangeNowBubble = ({ isOpen, onClose, title = 'ChangeNOW', content
                     <div className="text-xs text-white/70 font-medium">Crypto Exchange</div>
                   </div>
                   
-                  {/* Central content area - spherical text flow */}
-                  <div className="flex-1 flex items-center justify-center mt-24 mb-4 max-w-full overflow-hidden">
-                    <div className="text-center px-4">
+                  {/* Central content area - improved text flow */}
+                  <div className="flex-1 px-4 py-2 overflow-y-auto max-h-60">
+                    <div className="text-center space-y-2">
                       {typeof content === 'string' ? (
-                        <ReactMarkdown className="whitespace-pre-wrap font-medium text-xs text-white/90 leading-relaxed prose prose-invert max-w-none">
-                          {content}
-                        </ReactMarkdown>
+                        <div className="text-xs text-white/90 leading-normal space-y-3">
+                          {content.split('\n\n').map((paragraph, index) => (
+                            <p key={index} className="text-center">
+                              {paragraph.split('\n').map((line, lineIndex) => (
+                                <span key={lineIndex}>
+                                  {line}
+                                  {lineIndex < paragraph.split('\n').length - 1 && <br />}
+                                </span>
+                              ))}
+                            </p>
+                          ))}
+                        </div>
                       ) : (
-                        <div className="font-mono text-xs text-orange-300 bg-black/30 p-3 rounded-full border border-orange-400/30 max-w-full">
-                          {JSON.stringify(content, null, 2)}
+                        <div className="font-mono text-xs text-orange-300 bg-black/30 p-3 rounded border border-orange-400/30">
+                          <pre className="whitespace-pre-wrap text-left">
+                            {JSON.stringify(content, null, 2)}
+                          </pre>
                         </div>
                       )}
                     </div>

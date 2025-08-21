@@ -1,16 +1,20 @@
 // src/hooks/useWalletAuthFlow.js
 import { useState, useEffect } from 'react';
 import * as api from '../auth/utils/api';
-import { useTonConnectAuth } from '../auth/TonConnectAuth';
 import { useAuth } from '../contexts/AuthContext';
+import { useAccount, useDisconnect } from 'wagmi';
 import { toast } from 'sonner';
 import { aggregateUsers, checkUserExists } from '../api/services/auth.service';
 import { createDefaultGalaxyInstance, createDefaultProfileSettings, createDefaultUser } from '../auth/utils/defaults';
 import { generateRefCode, getReferralCodeFromURL, getTelegramUserInfo } from '../auth/utils/helpers';
 
 export function useWalletAuthFlow() {
-    const { wallet, checkUser, tonError, handleDisconnect } = useTonConnectAuth();
+    const { address, isConnected, connector } = useAccount();
+    const { disconnect } = useDisconnect();
     const { setUserAuthenticated, setUserData, telegramUser, setTelegramUser } = useAuth();
+    
+    // Use address directly as wallet
+    const wallet = isConnected && address ? { account: { address } } : null;
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalUsers, setModalUsers] = useState([]);
@@ -19,8 +23,21 @@ export function useWalletAuthFlow() {
     const [modalMessages, setModalMessages] = useState("");
     const [userId, setUserId] = useState('');
     const [userGalaxyData, setUserGalaxyData] = useState(null);
+    // Stub checkUser function for now since TON Connect is removed
+    const checkUser = async () => {
+        // This would need to be reimplemented for Web3/AppKit
+        return { telegramUsers: [], needsAggregation: false };
+    };
+    
+    const handleDisconnect = () => {
+        disconnect();
+    };
+
     // When wallet connects, check authentication status and decide if a modal is needed.
     useEffect(() => {
+        // DISABLED - We're handling auth in Login.jsx now with AppKit
+        return;
+        
         if (wallet) {
             //console.log("Wallet exists:", wallet);
             checkUser().then(async (result) => {
@@ -107,7 +124,7 @@ export function useWalletAuthFlow() {
                 }
             });
         }
-    }, [wallet, checkUser, setUserAuthenticated, setUserData]);
+    }, [wallet]); // Simplified dependencies to prevent infinite loops
 
     // Handle wallet disconnection and errors.
     // useEffect(() => {
@@ -132,13 +149,7 @@ export function useWalletAuthFlow() {
         } else if (telegramUser && !wallet) {
             setUserAuthenticated(true);
         }
-        if (tonError) {
-            console.error('TON Connect error:', tonError);
-            handleDisconnect();
-            setUserAuthenticated(false);
-            setUserData(null); // Clear user data on error
-        }
-    }, [wallet, tonError, handleDisconnect, setUserAuthenticated, setUserData, telegramUser]);
+    }, [wallet, telegramUser]); // Removed setUserAuthenticated and setUserData from dependencies
 
 
     // Function to handle account aggregation, wallet replacement, or wallet connection.

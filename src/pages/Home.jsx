@@ -5,7 +5,7 @@ import { useInternetIdentity } from '../contexts/InternetIdentityContext'
 import { isPluginEnabled } from '../utils/pluginManager'
 import { useAccountUpgrade } from '../hooks/useAccountUpgrade';
 import { icpService } from '../api/services/icp.service.js';
-import { lurkyService, coingeckoService, coinstatsService, hgraphService, changeNowService } from '../api';
+import { lurkyService, coingeckoService, coinstatsService, hgraphService, changeNowService, zeroXService } from '../api';
 import { log, error as logError } from '../utils/logger.js';
 import FloatingLurkyBubble from '../components/ui/FloatingLurkyBubble.jsx';
 import FloatingCoinGeckoBubble from '../components/ui/FloatingCoinGeckoBubble.jsx';
@@ -13,6 +13,7 @@ import FloatingCoinStatsBubble from '../components/ui/FloatingCoinStatsBubble.js
 import FloatingICPBubble from '../components/ui/FloatingICPBubble.jsx';
 import FloatingHederaBubble from '../components/ui/FloatingHederaBubble.jsx';
 import FloatingChangeNowBubble from '../components/ui/FloatingChangeNowBubble.jsx';
+import FloatingZeroXBubble from '../components/ui/FloatingZeroXBubble.jsx';
 import InAppBrowser from '../components/ui/InAppBrowser.jsx';
 
 export default function Home() {
@@ -31,6 +32,7 @@ export default function Home() {
   const [icpBubbles, setIcpBubbles] = useState([])
   const [hederaBubbles, setHederaBubbles] = useState([])
   const [changeNowBubbles, setChangeNowBubbles] = useState([])
+  const [zeroXBubbles, setZeroXBubbles] = useState([])
 
   // Context awareness data for AI chat
   const [contextAwarenessData, setContextAwarenessData] = useState({
@@ -669,6 +671,9 @@ export default function Home() {
     // Detect ChangeNOW mentions (buy and swap triggers)
     const mentionsChangeNow = /\b(buy|swap|exchange|trade|convert)\b/i.test(message)
     
+    // Detect 0x Protocol mentions (dex and aggregator triggers)
+    const mentions0x = /\b(dex|aggregator|0x|best rate|compare rates|cheapest swap)\b/i.test(message)
+    
     // Add user message to conversation
     setMessages(prev => [...prev, { type: 'user', content: message }])
     setUserInput('')
@@ -1267,6 +1272,94 @@ export default function Home() {
     }
     // Keep ChangeNOW bubble visible - building conversation bubble map
 
+    // Handle 0x Protocol bubble logic (dex/aggregator mentions)
+    if (mentions0x && mentionedCoin) {
+      // Create new 0x Protocol bubble instance
+      const newBubble = {
+        id: Date.now() + Math.random(), // Unique ID
+        title: `${mentionedCoin.toUpperCase()} DEX Rates - 0x Protocol`,
+        content: `Getting best swap rates for ${mentionedCoin.toUpperCase()}...`,
+        loading: true,
+        originalQuery: message // Store the original user message for OpenAI extraction
+      }
+      
+      setZeroXBubbles(prev => [...prev, newBubble])
+      ;(async () => {
+        try {
+          // Get swap price for popular pairs
+          const baseToken = mentionedCoin.toLowerCase() === 'eth' ? 'ETH' : 'WETH';
+          const quoteToken = 'USDC';
+          const sellAmount = '1000000000000000000'; // 1 ETH in wei
+          
+          const swapData = await zeroXService.getSwapPrice(baseToken, quoteToken, sellAmount);
+          
+          let swapText = `**${mentionedCoin.toUpperCase()} DEX Aggregation via 0x Protocol**\n\n`;
+          
+          if (swapData && swapData.price) {
+            swapText += `💱 **Current Rate**: 1 ${baseToken} = ${parseFloat(swapData.price).toFixed(4)} ${quoteToken}\n\n`;
+            
+            if (swapData.buyAmount) {
+              const buyAmount = zeroXService.convertFromBaseUnits(swapData.buyAmount, 6); // USDC has 6 decimals
+              swapText += `📊 **Exchange Amount**: ${buyAmount.toFixed(2)} ${quoteToken}\n\n`;
+            }
+            
+            if (swapData.sources && swapData.sources.length > 0) {
+              swapText += `🔄 **Liquidity Sources**:\n`;
+              swapData.sources.slice(0, 3).forEach(source => {
+                swapText += `• ${source.name}: ${(source.proportion * 100).toFixed(1)}%\n`;
+              });
+              swapText += '\n';
+            }
+            
+            swapText += `⚡ **Gas Estimate**: ${swapData.estimatedGas || 'N/A'} gas\n\n`;
+            swapText += `🎯 **Best execution** across multiple DEXs\n`;
+            swapText += `🔒 **Secure** on-chain settlement\n\n`;
+            swapText += `Ready to swap on [Matcha](https://matcha.xyz/)`;
+            
+            // Update context awareness
+            updateContextAwareness('dex_data', mentionedCoin.toLowerCase(), {
+              source: '0x Protocol',
+              price: swapData.price,
+              buyAmount: swapData.buyAmount,
+              sources: swapData.sources || [],
+              timestamp: new Date().toISOString()
+            })
+          } else {
+            swapText += `❌ **Not Available**\n\n`;
+            swapText += `Unfortunately, ${mentionedCoin.toUpperCase()} is not available for swapping on 0x Protocol.\n\n`;
+            swapText += `**Available tokens**: ETH, WETH, USDC, DAI, UNI, and most ERC-20 tokens\n\n`;
+            swapText += `Try asking for:\n`;
+            swapText += `• "best rates for ethereum"\n`;
+            swapText += `• "dex prices for bitcoin"\n`;
+            swapText += `• "0x swap usdc"`;
+            
+            // Update context awareness even for unavailable tokens
+            updateContextAwareness('dex_data', mentionedCoin.toLowerCase(), {
+              source: '0x Protocol',
+              available: false,
+              reason: 'Token not supported on 0x'
+            })
+          }
+          
+          // Update the specific bubble
+          setZeroXBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, content: swapText, loading: false }
+              : bubble
+          ))
+        } catch (e) {
+          console.error('0x Protocol error:', e)
+          // Update the specific bubble with error
+          setZeroXBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, content: `0x Protocol API Error\n\nCouldn't fetch DEX data for ${mentionedCoin.toUpperCase()}\n\nTry asking for:\n• "best rates for ethereum"\n• "dex aggregator for usdc"\n• "0x protocol swap"`, loading: false }
+              : bubble
+          ))
+        }
+      })()
+    }
+    // Keep 0x Protocol bubble visible - building conversation bubble map
+
     // Send message to Olivia - SMART CONTEXT OPTIMIZATION
     try {
       log('📤 Sending message to Olivia AI...')
@@ -1596,6 +1689,20 @@ export default function Home() {
           key={bubble.id}
           isOpen={true}
           onClose={() => setChangeNowBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          title={bubble.title}
+          content={bubble.content}
+          loading={bubble.loading}
+          addParticlesToSwarm={addParticlesToSwarm}
+          originalQuery={bubble.originalQuery} // Pass the original user query for OpenAI extraction
+        />
+      ))}
+      
+      {/* Render all 0x Protocol bubble instances - only if plugin enabled */}
+      {isPluginEnabled('zerox') && zeroXBubbles.map(bubble => (
+        <FloatingZeroXBubble
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setZeroXBubbles(prev => prev.filter(b => b.id !== bubble.id))}
           title={bubble.title}
           content={bubble.content}
           loading={bubble.loading}

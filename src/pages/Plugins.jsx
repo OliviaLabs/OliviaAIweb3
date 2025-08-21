@@ -8,7 +8,7 @@ import {
   disableAllPlugins, 
   getPluginCounts 
 } from '../utils/pluginManager';
-import { Power, PowerOff, Settings, Info, ToggleLeft, ToggleRight, ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ToggleLeft, ToggleRight } from 'lucide-react';
 
 const Plugins = () => {
   const navigate = useNavigate();
@@ -45,174 +45,184 @@ const Plugins = () => {
   );
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      {/* Header */}
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center gap-4 mb-8">
+    <div className="min-h-screen bg-black text-white overflow-y-auto">
+      {/* Fixed Header */}
+      <div className="sticky top-0 bg-black/95 backdrop-blur-sm border-b border-gray-800 z-10 px-4 py-3">
+        <div className="flex items-center justify-between">
           <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors border border-gray-600"
+            onClick={() => navigate('/home')}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-800/80 hover:bg-gray-700 transition-colors text-sm"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back to Chat</span>
+            <span>Back</span>
           </button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold flex items-center gap-3">
-              <Settings className="w-8 h-8 text-blue-400" />
-              Plugin Manager
-            </h1>
-            <p className="text-gray-400 mt-1">
-              Control which data sources and tools are active in your Olivia AI experience
-            </p>
+          <h1 className="text-lg font-bold">Plugins</h1>
+          <div className="text-xs text-gray-400">
+            {pluginCounts.enabled}/{pluginCounts.total}
+          </div>
+        </div>
+      </div>
+
+      {/* Content Container */}
+      <div className="px-4 md:px-6 lg:px-8 pb-20 max-w-7xl mx-auto">
+        {/* How it Works - Top Section */}
+        <div className="mt-3 bg-gradient-to-r from-blue-900/20 to-purple-900/20 rounded-lg p-3 border border-blue-800/30">
+          <h3 className="font-semibold text-blue-300 mb-2 text-sm">Plugins for Olivia AI</h3>
+          <div className="text-xs text-gray-300 space-y-1" style={{fontSize: '11px', lineHeight: '16px'}}>
+            <div>• <strong>Opening a whole new world of data</strong> to Olivia AI</div>
+            <div>• You'll see <strong>her thoughts displayed as bubbles</strong> with crucial data she's found and is using</div>
+            <div>• Each plugin provides specialized real-time information during your conversations</div>
+            <div>• Tap icons below to enable/disable plugins - changes apply immediately</div>
           </div>
         </div>
 
-        {/* Statistics */}
-        <div className="bg-gray-900/50 rounded-lg p-6 mb-8 border border-gray-700">
+        {/* Responsive Stats */}
+        <div className="bg-gray-900/30 rounded-lg p-3 md:p-4 my-3 border border-gray-800">
           <div className="flex items-center justify-between">
-            <div className="grid grid-cols-3 gap-8">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-400">{pluginCounts.enabled}</div>
-                <div className="text-sm text-gray-400">Enabled</div>
+            <div className="flex gap-4 md:gap-6 text-xs md:text-sm">
+              <div className="text-center md:text-left">
+                <span className="text-green-400 font-medium">{pluginCounts.enabled}</span>
+                <span className="text-gray-400 ml-1">Active</span>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-400">{pluginCounts.disabled}</div>
-                <div className="text-sm text-gray-400">Disabled</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-400">{pluginCounts.total}</div>
-                <div className="text-sm text-gray-400">Total</div>
+              <div className="text-center md:text-left">
+                <span className="text-gray-400 font-medium">{pluginCounts.disabled}</span>
+                <span className="text-gray-400 ml-1">Inactive</span>
               </div>
             </div>
             
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <button
                 onClick={handleEnableAll}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 transition-colors"
+                className="px-2 md:px-3 py-1 md:py-1.5 rounded bg-green-600/80 hover:bg-green-600 transition-colors text-xs md:text-sm font-medium"
               >
-                <Power className="w-4 h-4" />
-                Enable All
+                All On
               </button>
               <button
                 onClick={handleDisableAll}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 transition-colors"
+                className="px-2 md:px-3 py-1 md:py-1.5 rounded bg-red-600/80 hover:bg-red-600 transition-colors text-xs md:text-sm font-medium"
               >
-                <PowerOff className="w-4 h-4" />
-                Disable All
+                All Off
               </button>
             </div>
           </div>
         </div>
 
-        {/* Category Filter */}
-        <div className="flex gap-2 mb-6 overflow-x-auto">
+        {/* Compact Category Pills */}
+        <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1">
           {categories.map(category => (
             <button
               key={category}
               onClick={() => setSelectedCategory(category)}
-              className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
+              className={`px-2.5 py-1 rounded-full whitespace-nowrap text-xs transition-all ${
                 selectedCategory === category
                   ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  : 'bg-gray-800/60 text-gray-400 hover:bg-gray-700/60'
               }`}
+              style={{fontSize: '10px'}}
             >
               {category}
             </button>
           ))}
         </div>
 
-        {/* Plugins Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Responsive Plugin Grid */}
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 md:gap-4">
           {filteredPlugins.map(plugin => {
             const enabled = pluginStates[plugin.id] || false;
             
             return (
               <div
                 key={plugin.id}
-                className={`bg-gray-900/50 rounded-lg p-6 border transition-all duration-200 ${
-                  enabled 
-                    ? 'border-green-500/50 bg-green-900/10' 
-                    : 'border-gray-600 hover:border-gray-500'
-                }`}
+                className="relative group flex flex-col items-center"
               >
-                {/* Plugin Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
+                {/* Responsive Plugin Icon */}
+                <div 
+                  className={`relative w-14 h-14 sm:w-16 sm:h-16 md:w-12 md:h-12 lg:w-14 lg:h-14 rounded-xl overflow-hidden transition-all duration-300 cursor-pointer ${
+                    enabled 
+                      ? 'shadow-md shadow-green-500/30 scale-100' 
+                      : 'grayscale opacity-60 scale-95 hover:scale-100'
+                  }`}
+                  onClick={() => handleToggle(plugin.id)}
+                  title={plugin.description} // Tooltip on hover
+                >
+                  {/* Icon Background */}
+                  <div 
+                    className={`w-full h-full flex items-center justify-center rounded-xl border transition-all ${
+                      enabled 
+                        ? plugin.color === 'purple' ? 'bg-gradient-to-br from-purple-500 to-purple-700 border-purple-400/50' :
+                          plugin.color === 'green' ? 'bg-gradient-to-br from-green-500 to-green-700 border-green-400/50' :
+                          plugin.color === 'blue' ? 'bg-gradient-to-br from-blue-500 to-blue-700 border-blue-400/50' :
+                          plugin.color === 'orange' ? 'bg-gradient-to-br from-orange-500 to-orange-700 border-orange-400/50' :
+                          'bg-gradient-to-br from-gray-500 to-gray-700 border-gray-400/50'
+                        : 'bg-gradient-to-br from-gray-600 to-gray-800 border-gray-600/30'
+                    }`}
+                  >
+                    {/* Plugin Logo */}
                     <img 
                       src={plugin.logo} 
                       alt={`${plugin.name} Logo`}
-                      className={`w-12 h-12 rounded-lg object-cover transition-transform duration-200 ${
-                        enabled ? 'scale-105' : 'grayscale opacity-70'
-                      }`}
+                      className="w-6 h-6 sm:w-8 sm:h-8 md:w-6 md:h-6 lg:w-7 lg:h-7 rounded object-cover"
+                      onError={(e) => {
+                        // Fallback for broken images
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
                     />
-                    <div>
-                      <h3 className={`font-semibold ${enabled ? `text-green-400` : 'text-white'}`}>
-                        {plugin.name}
-                      </h3>
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        plugin.category === 'Analytics' ? 'bg-purple-900/50 text-purple-300' :
-                        plugin.category === 'Market Data' ? 'bg-blue-900/50 text-blue-300' :
-                        plugin.category === 'Blockchain' ? 'bg-green-900/50 text-green-300' :
-                        plugin.category === 'Exchange' ? 'bg-orange-900/50 text-orange-300' :
-                        'bg-gray-700 text-gray-300'
-                      }`}>
-                        {plugin.category}
-                      </span>
+                    {/* Text Fallback */}
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 md:w-6 md:h-6 lg:w-7 lg:h-7 rounded bg-white/10 backdrop-blur-sm flex items-center justify-center text-white text-sm md:text-xs lg:text-sm font-bold hidden">
+                      {plugin.name.charAt(0)}
                     </div>
                   </div>
-                  
-                  {/* Toggle Switch */}
-                  <button
-                    onClick={() => handleToggle(plugin.id)}
-                    className={`flex items-center justify-center w-12 h-6 rounded-full transition-colors ${
-                      enabled ? 'bg-green-500' : 'bg-gray-600'
-                    }`}
-                  >
-                    <div className={`w-4 h-4 bg-white rounded-full transition-transform ${
-                      enabled ? 'translate-x-3' : '-translate-x-3'
-                    }`} />
-                  </button>
+
+                  {/* Status Indicator */}
+                  <div className={`absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 md:w-3 md:h-3 lg:w-4 lg:h-4 rounded-full flex items-center justify-center transition-all ${
+                    enabled 
+                      ? 'bg-green-400 shadow-md shadow-green-400/50' 
+                      : 'bg-gray-500'
+                  }`}>
+                    <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-1.5 md:h-1.5 lg:w-2 lg:h-2 rounded-full bg-white"></div>
+                  </div>
+
+                  {/* Mobile Description Popup */}
+                  <div className="md:hidden absolute -bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs p-2 rounded-lg shadow-lg opacity-0 group-active:opacity-100 transition-opacity z-20 w-40 text-center pointer-events-none">
+                    {plugin.description}
+                    <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+                  </div>
                 </div>
 
-                {/* Plugin Description */}
-                <p className="text-gray-400 text-sm mb-4 leading-relaxed">
-                  {plugin.description}
-                </p>
-
-                {/* Plugin Status */}
-                <div className="flex items-center gap-2 text-sm">
-                  {enabled ? (
-                    <>
-                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                      <span className="text-green-400">Active</span>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-2 h-2 bg-gray-500 rounded-full" />
-                      <span className="text-gray-500">Inactive</span>
-                    </>
-                  )}
+                {/* Plugin Name & Description */}
+                <div className="mt-2 text-center w-full">
+                  <div className={`text-xs sm:text-sm md:text-xs lg:text-sm font-medium truncate transition-colors ${
+                    enabled ? 'text-white' : 'text-gray-500'
+                  }`}>
+                    {plugin.name}
+                  </div>
+                  {/* Desktop Description - shows on larger screens */}
+                  <div className={`hidden md:block text-xs text-gray-400 mt-1 leading-tight h-8 overflow-hidden ${
+                    enabled ? 'text-gray-300' : 'text-gray-500'
+                  }`} style={{fontSize: '10px', lineHeight: '12px'}}>
+                    {plugin.description}
+                  </div>
+                  {/* Mobile Category Badge */}
+                  <div className={`md:hidden text-xs mt-1 truncate ${
+                    plugin.category === 'Analytics' ? 'text-purple-400' :
+                    plugin.category === 'Market Data' ? 'text-blue-400' :
+                    plugin.category === 'Blockchain' ? 'text-green-400' :
+                    plugin.category === 'Exchange' ? 'text-orange-400' :
+                    'text-gray-400'
+                  }`} style={{fontSize: '10px'}}>
+                    {plugin.category}
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Info Section */}
-        <div className="mt-8 bg-blue-900/20 rounded-lg p-6 border border-blue-800/50">
-          <div className="flex items-start gap-3">
-            <Info className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
-            <div>
-              <h3 className="font-semibold text-blue-400 mb-2">How Plugins Work</h3>
-              <ul className="text-sm text-gray-300 space-y-1">
-                <li>• Plugins provide real-time data to enhance Olivia AI's responses</li>
-                <li>• Enabled plugins will show floating bubbles with live information</li>
-                <li>• All plugins are optional - the core chat works without any plugins</li>
-                <li>• Changes take effect immediately in your chat experience</li>
-              </ul>
-            </div>
-          </div>
-        </div>
+
+
+        {/* Bottom Spacer for mobile navigation */}
+        <div className="h-4"></div>
       </div>
     </div>
   );

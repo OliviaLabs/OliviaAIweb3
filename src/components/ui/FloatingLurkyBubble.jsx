@@ -285,18 +285,27 @@ const FloatingLurkyBubble = ({ isOpen, onClose, title = 'Lurky', content = '', l
                     <div className="text-xs text-white/70 font-medium">Agent Response</div>
                   </div>
                   
-                  {/* Central content area - spherical text flow */}
-                  <div className="flex-1 flex items-center justify-center mt-20 mb-4 max-w-full overflow-hidden">
-                    <div className="text-center px-3">
+                  {/* Central content area - improved text flow */}
+                  <div className="flex-1 px-4 py-2 overflow-y-auto max-h-60">
+                    <div className="text-center space-y-2">
                       {typeof content === 'string' ? (
-                        <ReactMarkdown 
-                          className="prose prose-xs max-w-none prose-p:text-white prose-p:text-xs prose-p:leading-relaxed prose-p:my-2 prose-p:font-medium prose-pre:text-xs prose-pre:bg-black/30 prose-pre:p-2 prose-pre:rounded prose-pre:text-green-300 prose-pre:border prose-pre:border-green-400/30 prose-strong:text-green-300 prose-em:text-green-200 prose-p:text-center prose-p:drop-shadow-lg prose-headings:text-white prose-li:text-white prose-a:text-white"
-                        >
-                          {content}
-                        </ReactMarkdown>
+                        <div className="text-xs text-white/90 leading-normal space-y-3">
+                          {content.split('\n\n').map((paragraph, index) => (
+                            <p key={index} className="text-center">
+                              {paragraph.split('\n').map((line, lineIndex) => (
+                                <span key={lineIndex}>
+                                  {line}
+                                  {lineIndex < paragraph.split('\n').length - 1 && <br />}
+                                </span>
+                              ))}
+                            </p>
+                          ))}
+                        </div>
                       ) : (
-                        <div className="font-mono text-xs text-green-300 bg-black/30 p-3 rounded-full border border-green-400/30 max-w-full">
-                          {JSON.stringify(content, null, 2)}
+                        <div className="font-mono text-xs text-green-300 bg-black/30 p-3 rounded border border-green-400/30">
+                          <pre className="whitespace-pre-wrap text-left">
+                            {JSON.stringify(content, null, 2)}
+                          </pre>
                         </div>
                       )}
                     </div>

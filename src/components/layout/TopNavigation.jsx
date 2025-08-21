@@ -1,6 +1,6 @@
 // src/components/TopNavigation.jsx
 import React, { useEffect, useState, useRef } from 'react';
-import { TonConnectButton, useTonWallet, useTonConnectUI } from '@tonconnect/ui-react';
+import { useAccount, useDisconnect } from 'wagmi';
 import { useInternetIdentity } from '../../contexts/InternetIdentityContext';
 
 import { useAuth } from '../../contexts/AuthContext';
@@ -16,8 +16,8 @@ import { Settings, Puzzle } from 'lucide-react';
 import icpLogo from '../../assets/icp-logo.jpg';
 
 export default function TopNavigation() {
-  const wallet = useTonWallet();
-  const [tonConnectUI] = useTonConnectUI();
+  const { address: wallet, isConnected } = useAccount();
+  const { disconnect: disconnectWallet } = useDisconnect();
   const { setUserAuthenticated, telegramUser, setTelegramUser, isGuestUser, logout, userData, setUserData, setIsGuestUser } = useAuth();
   const { icpUser, icpInitialized } = useWebSocket();
   const { isAuthenticated: internetIdentityAuth, logout: logoutInternetIdentity, principal } = useInternetIdentity();
@@ -80,9 +80,9 @@ export default function TopNavigation() {
     
     try {
       // Disconnect from TON wallet if connected
-      if (wallet && tonConnectUI) {
-        log('🔐 Disconnecting from TON wallet');
-        await tonConnectUI.disconnect();
+      if (wallet && isConnected) {
+        log('🔐 Disconnecting from Web3 wallet');
+        await disconnectWallet();
       }
       
       // Logout from Internet Identity if authenticated
@@ -373,10 +373,10 @@ export default function TopNavigation() {
               // TON Wallet User
               <div className="flex items-center gap-2 flex-nowrap">
                 <div className="flex flex-col">
-                  <span className="text-cyan-400 text-xs">TON Wallet</span>
+                  <span className="text-cyan-400 text-xs">Web3 Wallet</span>
                   <span className="text-white text-sm font-mono">
-                    {wallet.account.address ? 
-                      `${wallet.account.address.slice(0, 6)}...${wallet.account.address.slice(-4)}` : 
+                    {wallet ? 
+                      `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : 
                       'Connected'
                     }
                   </span>
@@ -390,7 +390,7 @@ export default function TopNavigation() {
                 </Button>
               </div>
             ) : (
-              <TonConnectButton className="!text-base bg-transparent" />
+              <appkit-account-button />
             )}
             
 

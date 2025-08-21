@@ -1,4 +1,8 @@
-import { toUserFriendlyAddress } from "@tonconnect/ui-react";
+// Helper function to format wallet address
+const toUserFriendlyAddress = (address) => {
+  if (!address) return '';
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+};
 
 /**
  * Generates a referral code using wallet address or telegram ID

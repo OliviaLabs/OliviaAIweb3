@@ -55,6 +55,14 @@ export const AVAILABLE_PLUGINS = {
     logo: changeNowLogo,
     category: 'Exchange',
     color: 'orange'
+  },
+  zerox: {
+    id: 'zerox',
+    name: '0x Protocol',
+    description: 'DEX aggregator for best swap rates',
+    logo: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTYiIGZpbGw9IiM4QjAwRkYiLz4KPHRleHQgeD0iNTAlIiB5PSI1MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyNCIgZm9udC13ZWlnaHQ9ImJvbGQiPjB4PC90ZXh0Pgo8L3N2Zz4K', // Base64 SVG for 0x logo
+    category: 'Exchange',
+    color: 'purple'
   }
 };
 

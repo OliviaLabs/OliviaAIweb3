@@ -2,7 +2,11 @@ import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Spinn
 import PropTypes from "prop-types";
 import { useState } from "react";
 import { AuthModalType } from "../../api/types/auth.types";
-import { toUserFriendlyAddress } from "@tonconnect/ui-react";
+// Helper function to format wallet address
+const toUserFriendlyAddress = (address) => {
+  if (!address) return '';
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+};
 
 const shortenPublicKey = (key) => {
   if (!key) return "";

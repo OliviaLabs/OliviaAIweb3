@@ -9,10 +9,16 @@ import {
     ModalFooter,
     Button,
 } from "@heroui/react";
-import { useTonConnectModal } from "@tonconnect/ui-react";
-
 function ConnectWalletModalComponent({ isOpen, onClose }) {
-    const { open } = useTonConnectModal(); // Opens the TonConnect modal
+    // Use AppKit for wallet connection
+    const handleConnectWallet = () => {
+        // Trigger AppKit connect button
+        const appkitButton = document.querySelector('appkit-button');
+        if (appkitButton) {
+            appkitButton.click();
+        }
+        onClose(); // Close this modal
+    };
 
     const targetRef = React.useRef(null);
     // const { moveProps } = useDraggable({
@@ -38,7 +44,7 @@ function ConnectWalletModalComponent({ isOpen, onClose }) {
                             <p className="text-white">Please connect your wallet to access the app features.</p>
                             <Button
                                 className="connect-wallet text-black rounded-xl"
-                                onPress={open} // Open TonConnect modal
+                                onPress={handleConnectWallet}
                             >
                                 Connect Wallet
                             </Button>

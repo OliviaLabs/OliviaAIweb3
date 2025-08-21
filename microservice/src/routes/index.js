@@ -4,6 +4,7 @@ import changeNowRoutes from './changeNowRoutes.js';
 import coinStatsRoutes from './coinStatsRoutes.js';
 import lurkyRoutes from './lurkyRoutes.js';
 import okxRoutes from './okxRoutes.js';
+import zeroXRoutes from './zeroXRoutes.js';
 import { OpenAIController } from '../controllers/openaiController.js';
 
 const router = express.Router();
@@ -25,6 +26,9 @@ router.use('/lurky', lurkyRoutes);
 
 // OKX DEX routes
 router.use('/okx', okxRoutes);
+
+// 0x Protocol routes
+router.use('/zerox', zeroXRoutes);
 
 // Default route
 router.get('/', (req, res) => {
@@ -68,6 +72,13 @@ router.get('/', (req, res) => {
         tokens: '/api/okx/tokens',
         popularPairs: '/api/okx/popular-pairs',
         oliviaQuote: '/api/okx/olivia-quote'
+      },
+      zerox: {
+        quote: '/api/zerox/quote',
+        price: '/api/zerox/price',
+        tokens: '/api/zerox/tokens',
+        gasPrice: '/api/zerox/gas-price',
+        orderBook: '/api/zerox/orderbook'
       }
     },
     documentation: 'All endpoints require proper JWT authentication and origin validation'

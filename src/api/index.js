@@ -42,6 +42,7 @@ export { hgraphService } from './services/hgraph.service.js';
 export { icpService } from './services/icp.service.js';
 export { privacyService } from './services/privacy.service.js';
 export { okxDexService } from './services/okx-dex.service.js';
+export { zeroXService } from './services/zerox.service.js';
 
 // Types
 export * from './types/auth.types.js';
