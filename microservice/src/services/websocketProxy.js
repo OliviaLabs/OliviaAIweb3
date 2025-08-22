@@ -1,5 +1,6 @@
 import WebSocket from 'ws';
 import { config } from '../config/config.js';
+import fetch from 'node-fetch';
 
 /**
  * WebSocket Proxy Service
@@ -227,13 +228,37 @@ export class WebSocketProxyService {
                 });
               }
               
+              // Process LayerZero data
+              if (context.layerzero_data) {
+                contextString += '\n\n[LayerZero Bridge Data]:';
+                Object.entries(context.layerzero_data).forEach(([key, layerzeroData]) => {
+                  if (layerzeroData && typeof layerzeroData === 'object') {
+                    const data = layerzeroData.data || layerzeroData;
+                    if (data && typeof data === 'object') {
+                      if (data.connected) {
+                        contextString += '\nLayerZero: Available';
+                        if (data.message) contextString += ` - ${data.message}`;
+                      }
+                      // Add bridge operation details if available
+                      if (data.transactionHash) {
+                        contextString += `\nRecent Bridge: ${data.token} ${data.amount} from ${data.fromChain} to ${data.toChain}`;
+                        contextString += `\nStatus: ${data.status} | Fee: ${data.estimatedFee}`;
+                      }
+                    }
+                  }
+                });
+              }
+              
               // Add context to the message
               message.data.text = message.data.text + contextString;
               console.log(`💰 Enhanced message with cryptocurrency context for ${clientId}`);
             }
           }
+
+          // Add AI function calling capabilities
+          const enhancedMessage = await this.addFunctionCallingCapabilities(message);
           
-          externalWs.send(JSON.stringify(message));
+          externalWs.send(JSON.stringify(enhancedMessage));
         } catch (error) {
           console.error(`Error forwarding message from client ${clientId}:`, error);
           externalWs.send(data.toString()); // Forward as-is if parsing fails

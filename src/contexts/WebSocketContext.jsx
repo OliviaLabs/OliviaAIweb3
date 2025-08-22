@@ -651,10 +651,10 @@ export const WebSocketProvider = ({ children }) => {
       }
     };
 
-    wsRef.current.onerror = (error) => {
+    wsRef.current.onerror = (errorEvent) => {
       error('🚨 Secure WebSocket Proxy Error:', {
         url: wsUrl,
-        error: error,
+        error: errorEvent,
         readyState: wsRef.current?.readyState,
         attempt: connectionAttempts + 1,
         isSecureProxy: wsUrl === ENDPOINTS.WEBSOCKET.SECURE_PROXY,
@@ -815,6 +815,13 @@ export const WebSocketProvider = ({ children }) => {
           }
         }
       });
+      
+      // Debug portfolio context specifically
+      if (messageData.data.options.context_awareness.portfolio_data) {
+        log('💼 Portfolio context being sent:', messageData.data.options.context_awareness.portfolio_data);
+      } else {
+        log('❌ No portfolio context found in message');
+      }
       wsRef.current.send(JSON.stringify(messageData));
       pendingRequestsRef.current.set(requestId, { content: message, timestamp: Date.now() });
       

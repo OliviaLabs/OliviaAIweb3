@@ -45,17 +45,22 @@ const FloatingPortfolioBubble = ({
   
   // Update global context for AI
   const updateAIContext = useCallback((data) => {
-    if (window.contextAwarenessData) {
-      window.contextAwarenessData = {
-        ...window.contextAwarenessData,
-        portfolio_data: {
-          wallet: {
-            data: data,
-            timestamp: new Date().toISOString()
-          }
-        }
-      };
+    // Initialize contextAwarenessData if it doesn't exist
+    if (!window.contextAwarenessData) {
+      window.contextAwarenessData = {};
     }
+    
+    window.contextAwarenessData = {
+      ...window.contextAwarenessData,
+      portfolio_data: {
+        wallet: {
+          data: data,
+          timestamp: new Date().toISOString()
+        }
+      }
+    };
+    
+    console.log('🧠 Portfolio context updated:', window.contextAwarenessData);
   }, []);
   
   // Track if we're already fetching to prevent duplicate calls
@@ -124,7 +129,11 @@ const FloatingPortfolioBubble = ({
   
   // Fetch token balances from Alchemy via microservice
   const fetchTokenBalances = useCallback(async () => {
-    if (!address || isFetchingTokens || (tokenBalances.length > 0 && address === lastFetchAddress)) return;
+    console.log('🔍 fetchTokenBalances called:', { address, isFetchingTokens, tokenBalancesLength: tokenBalances.length, lastFetchAddress, isExpanded });
+    if (!address || isFetchingTokens || (tokenBalances.length > 0 && address === lastFetchAddress)) {
+      console.log('🚫 Skipping fetch due to conditions');
+      return;
+    }
     
     // Prevent infinite loops - max 3 attempts per address
     if (fetchAttempts >= 3 && address === lastFetchAddress) {
@@ -264,12 +273,14 @@ const FloatingPortfolioBubble = ({
     }
     }, [address, chain, isExpanded, isFetchingTokens, tokenBalances.length, fetchAttempts, lastFetchAddress]);
   
-  // Auto-fetch token balances when wallet connects
-  useEffect(() => {
-    if (isConnected && address && !isFetchingTokens && fetchAttempts < 3) {
-      fetchTokenBalances();
-    }
-  }, [isConnected, address, fetchTokenBalances, isFetchingTokens, fetchAttempts]);
+  // Auto-fetch token balances when wallet connects - DISABLED to prevent rate limiting
+  // useEffect(() => {
+  //   if (isConnected && address && !isFetchingTokens && fetchAttempts < 3) {
+  //     fetchTokenBalances();
+  //   }
+  // }, [isConnected, address, fetchTokenBalances, isFetchingTokens, fetchAttempts]);
+
+
 
   // Fetch token prices when token balances are updated
   useEffect(() => {
@@ -294,8 +305,9 @@ const FloatingPortfolioBubble = ({
       };
       setPortfolioData(formatted);
       
-      // Fetch ERC-20 token balances (only if not already fetched)
-      if (tokenBalances.length === 0 && fetchAttempts < 3) {
+      // Fetch ERC-20 token balances (only when expanded to prevent rate limiting)
+      if (isExpanded && tokenBalances.length === 0 && fetchAttempts < 3 && !isFetchingTokens) {
+        console.log('🔄 Fetching tokens because bubble is expanded');
         fetchTokenBalances();
       }
       
@@ -306,7 +318,7 @@ const FloatingPortfolioBubble = ({
           ...tokenBalances.map(t => `${t.balance} ${t.symbol}`)
         ];
         
-        updateAIContext({
+        const portfolioContext = {
           connected: true,
           address: formatted.address,
           fullAddress: address,
@@ -315,11 +327,17 @@ const FloatingPortfolioBubble = ({
           nativeToken: formatted.native.symbol,
           nativeBalance: formatted.native.formatted,
           tokens: tokenBalances,
-          allBalances: allTokens.join(', ')
-        });
+          allBalances: allTokens.join(', '),
+          summary: `Wallet contains: ${allTokens.join(', ')}`
+        };
+        
+        updateAIContext(portfolioContext);
+        
+        console.log('🧠 Updated AI context with portfolio data:', portfolioContext);
+        console.log('🧠 Window context data:', window.contextAwarenessData);
       }
     }
-  }, [nativeBalance, balanceLoading, address, chain, isExpanded, isConnected, updateAIContext, fetchTokenBalances, tokenBalances]);
+  }, [nativeBalance, balanceLoading, address, chain, isExpanded, isConnected, updateAIContext, tokenBalances]);
 
   // Initialize position
   useEffect(() => {

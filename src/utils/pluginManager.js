@@ -8,6 +8,7 @@ import coinstatsLogo from '../api/services/coinstats-2.png';
 import walletConnectLogo from '../assets/wallet-connect.png';
 import alchemyLogo from '../assets/alchemy-logo.jpg';
 import zeroXLogo from '../assets/0x-logo.png';
+import layerZeroLogo from '../assets/layerzero-logo.png';
 
 // Define available plugins with metadata
 export const AVAILABLE_PLUGINS = {
@@ -82,6 +83,14 @@ export const AVAILABLE_PLUGINS = {
     logo: alchemyLogo,
     category: 'Analytics',
     color: 'blue'
+  },
+  layerzero: {
+    id: 'layerzero',
+    name: 'LayerZero',
+    description: 'Cross-chain token bridging and omnichain operations',
+    logo: layerZeroLogo,
+    category: 'DeFi',
+    color: 'purple'
   }
 };
 

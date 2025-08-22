@@ -16,6 +16,7 @@ import FloatingChangeNowBubble from '../components/ui/FloatingChangeNowBubble.js
 import FloatingZeroXBubble from '../components/ui/FloatingZeroXBubble.jsx';
 import FloatingPortfolioBubble from '../components/ui/FloatingPortfolioBubble.jsx';
 import FloatingAlchemyBubble from '../components/ui/FloatingAlchemyBubble.jsx';
+import FloatingLayerZeroBubble from '../components/ui/FloatingLayerZeroBubble.jsx';
 import InAppBrowser from '../components/ui/InAppBrowser.jsx';
 
 export default function Home() {
@@ -37,6 +38,7 @@ export default function Home() {
   const [zeroXBubbles, setZeroXBubbles] = useState([])
   const [portfolioBubbles, setPortfolioBubbles] = useState([])
   const [alchemyBubbles, setAlchemyBubbles] = useState([])
+  const [layerZeroBubbles, setLayerZeroBubbles] = useState([])
 
   // Context awareness data for AI chat
   const [contextAwarenessData, setContextAwarenessData] = useState({
@@ -709,10 +711,15 @@ export default function Home() {
     
     // Detect Portfolio mentions (wallet, balance, holdings triggers)
     const mentionsPortfolio = /\b(wallet|balance|holdings|portfolio|my tokens|my coins|what do i have|what's in my wallet)\b/i.test(message)
+    console.log('💼 Portfolio trigger check:', { message, mentionsPortfolio, isPluginEnabled: isPluginEnabled('portfolio') })
     
     // Detect Alchemy mentions (detailed tokens, all tokens, token list)
     const mentionsAlchemy = /\b(all tokens|token list|detailed balance|all my tokens|every token|alchemy)\b/i.test(message)
     console.log('🔮 Alchemy trigger check:', { message, mentionsAlchemy, isPluginEnabled: isPluginEnabled('alchemy') })
+    
+    // Detect LayerZero mentions (bridge, cross-chain, omnichain)
+    const mentionsLayerZero = /\b(bridge|cross.?chain|omnichain|layerzero|layer.?zero|send.*to.*chain|move.*to.*arbitrum|move.*to.*polygon|move.*to.*optimism|bridge.*usdc|bridge.*eth)\b/i.test(message)
+    console.log('🌉 LayerZero trigger check:', { message, mentionsLayerZero, isPluginEnabled: isPluginEnabled('layerzero') })
     
     // Add user message to conversation
     setMessages(prev => [...prev, { type: 'user', content: message }])
@@ -1402,32 +1409,37 @@ export default function Home() {
 
     // Handle Portfolio bubble logic (wallet/balance mentions)
     if (mentionsPortfolio && isPluginEnabled('portfolio')) {
-      // Create new Portfolio bubble instance
-      const newBubble = {
-        id: Date.now() + Math.random(), // Unique ID
-        title: 'Portfolio',
-        content: 'Loading wallet data...',
-        loading: true
+      // Check if Portfolio bubble already exists to prevent duplicates
+      if (portfolioBubbles.length === 0) {
+        // Create new Portfolio bubble instance
+        const newBubble = {
+          id: Date.now() + Math.random(), // Unique ID
+          title: 'WalletConnect',
+          content: 'Loading wallet data...',
+          loading: true
+        }
+        
+        setPortfolioBubbles(prev => [...prev, newBubble])
+        
+        // The bubble component itself handles fetching wallet data via wagmi hooks
+        // Update context awareness with wallet connection status
+        updateContextAwareness('portfolio_data', 'wallet', {
+          source: 'Portfolio',
+          connected: true, // The bubble will update this with actual data
+          message: 'Portfolio bubble opened - wallet data available in bubble'
+        })
+        
+        // After a short delay, mark as loaded (the bubble component handles actual data)
+        setTimeout(() => {
+          setPortfolioBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, loading: false }
+              : bubble
+          ))
+        }, 500)
+      } else {
+        console.log('💼 Portfolio bubble already exists, not creating duplicate');
       }
-      
-      setPortfolioBubbles(prev => [...prev, newBubble])
-      
-      // The bubble component itself handles fetching wallet data via wagmi hooks
-      // Update context awareness with wallet connection status
-      updateContextAwareness('portfolio_data', 'wallet', {
-        source: 'Portfolio',
-        connected: true, // The bubble will update this with actual data
-        message: 'Portfolio bubble opened - wallet data available in bubble'
-      })
-      
-      // After a short delay, mark as loaded (the bubble component handles actual data)
-      setTimeout(() => {
-        setPortfolioBubbles(prev => prev.map(bubble => 
-          bubble.id === newBubble.id 
-            ? { ...bubble, loading: false }
-            : bubble
-        ))
-      }, 500)
     }
     // Keep Portfolio bubble visible - building conversation bubble map
     
@@ -1458,6 +1470,40 @@ export default function Home() {
             : bubble
         ))
       }, 500)
+    }
+
+    // Create LayerZero bubble if mentioned and plugin is enabled
+    if (mentionsLayerZero && isPluginEnabled('layerzero')) {
+      // Check if LayerZero bubble already exists to prevent duplicates
+      if (layerZeroBubbles.length === 0) {
+        // Create new LayerZero bubble instance
+        const newBubble = {
+          id: Date.now() + Math.random(),
+          title: 'LayerZero',
+          content: 'Loading cross-chain bridge...',
+          loading: true
+        }
+        
+        setLayerZeroBubbles(prev => [...prev, newBubble])
+        
+        // Update context awareness with LayerZero bridge status
+        updateContextAwareness('layerzero_data', 'bridge', {
+          source: 'LayerZero',
+          connected: true,
+          message: 'LayerZero bubble opened - cross-chain bridging available'
+        })
+        
+        // After a short delay, mark as loaded
+        setTimeout(() => {
+          setLayerZeroBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, loading: false }
+              : bubble
+          ))
+        }, 1000)
+      } else {
+        console.log('🌉 LayerZero bubble already exists, not creating duplicate');
+      }
     }
 
     // Send message to Olivia - SMART CONTEXT OPTIMIZATION
@@ -1542,6 +1588,8 @@ export default function Home() {
       handleSendMessage()
     }
   }
+
+
 
   // Auto-initialize the chat on component mount
   useEffect(() => {
@@ -1833,6 +1881,24 @@ export default function Home() {
           title={bubble.title}
           content={bubble.content}
           loading={bubble.loading}
+          addParticlesToSwarm={addParticlesToSwarm}
+        />
+      ))}
+
+      {/* Render all LayerZero bubble instances - only if plugin enabled */}
+      {isPluginEnabled('layerzero') && layerZeroBubbles.map(bubble => (
+        <FloatingLayerZeroBubble
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setLayerZeroBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          position={{ x: 200 + Math.random() * 100, y: 200 + Math.random() * 100 }}
+          onDrag={(newPos) => {
+            // Handle position updates if needed
+          }}
+          isExpanded={false}
+          onToggleExpand={() => {
+            // Handle expand/collapse
+          }}
           addParticlesToSwarm={addParticlesToSwarm}
         />
       ))}
