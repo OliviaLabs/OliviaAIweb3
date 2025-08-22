@@ -39,45 +39,8 @@ router.use('/alchemy', alchemyRoutes);
 // CoinGecko routes
 router.use('/coingecko', coinGeckoRoutes);
 
-// LayerZero routes - simple test route
-router.get('/layerzero/supported-assets', (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      chains: [
-        { id: 'ethereum', name: 'Ethereum' },
-        { id: 'arbitrum', name: 'Arbitrum' },
-        { id: 'polygon', name: 'Polygon' },
-        { id: 'optimism', name: 'Optimism' },
-        { id: 'base', name: 'Base' }
-      ],
-      tokens: [
-        { symbol: 'USDC', name: 'USD Coin' },
-        { symbol: 'USDT', name: 'Tether USD' },
-        { symbol: 'ETH', name: 'Ethereum' }
-      ]
-    }
-  });
-});
-
-// LayerZero fee estimation
-router.post('/layerzero/estimate-fee', (req, res) => {
-  const { token, amount, fromChain, toChain } = req.body;
-  
-  // Simple fee calculation
-  const baseFee = 5.0;
-  const amountFactor = parseFloat(amount || 0) * 0.001;
-  const estimatedFee = (baseFee + amountFactor).toFixed(2);
-  
-  res.json({
-    success: true,
-    data: {
-      feeETH: '0.005000',
-      feeUSD: estimatedFee,
-      gasEstimate: '150000'
-    }
-  });
-});
+// LayerZero routes
+router.use('/layerzero', layerzeroRoutes);
 
 // Default route
 router.get('/', (req, res) => {
@@ -131,7 +94,9 @@ router.get('/', (req, res) => {
       },
       layerzero: {
         supportedAssets: '/api/layerzero/supported-assets',
-        estimateFee: '/api/layerzero/estimate-fee'
+        estimateFee: '/api/layerzero/estimate-fee',
+        prepareBridge: '/api/layerzero/prepare-bridge',
+        executeBridge: '/api/layerzero/execute-bridge'
       }
     },
     documentation: 'All endpoints require proper JWT authentication and origin validation'

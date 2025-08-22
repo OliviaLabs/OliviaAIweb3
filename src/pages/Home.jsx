@@ -17,6 +17,7 @@ import FloatingZeroXBubble from '../components/ui/FloatingZeroXBubble.jsx';
 import FloatingPortfolioBubble from '../components/ui/FloatingPortfolioBubble.jsx';
 import FloatingAlchemyBubble from '../components/ui/FloatingAlchemyBubble.jsx';
 import FloatingLayerZeroBubble from '../components/ui/FloatingLayerZeroBubble.jsx';
+import FloatingStargateBubble from '../components/ui/FloatingStargateBubble.jsx';
 import InAppBrowser from '../components/ui/InAppBrowser.jsx';
 
 export default function Home() {
@@ -39,6 +40,7 @@ export default function Home() {
   const [portfolioBubbles, setPortfolioBubbles] = useState([])
   const [alchemyBubbles, setAlchemyBubbles] = useState([])
   const [layerZeroBubbles, setLayerZeroBubbles] = useState([])
+  const [stargateBubbles, setStargateBubbles] = useState([])
 
   // Context awareness data for AI chat
   const [contextAwarenessData, setContextAwarenessData] = useState({
@@ -47,6 +49,7 @@ export default function Home() {
     exchange_data: {},
     blockchain_data: {},
     portfolio_data: {},
+    stargate_data: {},
     last_updated: null
   })
 
@@ -720,6 +723,10 @@ export default function Home() {
     // Detect LayerZero mentions (bridge, cross-chain, omnichain)
     const mentionsLayerZero = /\b(bridge|cross.?chain|omnichain|layerzero|layer.?zero|send.*to.*chain|move.*to.*arbitrum|move.*to.*polygon|move.*to.*optimism|bridge.*usdc|bridge.*eth)\b/i.test(message)
     console.log('🌉 LayerZero trigger check:', { message, mentionsLayerZero, isPluginEnabled: isPluginEnabled('layerzero') })
+    
+    // Detect Stargate mentions (swap, trade, bridge commands)
+    const mentionsStargate = /\b(stargate|stg|swap|trade|bridge|cross.?chain|send.*to|move.*to|transfer.*to)\b/i.test(message)
+    console.log('🌉 Stargate trigger check:', { message, mentionsStargate, isPluginEnabled: isPluginEnabled('stargate'), regex: 'stargate|stg|swap|trade|bridge|cross.?chain|send.*to|move.*to|transfer.*to' })
     
     // Add user message to conversation
     setMessages(prev => [...prev, { type: 'user', content: message }])
@@ -1506,6 +1513,41 @@ export default function Home() {
       }
     }
 
+    // Create Stargate bubble if mentioned and plugin is enabled
+    if (mentionsStargate && isPluginEnabled('stargate')) {
+      // Check if Stargate bubble already exists to prevent duplicates
+      if (stargateBubbles.length === 0) {
+        // Create new Stargate bubble instance
+        const newBubble = {
+          id: Date.now() + Math.random(),
+          title: 'Stargate',
+          content: 'Loading liquidity bridge...',
+          loading: true,
+          originalQuery: message
+        }
+        
+        setStargateBubbles(prev => [...prev, newBubble])
+        
+        // Update context awareness with Stargate bridge status
+        updateContextAwareness('stargate_data', 'bridge', {
+          source: 'Stargate',
+          connected: true,
+          message: 'Stargate bubble opened - liquidity bridging available'
+        })
+        
+        // After a short delay, mark as loaded
+        setTimeout(() => {
+          setStargateBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, loading: false }
+              : bubble
+          ))
+        }, 1000)
+      } else {
+        console.log('🌉 Stargate bubble already exists, not creating duplicate');
+      }
+    }
+
     // Send message to Olivia - SMART CONTEXT OPTIMIZATION
     try {
       log('📤 Sending message to Olivia AI...')
@@ -1900,6 +1942,20 @@ export default function Home() {
             // Handle expand/collapse
           }}
           addParticlesToSwarm={addParticlesToSwarm}
+        />
+      ))}
+
+      {/* Render all Stargate bubble instances - only if plugin enabled */}
+      {isPluginEnabled('stargate') && stargateBubbles.map(bubble => (
+        <FloatingStargateBubble
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setStargateBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          title={bubble.title}
+          content={bubble.content}
+          loading={bubble.loading}
+          addParticlesToSwarm={addParticlesToSwarm}
+          originalQuery={bubble.originalQuery}
         />
       ))}
       

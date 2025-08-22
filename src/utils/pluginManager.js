@@ -9,6 +9,7 @@ import walletConnectLogo from '../assets/wallet-connect.png';
 import alchemyLogo from '../assets/alchemy-logo.jpg';
 import zeroXLogo from '../assets/0x-logo.png';
 import layerZeroLogo from '../assets/layerzero-logo.png';
+import stargateLogo from '../assets/stargate-logo.jpg';
 
 // Define available plugins with metadata
 export const AVAILABLE_PLUGINS = {
@@ -91,6 +92,15 @@ export const AVAILABLE_PLUGINS = {
     logo: layerZeroLogo,
     category: 'DeFi',
     color: 'purple'
+  },
+  stargate: {
+    id: 'stargate',
+    name: 'Stargate',
+    description: 'Real cross-chain token bridging with liquidity pools',
+    logo: stargateLogo,
+    category: 'DeFi',
+    color: 'blue',
+    enabled: true
   }
 };
 
