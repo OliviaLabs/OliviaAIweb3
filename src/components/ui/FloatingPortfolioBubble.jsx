@@ -71,7 +71,7 @@ const FloatingPortfolioBubble = ({
       const pricePromises = tokens.map(async (token) => {
         try {
           console.log(`💰 Fetching price for ${token.symbol}...`);
-          const response = await fetch(`http://localhost:3001/api/coinstats/coins/${token.symbol.toLowerCase()}?currency=USD`, {
+          const response = await fetch(`http://localhost:3001/api/coinstats/search?query=${token.symbol}&currency=USD`, {
             method: 'GET',
             headers: { 
               'Content-Type': 'application/json',
@@ -82,8 +82,8 @@ const FloatingPortfolioBubble = ({
           
           if (response.ok) {
             const data = await response.json();
-            if (data.success && data.data) {
-              const tokenData = data.data;
+            if (data.success && data.data && data.data.length > 0) {
+              const tokenData = data.data[0]; // Search returns array, take first result
               console.log(`💰 ✅ Got price for ${token.symbol}: $${tokenData.price}`);
               return {
                 symbol: token.symbol,

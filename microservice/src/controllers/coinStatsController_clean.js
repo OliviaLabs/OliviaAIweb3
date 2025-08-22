@@ -169,7 +169,7 @@ export class CoinStatsController {
       });
       
       // Search for matching coin by symbol or name
-      const coins = response.data.result || response.data.coins || response.data;
+      const coins = response.data.coins || response.data;
       const searchTerm = query.toLowerCase().trim();
       
       let matchedCoin = null;
