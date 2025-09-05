@@ -1612,8 +1612,8 @@ export default function Home() {
       }
     }
 
-    // Create SushiSwap bubble if mentioned
-    if (mentionsSushiSwap) {
+    // Create SushiSwap bubble if mentioned and plugin enabled
+    if (mentionsSushiSwap && isPluginEnabled('sushiswap')) {
       // Check if SushiSwap bubble already exists to prevent duplicates
       if (sushiswapBubbles.length === 0) {
         // Create new SushiSwap bubble instance
@@ -1646,8 +1646,8 @@ export default function Home() {
       }
     }
 
-    // Create Curve bubble if mentioned
-    if (mentionsCurve) {
+    // Create Curve bubble if mentioned and plugin enabled
+    if (mentionsCurve && isPluginEnabled('curve')) {
       // Check if Curve bubble already exists to prevent duplicates
       if (curveBubbles.length === 0) {
         // Create new Curve bubble instance
@@ -1680,8 +1680,8 @@ export default function Home() {
       }
     }
 
-    // Create Balancer bubble if mentioned
-    if (mentionsBalancer) {
+    // Create Balancer bubble if mentioned and plugin enabled
+    if (mentionsBalancer && isPluginEnabled('balancer')) {
       // Check if Balancer bubble already exists to prevent duplicates
       if (balancerBubbles.length === 0) {
         // Create new Balancer bubble instance
@@ -2185,8 +2185,8 @@ export default function Home() {
         />
       ))}
 
-      {/* Render all Curve bubble instances */}
-      {curveBubbles.map(bubble => (
+      {/* Render all Curve bubble instances - only if plugin enabled */}
+      {isPluginEnabled('curve') && curveBubbles.map(bubble => (
         <FloatingCurveBubble
           key={bubble.id}
           isOpen={true}
@@ -2198,8 +2198,8 @@ export default function Home() {
         />
       ))}
 
-      {/* Render all Balancer bubble instances */}
-      {balancerBubbles.map(bubble => (
+      {/* Render all Balancer bubble instances - only if plugin enabled */}
+      {isPluginEnabled('balancer') && balancerBubbles.map(bubble => (
         <FloatingBalancerBubble
           key={bubble.id}
           isOpen={true}
