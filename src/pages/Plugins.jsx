@@ -157,21 +157,31 @@ const Plugins = () => {
                         : 'bg-gradient-to-br from-gray-600 to-gray-800 border-gray-600/30'
                     }`}
                   >
-                    {/* Plugin Logo */}
-                    <img 
-                      src={plugin.logo} 
-                      alt={`${plugin.name} Logo`}
-                      className="w-6 h-6 sm:w-8 sm:h-8 md:w-6 md:h-6 lg:w-7 lg:h-7 rounded object-cover"
-                      onError={(e) => {
-                        // Fallback for broken images
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
-                      }}
-                    />
-                    {/* Text Fallback */}
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 md:w-6 md:h-6 lg:w-7 lg:h-7 rounded bg-white/10 backdrop-blur-sm flex items-center justify-center text-white text-sm md:text-xs lg:text-sm font-bold hidden">
-                      {plugin.name.charAt(0)}
-                    </div>
+                    {/* Plugin Logo - Handle both images and emojis */}
+                    {typeof plugin.logo === 'string' && plugin.logo.length <= 2 ? (
+                      // Emoji logo
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 md:w-6 md:h-6 lg:w-7 lg:h-7 rounded bg-white/10 backdrop-blur-sm flex items-center justify-center text-white text-lg sm:text-xl md:text-lg lg:text-xl">
+                        {plugin.logo}
+                      </div>
+                    ) : (
+                      // Image logo
+                      <>
+                        <img 
+                          src={plugin.logo} 
+                          alt={`${plugin.name} Logo`}
+                          className="w-6 h-6 sm:w-8 sm:h-8 md:w-6 md:h-6 lg:w-7 lg:h-7 rounded object-cover"
+                          onError={(e) => {
+                            // Fallback for broken images
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                        {/* Text Fallback */}
+                        <div className="w-6 h-6 sm:w-8 sm:h-8 md:w-6 md:h-6 lg:w-7 lg:h-7 rounded bg-white/10 backdrop-blur-sm flex items-center justify-center text-white text-sm md:text-xs lg:text-sm font-bold hidden">
+                          {plugin.name.charAt(0)}
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Status Indicator */}

@@ -5,7 +5,7 @@ import { useInternetIdentity } from '../contexts/InternetIdentityContext'
 import { isPluginEnabled } from '../utils/pluginManager'
 import { useAccountUpgrade } from '../hooks/useAccountUpgrade';
 import { icpService } from '../api/services/icp.service.js';
-import { lurkyService, coingeckoService, coinstatsService, hgraphService, changeNowService, zeroXService } from '../api';
+import { lurkyService, coingeckoService, coinstatsService, hgraphService, changeNowService, zeroXService, uniswapService, sushiswapService, curveService, balancerService, rubicService } from '../api';
 import { log, error as logError } from '../utils/logger.js';
 import FloatingLurkyBubble from '../components/ui/FloatingLurkyBubble.jsx';
 import FloatingCoinGeckoBubble from '../components/ui/FloatingCoinGeckoBubble.jsx';
@@ -18,6 +18,11 @@ import FloatingPortfolioBubble from '../components/ui/FloatingPortfolioBubble.js
 import FloatingAlchemyBubble from '../components/ui/FloatingAlchemyBubble.jsx';
 import FloatingLayerZeroBubble from '../components/ui/FloatingLayerZeroBubble.jsx';
 import FloatingStargateBubble from '../components/ui/FloatingStargateBubble.jsx';
+import FloatingUniswapBubble from '../components/ui/FloatingUniswapBubble.jsx';
+import FloatingSushiSwapBubble from '../components/ui/FloatingSushiSwapBubble.jsx';
+import FloatingCurveBubble from '../components/ui/FloatingCurveBubble.jsx';
+import FloatingBalancerBubble from '../components/ui/FloatingBalancerBubble.jsx';
+import FloatingRubicBubble from '../components/ui/FloatingRubicBubble.jsx';
 import InAppBrowser from '../components/ui/InAppBrowser.jsx';
 
 export default function Home() {
@@ -41,6 +46,11 @@ export default function Home() {
   const [alchemyBubbles, setAlchemyBubbles] = useState([])
   const [layerZeroBubbles, setLayerZeroBubbles] = useState([])
   const [stargateBubbles, setStargateBubbles] = useState([])
+  const [uniswapBubbles, setUniswapBubbles] = useState([])
+  const [sushiswapBubbles, setSushiswapBubbles] = useState([])
+  const [curveBubbles, setCurveBubbles] = useState([])
+  const [balancerBubbles, setBalancerBubbles] = useState([])
+  const [rubicBubbles, setRubicBubbles] = useState([])
 
   // Context awareness data for AI chat
   const [contextAwarenessData, setContextAwarenessData] = useState({
@@ -727,6 +737,26 @@ export default function Home() {
     // Detect Stargate mentions (swap, trade, bridge commands)
     const mentionsStargate = /\b(stargate|stg|swap|trade|bridge|cross.?chain|send.*to|move.*to|transfer.*to)\b/i.test(message)
     console.log('🌉 Stargate trigger check:', { message, mentionsStargate, isPluginEnabled: isPluginEnabled('stargate'), regex: 'stargate|stg|swap|trade|bridge|cross.?chain|send.*to|move.*to|transfer.*to' })
+    
+    // Detect Uniswap mentions
+    const mentionsUniswap = /\b(uniswap|uni|v3|dex|swap|trade|liquidity)\b/i.test(message)
+    console.log('🦄 Uniswap trigger check:', { message, mentionsUniswap })
+    
+    // Detect SushiSwap mentions
+    const mentionsSushiSwap = /\b(sushiswap|sushi|farm|farming|yield)\b/i.test(message)
+    console.log('🍣 SushiSwap trigger check:', { message, mentionsSushiSwap })
+    
+    // Detect Curve mentions
+    const mentionsCurve = /\b(curve|crv|stablecoin|stable|swap|yield)\b/i.test(message)
+    console.log('📈 Curve trigger check:', { message, mentionsCurve })
+    
+    // Detect Balancer mentions
+    const mentionsBalancer = /\b(balancer|bal|weighted|pool|liquidity)\b/i.test(message)
+    console.log('⚖️ Balancer trigger check:', { message, mentionsBalancer })
+    
+    // Detect Rubic mentions
+    const mentionsRubic = /\b(rubic|cross.?chain|bridge|swap|trade)\b/i.test(message)
+    console.log('🔄 Rubic trigger check:', { message, mentionsRubic })
     
     // Add user message to conversation
     setMessages(prev => [...prev, { type: 'user', content: message }])
@@ -1548,6 +1578,176 @@ export default function Home() {
       }
     }
 
+    // Create Uniswap V3 bubble if mentioned and plugin enabled
+    if (mentionsUniswap && isPluginEnabled('uniswap')) {
+      // Check if Uniswap bubble already exists to prevent duplicates
+      if (uniswapBubbles.length === 0) {
+        // Create new Uniswap bubble instance
+        const newBubble = {
+          id: Date.now() + Math.random(),
+          title: 'Uniswap V3 - Base',
+          content: 'Loading Uniswap V3 data...',
+          loading: true
+        }
+        
+        setUniswapBubbles(prev => [...prev, newBubble])
+        
+        // Update context awareness with Uniswap data
+        updateContextAwareness('dex_data', 'uniswap', {
+          source: 'Uniswap V3',
+          connected: true,
+          message: 'Uniswap V3 bubble opened - DEX trading available'
+        })
+        
+        // After a short delay, mark as loaded
+        setTimeout(() => {
+          setUniswapBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, loading: false }
+              : bubble
+          ))
+        }, 1000)
+      } else {
+        console.log('🦄 Uniswap bubble already exists, not creating duplicate');
+      }
+    }
+
+    // Create SushiSwap bubble if mentioned
+    if (mentionsSushiSwap) {
+      // Check if SushiSwap bubble already exists to prevent duplicates
+      if (sushiswapBubbles.length === 0) {
+        // Create new SushiSwap bubble instance
+        const newBubble = {
+          id: Date.now() + Math.random(),
+          title: 'SushiSwap - Base',
+          content: 'Loading SushiSwap data...',
+          loading: true
+        }
+        
+        setSushiswapBubbles(prev => [...prev, newBubble])
+        
+        // Update context awareness with SushiSwap data
+        updateContextAwareness('dex_data', 'sushiswap', {
+          source: 'SushiSwap',
+          connected: true,
+          message: 'SushiSwap bubble opened - DEX trading and farming available'
+        })
+        
+        // After a short delay, mark as loaded
+        setTimeout(() => {
+          setSushiswapBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, loading: false }
+              : bubble
+          ))
+        }, 1000)
+      } else {
+        console.log('🍣 SushiSwap bubble already exists, not creating duplicate');
+      }
+    }
+
+    // Create Curve bubble if mentioned
+    if (mentionsCurve) {
+      // Check if Curve bubble already exists to prevent duplicates
+      if (curveBubbles.length === 0) {
+        // Create new Curve bubble instance
+        const newBubble = {
+          id: Date.now() + Math.random(),
+          title: 'Curve - Base',
+          content: 'Loading Curve data...',
+          loading: true
+        }
+        
+        setCurveBubbles(prev => [...prev, newBubble])
+        
+        // Update context awareness with Curve data
+        updateContextAwareness('dex_data', 'curve', {
+          source: 'Curve',
+          connected: true,
+          message: 'Curve bubble opened - stablecoin trading available'
+        })
+        
+        // After a short delay, mark as loaded
+        setTimeout(() => {
+          setCurveBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, loading: false }
+              : bubble
+          ))
+        }, 1000)
+      } else {
+        console.log('📈 Curve bubble already exists, not creating duplicate');
+      }
+    }
+
+    // Create Balancer bubble if mentioned
+    if (mentionsBalancer) {
+      // Check if Balancer bubble already exists to prevent duplicates
+      if (balancerBubbles.length === 0) {
+        // Create new Balancer bubble instance
+        const newBubble = {
+          id: Date.now() + Math.random(),
+          title: 'Balancer - Base',
+          content: 'Loading Balancer data...',
+          loading: true
+        }
+        
+        setBalancerBubbles(prev => [...prev, newBubble])
+        
+        // Update context awareness with Balancer data
+        updateContextAwareness('dex_data', 'balancer', {
+          source: 'Balancer',
+          connected: true,
+          message: 'Balancer bubble opened - weighted pools available'
+        })
+        
+        // After a short delay, mark as loaded
+        setTimeout(() => {
+          setBalancerBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, loading: false }
+              : bubble
+          ))
+        }, 1000)
+      } else {
+        console.log('⚖️ Balancer bubble already exists, not creating duplicate');
+      }
+    }
+
+    // Create Rubic bubble if mentioned and plugin enabled
+    if (mentionsRubic && isPluginEnabled('rubic')) {
+      // Check if Rubic bubble already exists to prevent duplicates
+      if (rubicBubbles.length === 0) {
+        // Create new Rubic bubble instance
+        const newBubble = {
+          id: Date.now() + Math.random(),
+          title: 'Rubic Protocol',
+          content: 'Loading Rubic data...',
+          loading: true
+        }
+        
+        setRubicBubbles(prev => [...prev, newBubble])
+        
+        // Update context awareness with Rubic data
+        updateContextAwareness('dex_data', 'rubic', {
+          source: 'Rubic',
+          connected: true,
+          message: 'Rubic bubble opened - cross-chain trading available'
+        })
+        
+        // After a short delay, mark as loaded
+        setTimeout(() => {
+          setRubicBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, loading: false }
+              : bubble
+          ))
+        }, 1000)
+      } else {
+        console.log('🔄 Rubic bubble already exists, not creating duplicate');
+      }
+    }
+
     // Send message to Olivia - SMART CONTEXT OPTIMIZATION
     try {
       log('📤 Sending message to Olivia AI...')
@@ -1956,6 +2156,69 @@ export default function Home() {
           loading={bubble.loading}
           addParticlesToSwarm={addParticlesToSwarm}
           originalQuery={bubble.originalQuery}
+        />
+      ))}
+
+      {/* Render all Uniswap V3 bubble instances - only if plugin enabled */}
+      {isPluginEnabled('uniswap') && uniswapBubbles.map(bubble => (
+        <FloatingUniswapBubble
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setUniswapBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          title={bubble.title}
+          content={bubble.content}
+          loading={bubble.loading}
+          addParticlesToSwarm={addParticlesToSwarm}
+        />
+      ))}
+
+      {/* Render all SushiSwap bubble instances - only if plugin enabled */}
+      {isPluginEnabled('sushiswap') && sushiswapBubbles.map(bubble => (
+        <FloatingSushiSwapBubble
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setSushiswapBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          title={bubble.title}
+          content={bubble.content}
+          loading={bubble.loading}
+          addParticlesToSwarm={addParticlesToSwarm}
+        />
+      ))}
+
+      {/* Render all Curve bubble instances */}
+      {curveBubbles.map(bubble => (
+        <FloatingCurveBubble
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setCurveBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          title={bubble.title}
+          content={bubble.content}
+          loading={bubble.loading}
+          addParticlesToSwarm={addParticlesToSwarm}
+        />
+      ))}
+
+      {/* Render all Balancer bubble instances */}
+      {balancerBubbles.map(bubble => (
+        <FloatingBalancerBubble
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setBalancerBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          title={bubble.title}
+          content={bubble.content}
+          loading={bubble.loading}
+          addParticlesToSwarm={addParticlesToSwarm}
+        />
+      ))}
+
+      {/* Render all Rubic bubble instances - only if plugin enabled */}
+      {isPluginEnabled('rubic') && rubicBubbles.map(bubble => (
+        <FloatingRubicBubble
+          key={bubble.id}
+          id={bubble.id}
+          onClose={() => setRubicBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          initialPosition={{ x: Math.random() * 300 + 100, y: Math.random() * 300 + 100 }}
+          initialExpanded={false}
         />
       ))}
       

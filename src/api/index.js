@@ -43,6 +43,11 @@ export { icpService } from './services/icp.service.js';
 export { privacyService } from './services/privacy.service.js';
 export { okxDexService } from './services/okx-dex.service.js';
 export { zeroXService } from './services/zerox.service.js';
+export { uniswapService } from './services/uniswap.service.js';
+export { sushiswapService } from './services/sushiswap.service.js';
+export { curveService } from './services/curve.service.js';
+export { balancerService } from './services/balancer.service.js';
+export { rubicService } from './services/rubic.service.js';
 
 // Types
 export * from './types/auth.types.js';

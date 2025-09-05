@@ -10,6 +10,7 @@ import alchemyLogo from '../assets/alchemy-logo.jpg';
 import zeroXLogo from '../assets/0x-logo.png';
 import layerZeroLogo from '../assets/layerzero-logo.png';
 import stargateLogo from '../assets/stargate-logo.jpg';
+import rubicLogo from './rubic.webp';
 
 // Define available plugins with metadata
 export const AVAILABLE_PLUGINS = {
@@ -101,6 +102,46 @@ export const AVAILABLE_PLUGINS = {
     category: 'DeFi',
     color: 'blue',
     enabled: true
+  },
+  rubic: {
+    id: 'rubic',
+    name: 'Rubic',
+    description: 'Cross-chain trading and DEX aggregation',
+    logo: rubicLogo,
+    category: 'DeFi',
+    color: 'purple'
+  },
+  uniswap: {
+    id: 'uniswap',
+    name: 'Uniswap V3',
+    description: 'Decentralized exchange on Base',
+    logo: '🦄', // Unicorn emoji for Uniswap
+    category: 'DeFi',
+    color: 'green'
+  },
+  sushiswap: {
+    id: 'sushiswap',
+    name: 'SushiSwap',
+    description: 'Multi-chain DEX with yield farming',
+    logo: '🍣', // Sushi emoji
+    category: 'DeFi',
+    color: 'orange'
+  },
+  curve: {
+    id: 'curve',
+    name: 'Curve',
+    description: 'Stablecoin and low-slippage trading',
+    logo: '📈', // Chart emoji for Curve
+    category: 'DeFi',
+    color: 'blue'
+  },
+  balancer: {
+    id: 'balancer',
+    name: 'Balancer',
+    description: 'Weighted pools and automated market maker',
+    logo: '⚖️', // Balance scale emoji
+    category: 'DeFi',
+    color: 'purple'
   }
 };
 

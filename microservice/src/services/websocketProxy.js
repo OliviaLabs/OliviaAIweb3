@@ -127,7 +127,7 @@ export class WebSocketProxyService {
     });
 
     // Client WebSocket event handlers
-    clientWs.on('message', (data) => {
+    clientWs.on('message', async (data) => {
       // Forward client messages to external WebSocket
       if (connectionInfo.connected && externalWs.readyState === WebSocket.OPEN) {
         try {

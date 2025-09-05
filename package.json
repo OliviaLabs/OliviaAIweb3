@@ -44,6 +44,7 @@
     "react-dom": "^18.2.0",
     "react-markdown": "^9.0.3",
     "react-router-dom": "^6.29.0",
+    "rubic-sdk": "^5.57.4",
     "sonner": "^1.7.4",
     "uuid": "^11.0.5",
     "viem": "^2.34.0",
