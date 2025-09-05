@@ -91,7 +91,7 @@ export const AVAILABLE_PLUGINS = {
     name: 'LayerZero',
     description: 'Cross-chain token bridging and omnichain operations',
     logo: layerZeroLogo,
-    category: 'DeFi',
+    category: 'Exchange',
     color: 'purple'
   },
   stargate: {
@@ -99,7 +99,7 @@ export const AVAILABLE_PLUGINS = {
     name: 'Stargate',
     description: 'Real cross-chain token bridging with liquidity pools',
     logo: stargateLogo,
-    category: 'DeFi',
+    category: 'Exchange',
     color: 'blue',
     enabled: true
   },
@@ -108,7 +108,7 @@ export const AVAILABLE_PLUGINS = {
     name: 'Rubic',
     description: 'Cross-chain trading and DEX aggregation',
     logo: rubicLogo,
-    category: 'DeFi',
+    category: 'Exchange',
     color: 'purple'
   },
   uniswap: {
@@ -116,7 +116,7 @@ export const AVAILABLE_PLUGINS = {
     name: 'Uniswap V3',
     description: 'Decentralized exchange on Base',
     logo: '🦄', // Unicorn emoji for Uniswap
-    category: 'DeFi',
+    category: 'Exchange',
     color: 'green'
   },
   sushiswap: {
@@ -124,7 +124,7 @@ export const AVAILABLE_PLUGINS = {
     name: 'SushiSwap',
     description: 'Multi-chain DEX with yield farming',
     logo: '🍣', // Sushi emoji
-    category: 'DeFi',
+    category: 'Exchange',
     color: 'orange'
   },
   curve: {
@@ -132,7 +132,7 @@ export const AVAILABLE_PLUGINS = {
     name: 'Curve',
     description: 'Stablecoin and low-slippage trading',
     logo: '📈', // Chart emoji for Curve
-    category: 'DeFi',
+    category: 'Exchange',
     color: 'blue'
   },
   balancer: {
@@ -140,7 +140,7 @@ export const AVAILABLE_PLUGINS = {
     name: 'Balancer',
     description: 'Weighted pools and automated market maker',
     logo: '⚖️', // Balance scale emoji
-    category: 'DeFi',
+    category: 'Exchange',
     color: 'purple'
   }
 };

@@ -720,14 +720,14 @@ export default function Home() {
     const mentionsChangeNow = /\b(buy|swap|exchange|trade|convert)\b/i.test(message)
     
     // Detect 0x Protocol mentions (dex and aggregator triggers)
-    const mentions0x = /\b(dex|aggregator|0x|best rate|compare rates|cheapest swap)\b/i.test(message)
+    const mentions0x = /\b(dex|aggregator|0x|best rate|compare rates|cheapest swap|best price|lowest price|price comparison|swap rates|exchange rates|where to buy|where to swap|best exchange|compare prices|find best|get best|cheapest|lowest cost)\b/i.test(message)
     
     // Detect Portfolio mentions (wallet, balance, holdings triggers)
     const mentionsPortfolio = /\b(wallet|balance|holdings|portfolio|my tokens|my coins|what do i have|what's in my wallet)\b/i.test(message)
     console.log('💼 Portfolio trigger check:', { message, mentionsPortfolio, isPluginEnabled: isPluginEnabled('portfolio') })
     
     // Detect Alchemy mentions (detailed tokens, all tokens, token list)
-    const mentionsAlchemy = /\b(all tokens|token list|detailed balance|all my tokens|every token|alchemy)\b/i.test(message)
+    const mentionsAlchemy = /\b(all tokens|token list|detailed balance|all my tokens|every token|alchemy|token analytics|portfolio analysis|detailed portfolio|token breakdown|balance breakdown|all balances|show all|list all|what tokens|token details|detailed view|full portfolio|complete balance|all holdings|token summary|balance summary)\b/i.test(message)
     console.log('🔮 Alchemy trigger check:', { message, mentionsAlchemy, isPluginEnabled: isPluginEnabled('alchemy') })
     
     // Detect LayerZero mentions (bridge, cross-chain, omnichain)
@@ -1357,12 +1357,14 @@ export default function Home() {
     // Keep ChangeNOW bubble visible - building conversation bubble map
 
     // Handle 0x Protocol bubble logic (dex/aggregator mentions)
-    if (mentions0x && mentionedCoin) {
-      // Create new 0x Protocol bubble instance
-      const newBubble = {
+    if (mentions0x && isPluginEnabled('zerox')) {
+      // Check if 0x Protocol bubble already exists to prevent duplicates
+      if (zeroXBubbles.length === 0) {
+        // Create new 0x Protocol bubble instance
+        const newBubble = {
         id: Date.now() + Math.random(), // Unique ID
-        title: `${mentionedCoin.toUpperCase()} DEX Rates - 0x Protocol`,
-        content: `Getting best swap rates for ${mentionedCoin.toUpperCase()}...`,
+        title: mentionedCoin ? `${mentionedCoin.toUpperCase()} DEX Rates - 0x Protocol` : 'Best DEX Rates - 0x Protocol',
+        content: mentionedCoin ? `Getting best swap rates for ${mentionedCoin.toUpperCase()}...` : 'Finding best swap rates across all DEXs...',
         loading: true,
         originalQuery: message // Store the original user message for OpenAI extraction
       }
@@ -1482,8 +1484,10 @@ export default function Home() {
     
     // Create Alchemy bubble if mentioned and plugin is enabled
     if (mentionsAlchemy && isPluginEnabled('alchemy')) {
-      // Create new Alchemy bubble instance
-      const newBubble = {
+      // Check if Alchemy bubble already exists to prevent duplicates
+      if (alchemyBubbles.length === 0) {
+        // Create new Alchemy bubble instance
+        const newBubble = {
         id: Date.now() + Math.random(), // Unique ID
         title: 'Alchemy',
         content: 'Loading detailed token analytics...',
@@ -1507,6 +1511,9 @@ export default function Home() {
             : bubble
         ))
       }, 500)
+      } else {
+        console.log('🔮 Alchemy bubble already exists, not creating duplicate');
+      }
     }
 
     // Create LayerZero bubble if mentioned and plugin is enabled
