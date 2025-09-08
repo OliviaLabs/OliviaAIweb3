@@ -480,6 +480,16 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, currentResponse]);
 
+  // Safety net: Always show input when loading is complete
+  useEffect(() => {
+    if (!isLoading) {
+      const timer = setTimeout(() => {
+        setShowInput(true);
+      }, 100); // Small delay to ensure all state updates are complete
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
+
   // Handle WebSocket messages
   useEffect(() => {
     const handleMessage = (data) => {
@@ -529,6 +539,11 @@ export default function Home() {
         setTimeout(() => {
           setShowInput(true)
         }, 300)
+      } else {
+        // Catch-all for any other message types - ensure input is always shown
+        console.log('Unknown message type:', data.type, data);
+        setIsLoading(false);
+        setShowInput(true);
       }
     }
 
@@ -761,7 +776,7 @@ export default function Home() {
     setCurrentResponse('')
 
     // Handle Lurky bubble logic (coin mentions) - only one at a time
-    if (mentionedCoin) {
+    if (mentionedCoin && isPluginEnabled('lurky')) {
       // Only create Lurky bubble if none exists
       if (lurkyBubbles.length === 0) {
         // Create new Lurky bubble instance
@@ -902,7 +917,7 @@ export default function Home() {
     // Keep Lurky bubble visible - building conversation bubble map
 
     // Handle CoinGecko bubble logic (price mentions + specific coin)
-    if (mentionsPrice && mentionedCoin) {
+    if (mentionsPrice && mentionedCoin && isPluginEnabled('coingecko')) {
       // Create new CoinGecko bubble instance for specific coin
       const coinName = mentionedCoin.charAt(0).toUpperCase() + mentionedCoin.slice(1);
       const newBubble = {
@@ -989,7 +1004,7 @@ export default function Home() {
           ))
         }
       })()
-    } else if (mentionsPrice) {
+    } else if (mentionsPrice && isPluginEnabled('coingecko')) {
       // Fallback: show general market overview if no specific coin mentioned
       const newBubble = {
         id: Date.now() + Math.random(),
@@ -1230,7 +1245,7 @@ export default function Home() {
     // Keep Hedera bubble visible - building conversation bubble map
 
     // Handle ChangeNOW bubble logic (buy/swap mentions)
-    if (mentionsChangeNow && mentionedCoin) {
+    if (mentionsChangeNow && mentionedCoin && isPluginEnabled('changenow')) {
       // Create new ChangeNOW bubble instance
       const newBubble = {
         id: Date.now() + Math.random(), // Unique ID
@@ -1395,14 +1410,19 @@ export default function Home() {
             
             if (contextTokens.length >= 2) {
               console.log('✅ Reconstructing swap with dynamic tokens...');
+              const extractedAmount = amountMatch[1];
+              console.log('🔢 Raw amount extracted:', extractedAmount);
+              console.log('🔢 Amount type:', typeof extractedAmount);
+              console.log('🔢 Amount truthy?', !!extractedAmount);
+              
               finalSwapInfo = {
                 sellToken: contextTokens[0].toUpperCase(),
                 buyToken: contextTokens[1].toUpperCase(), 
-                sellAmount: amountMatch[1],
+                sellAmount: extractedAmount,
                 hasAmount: true
               };
               console.log('📊 Reconstructed swap info:', finalSwapInfo);
-              console.log('🔢 Amount extracted:', amountMatch[1]);
+              console.log('🔢 Final sellAmount:', finalSwapInfo.sellAmount);
             } else {
               console.log('❌ Not enough tokens found in context:', contextTokens);
             }
@@ -1530,6 +1550,7 @@ export default function Home() {
             console.log('❌ Pair validation failed due to error - no bubble created');
             // Reset loading state if validation fails
             setIsLoading(false);
+            setShowInput(true); // Always show input after error
           }
         })()
       } else if (mentionedCoin) {
@@ -1698,7 +1719,7 @@ export default function Home() {
           content: 'I\'m currently offline, but you can still get crypto data from the bubbles above! Try asking about Bitcoin, Ethereum, or other coins.' 
         }])
         setIsLoading(false)
-        setShowInput(true)
+        setShowInput(true) // Always show input after error
       }
     }, 2000); // 2 second delay to allow bubbles to load data
   }
@@ -1980,6 +2001,7 @@ export default function Home() {
           loading={bubble.loading}
           addParticlesToSwarm={addParticlesToSwarm}
           originalQuery={bubble.originalQuery} // Pass the original user query for OpenAI extraction
+          transactionData={bubble.transactionData} // Pass transaction data for swap execution
         />
       ))}
       

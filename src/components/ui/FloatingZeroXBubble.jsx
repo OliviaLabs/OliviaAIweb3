@@ -23,12 +23,12 @@ const extractTradingParameters = async (input) => {
     const data = await response.json();
     return data.success ? data.data.extracted_parameters : null;
   } catch (error) {
-    logError('🚨 Failed to extract trading parameters:', error);
+    logError('Failed to extract trading parameters:', error);
     return null;
   }
 };
 
-const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content = '', loading = false, addParticlesToSwarm, originalQuery = '' }) => {
+const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content = '', loading = false, addParticlesToSwarm, originalQuery = '', transactionData = null }) => {
   const bubbleId = useState(() => `zerox-${Date.now()}-${Math.random()}`)[0]; // Unique ID for this bubble instance
   const [position, setPosition] = useState(() => {
     // Spread bubbles across the bottom third of screen
@@ -282,11 +282,11 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
                       onClick={async (e) => {
                         e.stopPropagation();
                         e.preventDefault();
-                        log('🔄 0x Swap button clicked!');
+                        log('0x Swap button clicked!');
                         
                         // Check if we have transaction data stored in the bubble
                         if (transactionData) {
-                          log('💰 Executing swap with transaction data:', transactionData);
+                          log('Executing swap with transaction data:', transactionData);
                           
                           try {
                             // Here you would execute the actual swap transaction
@@ -304,7 +304,7 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
                         }
                         
                         // Fallback to Matcha redirect if no transaction data
-                        log('⚠️ No transaction data found, redirecting to Matcha...');
+                        log('No transaction data found, redirecting to Matcha...');
                         let url = 'https://matcha.xyz/';
                         
                         try {
@@ -314,7 +314,7 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
                           
                           // If no originalQuery provided, try to extract from content
                           if (!userQuery) {
-                            log('⚠️ No originalQuery prop, extracting from content...');
+                            log('No originalQuery prop, extracting from content...');
                             // Try to extract from content first (look for patterns like "Buy", "Swap", etc.)
                             const buyMatch = content.match(/Buy[:\s]+([^.]*)/i);
                             const swapMatch = content.match(/Swap[:\s]+([^.]*)/i);
@@ -359,16 +359,16 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
                             
                             log('🎯 Built Matcha URL with parameters:', url);
                           } else {
-                            log('⚠️ No parameters extracted, using default Matcha URL');
+                            log('No parameters extracted, using default Matcha URL');
                           }
                           
                         } catch (paramError) {
-                          logError('🚨 Error extracting parameters:', paramError);
-                          log('📍 Falling back to default Matcha URL');
+                          logError('Error extracting parameters:', paramError);
+                          log('Falling back to default Matcha URL');
                         }
                         
                         // Open the URL
-                        log('🌐 Opening URL:', url);
+                        log('Opening URL:', url);
                         if (window.handleUrlClick) {
                           window.handleUrlClick(url);
                         } else {
@@ -400,6 +400,7 @@ FloatingZeroXBubble.propTypes = {
   loading: PropTypes.bool,
   addParticlesToSwarm: PropTypes.func,
   originalQuery: PropTypes.string,
+  transactionData: PropTypes.object,
 };
 
 export default FloatingZeroXBubble;

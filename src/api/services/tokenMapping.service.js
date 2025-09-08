@@ -156,6 +156,10 @@ export function formatSwapForAPI(swapInfo, userAddress = null) {
   console.log('🔧 formatSwapForAPI input:', swapInfo);
   const { sellToken, buyToken, sellAmount } = swapInfo;
   console.log('🔧 Extracted values:', { sellToken, buyToken, sellAmount });
+  console.log('🔧 sellAmount type:', typeof sellAmount);
+  console.log('🔧 sellAmount truthy?', !!sellAmount);
+  console.log('🔧 sellAmount === null?', sellAmount === null);
+  console.log('🔧 sellAmount === undefined?', sellAmount === undefined);
   
   const validation = validateTokenPair(sellToken, buyToken);
   if (!validation.valid) {

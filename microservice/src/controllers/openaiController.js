@@ -232,7 +232,7 @@ export class OpenAIController {
             });
             
           } catch (error) {
-            console.error(`❌ Function execution failed: ${functionName}`, error);
+            console.error(`Function execution failed: ${functionName}`, error);
             functionResults.push({
               tool_call_id: toolCall.id,
               role: "tool", 
@@ -248,9 +248,18 @@ export class OpenAIController {
           ...functionResults // Function results
         ];
         
+        // Add instruction to avoid emojis in final response
+        const finalMessages = [
+          {
+            role: "system",
+            content: "Keep responses clean and professional without emojis. Present trading information clearly and concisely."
+          },
+          ...followUpMessages
+        ];
+        
         const finalCompletion = await openai.chat.completions.create({
           model,
-          messages: followUpMessages,
+          messages: finalMessages,
           max_tokens,
           temperature
         });
