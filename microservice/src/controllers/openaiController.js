@@ -46,26 +46,243 @@ export class OpenAIController {
         });
       }
 
-      // Make request to OpenAI
+      // Define trading function tools for OpenAI
+      const tradingTools = [
+        {
+          type: "function",
+          function: {
+            name: "getSwapQuote",
+            description: "Get swap quote from 0x Protocol for token trading",
+            parameters: {
+              type: "object",
+              properties: {
+                sellToken: {
+                  type: "string",
+                  description: "Token to sell (symbol or address)"
+                },
+                buyToken: {
+                  type: "string", 
+                  description: "Token to buy (symbol or address)"
+                },
+                sellAmount: {
+                  type: "string",
+                  description: "Amount to sell (in token units)"
+                },
+                userAddress: {
+                  type: "string",
+                  description: "User wallet address"
+                }
+              },
+              required: ["sellToken", "buyToken", "sellAmount"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "getSwapPrice",
+            description: "Get swap price estimate from 0x Protocol (lighter than quote)",
+            parameters: {
+              type: "object",
+              properties: {
+                sellToken: {
+                  type: "string",
+                  description: "Token to sell (symbol or address)"
+                },
+                buyToken: {
+                  type: "string",
+                  description: "Token to buy (symbol or address)"
+                },
+                sellAmount: {
+                  type: "string", 
+                  description: "Amount to sell (in token units)"
+                }
+              },
+              required: ["sellToken", "buyToken", "sellAmount"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "executeSwap",
+            description: "Execute token swap transaction using 0x Protocol",
+            parameters: {
+              type: "object",
+              properties: {
+                sellToken: {
+                  type: "string",
+                  description: "Token to sell (symbol or address)"
+                },
+                buyToken: {
+                  type: "string",
+                  description: "Token to buy (symbol or address)"
+                },
+                sellAmount: {
+                  type: "string",
+                  description: "Amount to sell (in token units)"
+                },
+                userAddress: {
+                  type: "string",
+                  description: "User wallet address"
+                }
+              },
+              required: ["sellToken", "buyToken", "sellAmount", "userAddress"]
+            }
+          }
+        }
+      ];
+
+      // Make request to OpenAI with function calling tools
       const completion = await openai.chat.completions.create({
         model,
         messages,
         max_tokens,
         temperature,
+        tools: tradingTools,
+        tool_choice: "auto" // Let AI decide when to use tools
       });
 
-      // Return successful response
-      res.json({
-        success: true,
-        data: {
-          id: completion.id,
-          object: completion.object,
-          created: completion.created,
-          model: completion.model,
-          choices: completion.choices,
-          usage: completion.usage
+      // Check if AI wants to call functions
+      const message = completion.choices[0].message;
+      
+      if (message.tool_calls && message.tool_calls.length > 0) {
+        console.log('🔧 AI wants to call functions:', message.tool_calls);
+        
+        // Execute function calls
+        const functionResults = [];
+        
+        for (const toolCall of message.tool_calls) {
+          const functionName = toolCall.function.name;
+          const functionArgs = JSON.parse(toolCall.function.arguments);
+          
+          console.log(`🚀 Executing function: ${functionName}`, functionArgs);
+          
+          try {
+            let result;
+            
+            if (functionName === 'getSwapQuote') {
+              // Validate tokens first
+              try {
+                // Import validation function
+                const { validateTokenPair } = await import('../../../src/api/services/tokenMapping.service.js');
+                const validation = validateTokenPair(functionArgs.sellToken, functionArgs.buyToken);
+                
+                if (!validation.valid) {
+                  result = {
+                    success: false,
+                    error: validation.error,
+                    availableTokens: validation.availableTokens,
+                    message: `Sorry, ${validation.error}. Available tokens include: ${validation.availableTokens?.join(', ')}`
+                  };
+                } else {
+                  // Call 0x API for quote
+                  const { ZeroXController } = await import('./zeroXController.js');
+                  const mockReq = { query: functionArgs };
+                  const mockRes = {
+                    json: (data) => data,
+                    status: (code) => ({ json: (data) => ({ status: code, ...data }) })
+                  };
+                  
+                  result = await ZeroXController.getSwapQuote(mockReq, mockRes);
+                }
+              } catch (validationError) {
+                result = {
+                  success: false,
+                  error: validationError.message,
+                  message: `Token validation failed: ${validationError.message}`
+                };
+              }
+              
+            } else if (functionName === 'getSwapPrice') {
+              // Call 0x API for price
+              const { ZeroXController } = await import('./zeroXController.js');
+              const mockReq = { query: functionArgs };
+              const mockRes = {
+                json: (data) => data,
+                status: (code) => ({ json: (data) => ({ status: code, ...data }) })
+              };
+              
+              result = await ZeroXController.getSwapPrice(mockReq, mockRes);
+              
+            } else if (functionName === 'executeSwap') {
+              // Execute swap transaction
+              const { ZeroXController } = await import('./zeroXController.js');
+              const mockReq = { query: functionArgs };
+              const mockRes = {
+                json: (data) => data,
+                status: (code) => ({ json: (data) => ({ status: code, ...data }) })
+              };
+              
+              // First get the quote with transaction data
+              result = await ZeroXController.getSwapQuote(mockReq, mockRes);
+              
+              // Add execution instructions
+              if (result.success) {
+                result.executionReady = true;
+                result.message = "Swap transaction prepared. User needs to confirm in their wallet.";
+                result.instructions = "The transaction data is ready. Please ask the user to confirm the swap in their connected wallet.";
+              }
+            }
+            
+            functionResults.push({
+              tool_call_id: toolCall.id,
+              role: "tool",
+              content: JSON.stringify(result)
+            });
+            
+          } catch (error) {
+            console.error(`❌ Function execution failed: ${functionName}`, error);
+            functionResults.push({
+              tool_call_id: toolCall.id,
+              role: "tool", 
+              content: JSON.stringify({ error: error.message })
+            });
+          }
         }
-      });
+        
+        // Send function results back to OpenAI for final response
+        const followUpMessages = [
+          ...messages,
+          message, // AI's function call message
+          ...functionResults // Function results
+        ];
+        
+        const finalCompletion = await openai.chat.completions.create({
+          model,
+          messages: followUpMessages,
+          max_tokens,
+          temperature
+        });
+        
+        // Return final response with function results
+        res.json({
+          success: true,
+          data: {
+            id: finalCompletion.id,
+            object: finalCompletion.object,
+            created: finalCompletion.created,
+            model: finalCompletion.model,
+            choices: finalCompletion.choices,
+            usage: finalCompletion.usage,
+            function_calls_executed: message.tool_calls.length
+          }
+        });
+        
+      } else {
+        // No function calls, return normal response
+        res.json({
+          success: true,
+          data: {
+            id: completion.id,
+            object: completion.object,
+            created: completion.created,
+            model: completion.model,
+            choices: completion.choices,
+            usage: completion.usage
+          }
+        });
+      }
 
     } catch (error) {
       console.error('OpenAI API Error:', error);

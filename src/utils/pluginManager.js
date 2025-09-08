@@ -105,9 +105,10 @@ export const getPluginStates = () => {
     console.warn('Failed to parse saved plugin preferences:', error);
   }
   
-  // Default: all plugins disabled
+  // Default: enable core trading and portfolio plugins
+  const defaultEnabledPlugins = ['zerox', 'portfolio', 'coinstats', 'changenow'];
   return Object.keys(AVAILABLE_PLUGINS).reduce((acc, pluginId) => {
-    acc[pluginId] = false;
+    acc[pluginId] = defaultEnabledPlugins.includes(pluginId);
     return acc;
   }, {});
 };

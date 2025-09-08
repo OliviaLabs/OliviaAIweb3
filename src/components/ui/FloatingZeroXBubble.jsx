@@ -174,69 +174,76 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
       onMouseDown={handleMouseDown}
       onClick={handleClick}
     >
-      <div 
-        className={`relative w-full h-full rounded-full ${isDragging ? 'transform scale-105' : ''} transition-transform duration-200`}
-        style={{
-          background: isExpanded 
-            ? 'radial-gradient(circle at 30% 30%, #8B00FF, #4B0082, #1a0033)' // Purple gradient for 0x
-            : 'radial-gradient(circle at 30% 30%, #8B00FF, #4B0082, #1a0033)',
-          boxShadow: isExpanded
-            ? '0 0 60px rgba(139, 0, 255, 0.6), inset 0 0 40px rgba(139, 0, 255, 0.2)'
-            : '0 0 30px rgba(139, 0, 255, 0.4), inset 0 0 20px rgba(139, 0, 255, 0.2)',
-          border: '3px solid rgba(139, 0, 255, 0.6)',
-        }}
-      >
-        {/* Pulsing inner ring */}
-        <div 
-          className="absolute inset-2 rounded-full border-2 border-purple-300/40 animate-pulse"
-          style={{
-            background: 'radial-gradient(circle, rgba(139, 0, 255, 0.1) 0%, transparent 70%)'
-          }}
-        ></div>
+      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-2 border-purple-400 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: '0 0 30px #a855f7, inset 0 0 20px rgba(168, 85, 247, 0.15)'}}>
+        {/* Enhanced neon purple glowing border effect */}
+        <div className="absolute inset-0 rounded-full border border-purple-300/60 animate-pulse" style={{boxShadow: '0 0 25px #a855f7, 0 0 50px rgba(168, 85, 247, 0.3)'}}></div>
+        
+        {/* Ambient glow overlay */}
+        <div className="absolute inset-0 rounded-full bg-gradient-to-t from-purple-500/5 via-transparent to-purple-400/10 animate-pulse" style={{animationDuration: '3s'}}></div>
 
-        {/* Close button - only show when expanded */}
-        {isExpanded && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
-            className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 rounded-full text-white text-sm font-bold hover:bg-red-600 transition-colors shadow-lg z-10"
-            aria-label="Close"
-          >
-            ×
-          </button>
-        )}
+        {/* Enhanced close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-1 right-1 text-white hover:text-red-400 w-5 h-5 rounded-full bg-black/50 hover:bg-red-500/20 transition-all duration-300 text-xs font-bold flex items-center justify-center border border-purple-400/50 hover:border-red-400/70 z-20 hover:shadow-lg hover:shadow-red-400/30"
+          aria-label="Close"
+        >
+          ×
+        </button>
 
-        {/* Loading spinner */}
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-300"></div>
-          </div>
-        )}
-
-        {/* Bubble content */}
-        {!loading && (
-          <div className="relative w-full h-full flex items-center justify-center text-white p-3 overflow-hidden">
-            {!isExpanded ? (
-              // Collapsed: Show logo and title in center
-              <div className="text-center">
-                {/* 0x Protocol Logo - Using text for now, can be replaced with actual logo */}
-                <div className="w-16 h-16 rounded-full overflow-hidden border-4 border-purple-400 shadow-2xl shadow-purple-500/60 bg-gradient-to-br from-purple-400/30 to-purple-600/40 mx-auto mb-2 flex items-center justify-center">
-                  <span className="text-white font-bold text-xl">0x</span>
-                </div>
-                {/* Circular text layout */}
-                <div className="text-center">
-                  <div className="text-xs font-bold text-purple-300 drop-shadow-xl">{title}</div>
-                </div>
+        {/* Spherical Content Area */}
+        <div className="absolute inset-4 flex items-center justify-center">
+          {loading ? (
+            <div className="text-white font-medium animate-pulse text-center flex flex-col items-center">
+              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-purple-400 shadow-lg shadow-purple-500/40 mb-2 bg-black/20">
+                <img 
+                  src={zeroXLogo} 
+                  alt="0x Protocol Logo" 
+                  className="w-full h-full object-cover opacity-50"
+                />
               </div>
+              <div className="flex items-center gap-1 justify-center mb-1">
+                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+              </div>
+              <div className="text-xs font-semibold text-purple-400">Loading...</div>
+            </div>
+          ) : (
+            <div className="text-white w-full h-full flex flex-col items-center justify-center text-center">
+              {!isExpanded ? (
+                // Collapsed: Central icon with title below in spherical layout
+                <div className="flex flex-col items-center justify-center">
+                  {/* Central 0x Icon */}
+                  <div className="relative mb-3">
+                    <div className="w-10 h-10 rounded-full overflow-hidden border-4 border-purple-400 shadow-2xl shadow-purple-500/60 bg-gradient-to-br from-purple-400/30 to-purple-600/40 hover:border-purple-300 transition-all duration-300 hover:shadow-purple-400/80 hover:scale-105 group">
+                      <img 
+                        src={zeroXLogo} 
+                        alt="0x Protocol Logo" 
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                      {/* Inner circular glow */}
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-purple-400/10 to-purple-300/20"></div>
+                    </div>
+                    {/* Pulsing outer ring */}
+                    <div className="absolute inset-0 rounded-full border-2 border-purple-300/40 animate-ping" style={{animationDuration: '3s'}}></div>
+                  </div>
+                  
+                  {/* Circular text layout */}
+                  <div className="text-center">
+                    <div className="text-xs font-bold text-purple-300 drop-shadow-xl">{title}</div>
+                  </div>
+                </div>
             ) : (
               // Expanded: Spherical layout with enhanced content
               <div className="w-full h-full flex flex-col">
                 {/* Header section with logo and title */}
                 <div className="text-center mb-6">
-                  <div className="w-12 h-12 rounded-full overflow-hidden border-4 border-purple-400 shadow-2xl shadow-purple-500/60 bg-gradient-to-br from-purple-400/30 to-purple-600/40 mx-auto mb-2 flex items-center justify-center">
-                    <span className="text-white font-bold text-lg">0x</span>
+                  <div className="w-12 h-12 rounded-full overflow-hidden border-4 border-purple-400 shadow-2xl shadow-purple-500/60 bg-gradient-to-br from-purple-400/30 to-purple-600/40 mx-auto mb-2">
+                    <img 
+                      src={zeroXLogo} 
+                      alt="0x Protocol Logo" 
+                      className="w-full h-full object-cover"
+                    />
                     <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-purple-400/10 to-purple-300/20"></div>
                   </div>
                   <div className="text-sm font-bold text-purple-300 drop-shadow-lg">{title}</div>
@@ -244,10 +251,10 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
                 </div>
                 
                 {/* Central content area - improved text flow */}
-                <div className="flex-1 px-6 py-4">
-                  <div className="text-center space-y-2">
+                <div className="flex-1 px-4 py-2 overflow-y-auto max-h-[200px]">
+                  <div className="text-center space-y-1">
                     {typeof content === 'string' ? (
-                      <div className="text-sm text-white/90 leading-relaxed space-y-2">
+                      <div className="text-xs text-white/90 leading-tight space-y-1">
                         {content.split('\n\n').map((paragraph, index) => (
                           <p key={index} className="text-center">
                             {paragraph.split('\n').map((line, lineIndex) => (
@@ -260,8 +267,8 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
                         ))}
                       </div>
                     ) : (
-                      <div className="font-mono text-xs text-purple-300 bg-black/30 p-3 rounded border border-purple-400/30">
-                        <pre className="whitespace-pre-wrap text-left">
+                      <div className="font-mono text-xs text-purple-300 bg-black/30 p-2 rounded border border-purple-400/30">
+                        <pre className="whitespace-pre-wrap text-left text-xs">
                           {JSON.stringify(content, null, 2)}
                         </pre>
                       </div>
@@ -276,12 +283,29 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
                         e.stopPropagation();
                         e.preventDefault();
                         log('🔄 0x Swap button clicked!');
-                        log('📋 Content:', content);
-                        log('🏷️ Title:', title);
-                        log('📝 Original Query:', originalQuery);
                         
-                        // Enhanced URL building using trading parameter extraction
-                        let url = 'https://matcha.xyz/'; // 0x's official DEX aggregator
+                        // Check if we have transaction data stored in the bubble
+                        if (transactionData) {
+                          log('💰 Executing swap with transaction data:', transactionData);
+                          
+                          try {
+                            // Here you would execute the actual swap transaction
+                            // For now, let's just show the transaction details
+                            alert(`Swap ready to execute!\n\nSell: ${transactionData.sellAmount} ${transactionData.formattedSwap?.sellTokenInfo?.symbol}\nBuy: ~${transactionData.buyAmount} ${transactionData.formattedSwap?.buyTokenInfo?.symbol}\n\nClick OK to proceed with wallet confirmation.`);
+                            
+                            // TODO: Integrate with wallet to execute the transaction
+                            // const result = await executeTransaction(transactionData);
+                            
+                          } catch (error) {
+                            console.error('❌ Swap execution failed:', error);
+                            alert('Swap failed: ' + error.message);
+                          }
+                          return;
+                        }
+                        
+                        // Fallback to Matcha redirect if no transaction data
+                        log('⚠️ No transaction data found, redirecting to Matcha...');
+                        let url = 'https://matcha.xyz/';
                         
                         try {
                           // Extract the original user query - prioritize originalQuery prop
@@ -359,8 +383,9 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
                 )}
               </div>
             )}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

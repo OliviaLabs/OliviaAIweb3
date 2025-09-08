@@ -2,6 +2,7 @@
 import { getCryptoPrice, getCryptoTrending, setCryptoAlert } from './crypto-tools';
 import { getTwitterUser, getTwitterTrends, trackInfluencer } from './social-tools';
 import { storeUserData, getUserContext, rememberPreference } from './memory-tools';
+import { getSwapQuote, getSwapPrice, executeSwap, getSupportedTokens } from './trading-tools';
 
 // Define all available tools
 export const AVAILABLE_TOOLS = {
@@ -90,6 +91,49 @@ export const AVAILABLE_TOOLS = {
       value: { type: 'any', required: true }
     },
     handler: rememberPreference
+  },
+  
+  // Trading Tools (0x Protocol)
+  getSwapQuote: {
+    name: 'getSwapQuote',
+    description: 'Get swap quote from 0x Protocol for token trading',
+    parameters: {
+      sellToken: { type: 'string', required: true, description: 'Token to sell (symbol or address)' },
+      buyToken: { type: 'string', required: true, description: 'Token to buy (symbol or address)' },
+      sellAmount: { type: 'string', required: true, description: 'Amount to sell (in token units)' },
+      userAddress: { type: 'string', required: false, description: 'User wallet address' }
+    },
+    handler: getSwapQuote
+  },
+  
+  getSwapPrice: {
+    name: 'getSwapPrice', 
+    description: 'Get swap price estimate from 0x Protocol (lighter than quote)',
+    parameters: {
+      sellToken: { type: 'string', required: true, description: 'Token to sell (symbol or address)' },
+      buyToken: { type: 'string', required: true, description: 'Token to buy (symbol or address)' },
+      sellAmount: { type: 'string', required: true, description: 'Amount to sell (in token units)' }
+    },
+    handler: getSwapPrice
+  },
+  
+  executeSwap: {
+    name: 'executeSwap',
+    description: 'Execute token swap transaction using 0x Protocol',
+    parameters: {
+      quoteData: { type: 'object', required: true, description: 'Quote data from getSwapQuote' },
+      userAddress: { type: 'string', required: true, description: 'User wallet address' }
+    },
+    handler: executeSwap
+  },
+  
+  getSupportedTokens: {
+    name: 'getSupportedTokens',
+    description: 'Get list of tokens supported by 0x Protocol',
+    parameters: {
+      chainId: { type: 'number', required: false, description: 'Chain ID (default: 1 for Ethereum)' }
+    },
+    handler: getSupportedTokens
   }
 };
 

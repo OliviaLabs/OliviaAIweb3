@@ -12,11 +12,17 @@ const zeroXAxios = axios.create({
   },
 });
 
-// Request interceptor to add API key (if available)
+// Request interceptor to add API key and required headers
 zeroXAxios.interceptors.request.use((requestConfig) => {
-  // 0x API key is optional for some endpoints but recommended for production
+  // Add required headers for 0x API v2
   if (config.zeroXApiKey) {
     requestConfig.headers['0x-api-key'] = config.zeroXApiKey;
+  }
+  requestConfig.headers['0x-version'] = 'v2'; // Required for v2 API
+  
+  // Add chainId to params if not already present (default to Ethereum mainnet)
+  if (requestConfig.params && !requestConfig.params.chainId) {
+    requestConfig.params.chainId = 1; // Ethereum mainnet
   }
 
   if (config.nodeEnv === 'development') {
@@ -24,6 +30,7 @@ zeroXAxios.interceptors.request.use((requestConfig) => {
       url: (requestConfig.baseURL || '') + (requestConfig.url || ''),
       method: requestConfig.method,
       headers: requestConfig.headers,
+      params: requestConfig.params
     });
   }
   return requestConfig;
@@ -88,12 +95,41 @@ export class ZeroXController {
 
       console.log('[0x] Fetching swap quote with params:', params);
 
-      // Make request to 0x API
-      const response = await zeroXAxios.get('/swap/v1/quote', { params });
+      // Make request to 0x API (using AllowanceHolder endpoint per documentation)
+      const response = await zeroXAxios.get('/swap/allowance-holder/quote', { params });
+
+      // Calculate actual gas cost in ETH and USD
+      const gasUnits = parseInt(response.data.gas || '0');
+      const gasPriceWei = parseInt(response.data.gasPrice || '0');
+      const gasEthCost = (gasUnits * gasPriceWei) / 1e18; // Convert wei to ETH
+      
+      // Get current ETH price (simplified - you might want to cache this)
+      let ethPriceUSD = 3500; // Default fallback
+      try {
+        const ethPriceResponse = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
+        const ethPriceData = await ethPriceResponse.json();
+        ethPriceUSD = ethPriceData.ethereum?.usd || 3500;
+      } catch (e) {
+        console.log('[0x] Could not fetch ETH price, using default:', ethPriceUSD);
+      }
+      
+      const gasUsdCost = gasEthCost * ethPriceUSD;
+
+      // Add gas cost calculations to response
+      const enhancedData = {
+        ...response.data,
+        gasCosts: {
+          gasUnits: gasUnits,
+          gasPriceGwei: gasPriceWei / 1e9, // Convert wei to gwei
+          gasCostETH: gasEthCost,
+          gasCostUSD: gasUsdCost,
+          ethPriceUSD: ethPriceUSD
+        }
+      };
 
       res.json({
         success: true,
-        data: response.data,
+        data: enhancedData,
         timestamp: new Date().toISOString()
       });
 
@@ -155,12 +191,41 @@ export class ZeroXController {
 
       console.log('[0x] Fetching swap price with params:', params);
 
-      // Make request to 0x API
-      const response = await zeroXAxios.get('/swap/v1/price', { params });
+      // Make request to 0x API (using AllowanceHolder endpoint per documentation)
+      const response = await zeroXAxios.get('/swap/allowance-holder/price', { params });
+
+      // Calculate actual gas cost in ETH and USD
+      const gasUnits = parseInt(response.data.gas || '0');
+      const gasPriceWei = parseInt(response.data.gasPrice || '0');
+      const gasEthCost = (gasUnits * gasPriceWei) / 1e18; // Convert wei to ETH
+      
+      // Get current ETH price (simplified - you might want to cache this)
+      let ethPriceUSD = 3500; // Default fallback
+      try {
+        const ethPriceResponse = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
+        const ethPriceData = await ethPriceResponse.json();
+        ethPriceUSD = ethPriceData.ethereum?.usd || 3500;
+      } catch (e) {
+        console.log('[0x] Could not fetch ETH price, using default:', ethPriceUSD);
+      }
+      
+      const gasUsdCost = gasEthCost * ethPriceUSD;
+
+      // Add gas cost calculations to response
+      const enhancedData = {
+        ...response.data,
+        gasCosts: {
+          gasUnits: gasUnits,
+          gasPriceGwei: gasPriceWei / 1e9, // Convert wei to gwei
+          gasCostETH: gasEthCost,
+          gasCostUSD: gasUsdCost,
+          ethPriceUSD: ethPriceUSD
+        }
+      };
 
       res.json({
         success: true,
-        data: response.data,
+        data: enhancedData,
         timestamp: new Date().toISOString()
       });
 

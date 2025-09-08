@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useWebSocket } from '../contexts/WebSocketContext'
 import { useInternetIdentity } from '../contexts/InternetIdentityContext'
-import { isPluginEnabled } from '../utils/pluginManager'
+import { isPluginEnabled, AVAILABLE_PLUGINS } from '../utils/pluginManager'
 import { useAccountUpgrade } from '../hooks/useAccountUpgrade';
 import { icpService } from '../api/services/icp.service.js';
 import { lurkyService, coingeckoService, coinstatsService, hgraphService, changeNowService, zeroXService } from '../api';
+import { parseSwapMessage, formatSwapForAPI, validateTokenPair } from '../api/services/tokenMapping.service';
 import { log, error as logError } from '../utils/logger.js';
 import FloatingLurkyBubble from '../components/ui/FloatingLurkyBubble.jsx';
 import FloatingCoinGeckoBubble from '../components/ui/FloatingCoinGeckoBubble.jsx';
@@ -23,6 +24,7 @@ export default function Home() {
   const [currentResponse, setCurrentResponse] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showInput, setShowInput] = useState(false)
+  const messagesEndRef = useRef(null)
   const [userInput, setUserInput] = useState('')
   const [loadingText, setLoadingText] = useState('Analyzing')
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
@@ -473,6 +475,11 @@ export default function Home() {
     }
   }, [updateContextAwareness]);
 
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, currentResponse]);
+
   // Handle WebSocket messages
   useEffect(() => {
     const handleMessage = (data) => {
@@ -486,6 +493,7 @@ export default function Home() {
         setMessages(prev => [...prev, { type: 'ai', content: finalResponse }])
         setCurrentResponse('')
         setIsLoading(false)
+        setShowInput(true) // Show input after AI responds
         
         // Parse AI response for coin mentions
         parseAIResponseForCoins(finalResponse);
@@ -512,6 +520,7 @@ export default function Home() {
         setMessages(prev => [...prev, { type: 'ai', content: response }])
         setCurrentResponse('')
         setIsLoading(false)
+        setShowInput(true) // Show input after AI responds
         
         // Parse AI response for coin mentions
         parseAIResponseForCoins(response);
@@ -677,6 +686,13 @@ export default function Home() {
 
     const message = userInput.trim()
     
+    // Build conversation history from messages state (needed for context reconstruction)
+    // Include the current message in the history for context
+    const conversationHistory = [...messages, { type: 'user', content: message }].slice(-10).map(msg => ({
+      role: msg.type === 'user' ? 'user' : 'assistant',
+      content: msg.content
+    }));
+    
     // Extract potential token names - be much more conservative
     const words = message.toLowerCase().match(/\b[a-zA-Z]{2,}\b/g) || [];
     
@@ -712,11 +728,23 @@ export default function Home() {
     // Detect CoinStats mentions (coin and price triggers)
     const mentionsCoinstats = /\b(coin|coins|price|prices)\b/i.test(message)
     
-    // Detect ChangeNOW mentions (buy and swap triggers)
-    const mentionsChangeNow = /\b(buy|swap|exchange|trade|convert)\b/i.test(message)
+    // Detect ChangeNOW mentions (buy with fiat/card triggers)
+    const mentionsChangeNow = /\b(buy|purchase|convert.*usd|buy.*with.*card|fiat)\b/i.test(message)
     
-    // Detect 0x Protocol mentions (dex and aggregator triggers)
-    const mentions0x = /\b(dex|aggregator|0x|best rate|compare rates|cheapest swap)\b/i.test(message)
+    // Detect 0x Protocol mentions (swap/trade existing tokens) - also detect numbers for context reconstruction
+    const mentions0x = /\b(swap|trade|exchange|dex|aggregator|0x|best rate|compare rates|cheapest swap)\b/i.test(message) || /^\s*(\d+(?:\.\d+)?)\s*(pepe|usdc|eth|btc|usdt)?\s*$/i.test(message)
+    
+    // Debug logging for swap detection
+    console.log('🔄 Swap Detection Debug:', {
+      message,
+      mentions0x,
+      isZeroXEnabled: isPluginEnabled('zerox'),
+      allPluginStates: Object.keys(AVAILABLE_PLUGINS || {}).reduce((acc, key) => {
+        acc[key] = isPluginEnabled(key);
+        return acc;
+      }, {})
+    })
+    
     
     // Detect Portfolio mentions (wallet, balance, holdings triggers)
     const mentionsPortfolio = /\b(wallet|balance|holdings|portfolio|my tokens|my coins|what do i have|what's in my wallet)\b/i.test(message)
@@ -867,8 +895,8 @@ export default function Home() {
               ? { ...bubble, content: errorContent, loading: false }
               : bubble
           ))
-        }
-      })()
+          }
+        })()
       }
     }
     // Keep Lurky bubble visible - building conversation bubble map
@@ -1323,91 +1351,200 @@ export default function Home() {
     }
     // Keep ChangeNOW bubble visible - building conversation bubble map
 
-    // Handle 0x Protocol bubble logic (dex/aggregator mentions)
-    if (mentions0x && mentionedCoin) {
-      // Create new 0x Protocol bubble instance
-      const newBubble = {
-        id: Date.now() + Math.random(), // Unique ID
-        title: `${mentionedCoin.toUpperCase()} DEX Rates - 0x Protocol`,
-        content: `Getting best swap rates for ${mentionedCoin.toUpperCase()}...`,
-        loading: true,
-        originalQuery: message // Store the original user message for OpenAI extraction
+    // Handle 0x Protocol bubble logic (dynamic swap parsing)
+    let swapBubbleCreated = false;
+    if (mentions0x) {
+      console.log('🎯 0x Protocol triggered!');
+      // Parse swap information from user message
+      const swapInfo = parseSwapMessage(message);
+      console.log('📊 Parsed swap info:', swapInfo);
+      
+      // Also check if user is providing an amount for a previous swap request
+      let finalSwapInfo = swapInfo;
+      if (!swapInfo) {
+        // Check if message is just a number and we have swap context from conversation
+        const amountMatch = message.match(/^\s*(\d+(?:\.\d+)?)\s*$/);
+        if (amountMatch && conversationHistory.length > 0) {
+          console.log('🔍 User provided amount, looking for swap context...');
+          console.log('📜 Conversation history:', conversationHistory);
+          
+          // Look for recent swap context in conversation - use dynamic token detection
+          const recentMessages = conversationHistory.slice(-4); // Last 4 messages
+          console.log('📝 Recent messages:', recentMessages);
+          const swapContextMessage = recentMessages.find(msg => 
+            msg.role === 'assistant' && 
+            /how much.*(?:swap|trade|exchange)|(?:swap|trade|exchange).*how much/i.test(msg.content)
+          );
+          
+          if (swapContextMessage) {
+            console.log('🔄 Found swap context message:', swapContextMessage.content);
+            
+            // Use the same token detection logic as the main function
+            const contextWords = swapContextMessage.content.toLowerCase().match(/\b[a-zA-Z]{2,}\b/g) || [];
+            const knownCryptos = [
+              'bitcoin', 'btc', 'ethereum', 'eth', 'solana', 'sol', 'cardano', 'ada',
+              'polygon', 'matic', 'dogecoin', 'doge', 'chainlink', 'link', 'litecoin', 'ltc',
+              'polkadot', 'dot', 'avalanche', 'avax', 'cosmos', 'atom', 'uniswap', 'uni',
+              'shiba', 'shib', 'pepe', 'bonk', 'popcat', 'wif', 'ton', 'usdt', 'usdc',
+              'bnb', 'xrp', 'ripple', 'stellar', 'xlm', 'vechain', 'vet', 'tron', 'trx',
+              'icp', 'hbar', 'hedera', 'near', 'algo', 'algorand', 'fil', 'filecoin'
+            ];
+            
+            const contextTokens = contextWords.filter(word => knownCryptos.includes(word));
+            console.log('🪙 Found tokens in context:', contextTokens);
+            
+            if (contextTokens.length >= 2) {
+              console.log('✅ Reconstructing swap with dynamic tokens...');
+              finalSwapInfo = {
+                sellToken: contextTokens[0].toUpperCase(),
+                buyToken: contextTokens[1].toUpperCase(), 
+                sellAmount: amountMatch[1],
+                hasAmount: true
+              };
+              console.log('📊 Reconstructed swap info:', finalSwapInfo);
+              console.log('🔢 Amount extracted:', amountMatch[1]);
+            } else {
+              console.log('❌ Not enough tokens found in context:', contextTokens);
+            }
+          }
+        }
       }
       
-      setZeroXBubbles(prev => [...prev, newBubble])
-      ;(async () => {
-        try {
-          // Get swap price for popular pairs
-          const baseToken = mentionedCoin.toLowerCase() === 'eth' ? 'ETH' : 'WETH';
-          const quoteToken = 'USDC';
-          const sellAmount = '1000000000000000000'; // 1 ETH in wei
-          
-          const swapData = await zeroXService.getSwapPrice(baseToken, quoteToken, sellAmount);
-          
-          let swapText = `**${mentionedCoin.toUpperCase()} DEX Aggregation via 0x Protocol**\n\n`;
-          
-          if (swapData && swapData.price) {
-            swapText += `💱 **Current Rate**: 1 ${baseToken} = ${parseFloat(swapData.price).toFixed(4)} ${quoteToken}\n\n`;
+      if (finalSwapInfo) {
+        console.log('✅ Valid swap info found, validating pair...');
+        
+        // First validate the pair before creating bubble
+        ;(async () => {
+          try {
+            // Format swap data for 0x API
+            const formattedSwap = formatSwapForAPI(finalSwapInfo);
             
-            if (swapData.buyAmount) {
-              const buyAmount = zeroXService.convertFromBaseUnits(swapData.buyAmount, 6); // USDC has 6 decimals
-              swapText += `📊 **Exchange Amount**: ${buyAmount.toFixed(2)} ${quoteToken}\n\n`;
+            // Get swap price from 0x API
+            const swapData = await fetch(`http://localhost:3001/api/zerox/price?chainId=1&sellToken=${formattedSwap.sellToken}&buyToken=${formattedSwap.buyToken}&sellAmount=${formattedSwap.sellAmount}`, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer dev-token',
+                'Origin': window.location.origin
+              }
+            });
+            
+            const response = await swapData.json();
+            const data = response.success ? response.data : null;
+            
+            if (data) {
+              console.log('✅ Pair validated successfully, creating bubble...');
+              swapBubbleCreated = true;
+              
+              // Create new 0x Protocol bubble instance ONLY after validation
+              const newBubble = {
+                id: Date.now() + Math.random(), // Unique ID
+                title: `${finalSwapInfo.sellToken} → ${finalSwapInfo.buyToken} - 0x Protocol`,
+                content: `Getting swap quote for ${finalSwapInfo.sellAmount || 'amount'} ${finalSwapInfo.sellToken} to ${finalSwapInfo.buyToken}...`,
+                loading: true,
+                originalQuery: message // Store the original user message for OpenAI extraction
+              }
+              
+              setZeroXBubbles(prev => [...prev, newBubble]);
+              
+              let swapText = `**${finalSwapInfo.sellToken} → ${finalSwapInfo.buyToken} Swap Quote**\n\n`;
+              // Calculate display amounts
+              const sellAmount = formattedSwap.sellAmount ? (parseInt(formattedSwap.sellAmount) / Math.pow(10, formattedSwap.sellTokenInfo.decimals)).toFixed(4) : finalSwapInfo.sellAmount;
+              const buyAmount = data.buyAmount ? (parseInt(data.buyAmount) / Math.pow(10, formattedSwap.buyTokenInfo.decimals)).toFixed(4) : 'N/A';
+              
+              swapText += `📊 **Get**: ${buyAmount} ${finalSwapInfo.buyToken}\n`;
+              swapText += `💰 **Pay**: ${sellAmount} ${finalSwapInfo.sellToken}\n`;
+              
+              // Add gas costs if available
+              if (data.gasCosts) {
+                swapText += `⛽ **Gas Fee**: $${data.gasCosts.gasCostUSD.toFixed(2)} (${data.gasCosts.gasUnits.toLocaleString()} units at ${data.gasCosts.gasPriceGwei.toFixed(1)} gwei)\n`;
+              }
+              
+              // Add route information
+              if (data.route && data.route.tokens) {
+                const routeTokens = data.route.tokens.map(t => t.symbol).join(' → ');
+                swapText += `🔗 **Route**: ${routeTokens}\n`;
+              }
+              
+              // Add liquidity sources
+              if (data.route && data.route.fills) {
+                swapText += `🔄 **Sources**: ${data.route.fills.map(f => f.source).join(', ')}\n`;
+              }
+              
+              swapText += `\n🎯 **Best execution** across multiple DEXs\n`;
+              swapText += `🔒 **Secure** on-chain settlement\n`;
+              
+              // Add allowance info if needed
+              if (data.issues && data.issues.allowance) {
+                swapText += `\n⚠️  **Approval Required**: AllowanceHolder contract\n`;
+              }
+              
+              swapText += `\n🚀 **Ready to Swap**\n`;
+              swapText += `Click the swap button to confirm and execute this trade.`;
+              
+              // Update context awareness with real swap data
+              updateContextAwareness('swap_data', `${finalSwapInfo.sellToken}_${finalSwapInfo.buyToken}`, {
+                source: '0x Protocol',
+                sellToken: finalSwapInfo.sellToken,
+                buyToken: finalSwapInfo.buyToken,
+                sellAmount: sellAmount,
+                buyAmount: buyAmount,
+                gasCostUSD: data.gasCosts?.gasCostUSD || 0,
+                route: data.route,
+                allowanceTarget: data.allowanceTarget,
+                needsApproval: !!data.issues?.allowance,
+                timestamp: new Date().toISOString()
+              })
+              // Update bubble with quote first
+              setZeroXBubbles(prev => prev.map(bubble => 
+                bubble.id === newBubble.id 
+                  ? { ...bubble, content: swapText, loading: false }
+                  : bubble
+              ));
+              
+              // Send swap quote to AI for natural language response
+              const aiMessage = `I found a swap quote for you:\n\n${swapText}\n\nWould you like me to explain any part of this quote or help you proceed with the swap?`;
+              
+              // Add AI message to chat
+              setMessages(prev => [...prev, {
+                type: 'ai',
+                content: aiMessage,
+                timestamp: Date.now(),
+                id: `ai_${Date.now()}`
+              }]);
+              
+              // Store transaction data for the swap button
+              newBubble.transactionData = {
+                formattedSwap,
+                sellAmount,
+                buyAmount,
+                gasData: data.gasCosts
+              };
+            } else {
+              // Pair validation failed - don't create bubble, just log error
+              console.log('❌ Pair validation failed - no bubble created');
+              console.log('Response:', response);
             }
-            
-            if (swapData.sources && swapData.sources.length > 0) {
-              swapText += `🔄 **Liquidity Sources**:\n`;
-              swapData.sources.slice(0, 3).forEach(source => {
-                swapText += `• ${source.name}: ${(source.proportion * 100).toFixed(1)}%\n`;
-              });
-              swapText += '\n';
-            }
-            
-            swapText += `⚡ **Gas Estimate**: ${swapData.estimatedGas || 'N/A'} gas\n\n`;
-            swapText += `🎯 **Best execution** across multiple DEXs\n`;
-            swapText += `🔒 **Secure** on-chain settlement\n\n`;
-            swapText += `Ready to swap on [Matcha](https://matcha.xyz/)`;
-            
-            // Update context awareness
-            updateContextAwareness('dex_data', mentionedCoin.toLowerCase(), {
-              source: '0x Protocol',
-              price: swapData.price,
-              buyAmount: swapData.buyAmount,
-              sources: swapData.sources || [],
-              timestamp: new Date().toISOString()
-            })
-          } else {
-            swapText += `❌ **Not Available**\n\n`;
-            swapText += `Unfortunately, ${mentionedCoin.toUpperCase()} is not available for swapping on 0x Protocol.\n\n`;
-            swapText += `**Available tokens**: ETH, WETH, USDC, DAI, UNI, and most ERC-20 tokens\n\n`;
-            swapText += `Try asking for:\n`;
-            swapText += `• "best rates for ethereum"\n`;
-            swapText += `• "dex prices for bitcoin"\n`;
-            swapText += `• "0x swap usdc"`;
-            
-            // Update context awareness even for unavailable tokens
-            updateContextAwareness('dex_data', mentionedCoin.toLowerCase(), {
-              source: '0x Protocol',
-              available: false,
-              reason: 'Token not supported on 0x'
-            })
+          } catch (e) {
+            console.error('0x Protocol validation error:', e);
+            console.log('❌ Pair validation failed due to error - no bubble created');
+            // Reset loading state if validation fails
+            setIsLoading(false);
           }
-          
-          // Update the specific bubble
-          setZeroXBubbles(prev => prev.map(bubble => 
-            bubble.id === newBubble.id 
-              ? { ...bubble, content: swapText, loading: false }
-              : bubble
-          ))
-        } catch (e) {
-          console.error('0x Protocol error:', e)
-          // Update the specific bubble with error
-          setZeroXBubbles(prev => prev.map(bubble => 
-            bubble.id === newBubble.id 
-              ? { ...bubble, content: `0x Protocol API Error\n\nCouldn't fetch DEX data for ${mentionedCoin.toUpperCase()}\n\nTry asking for:\n• "best rates for ethereum"\n• "dex aggregator for usdc"\n• "0x protocol swap"`, loading: false }
-              : bubble
-          ))
+        })()
+      } else if (mentionedCoin) {
+        // Fallback for mentions without clear swap intent
+        const newBubble = {
+          id: Date.now() + Math.random(),
+          title: `${mentionedCoin.toUpperCase()} DEX Info - 0x Protocol`,
+          content: `**${mentionedCoin.toUpperCase()} Trading Information**\n\n🔄 Available for swapping on 0x Protocol\n\n**Try asking:**\n• "swap 100 ${mentionedCoin.toLowerCase()} to usdt"\n• "trade ${mentionedCoin.toLowerCase()} for eth"\n• "exchange ${mentionedCoin.toLowerCase()} to usdc"\n\n💡 **Tip**: Specify amount and target token for real quotes!`,
+          loading: false,
+          originalQuery: message
         }
-      })()
+        setZeroXBubbles(prev => [...prev, newBubble])
+      } else {
+        console.log('❌ No valid swap info parsed from message:', message);
+      }
     }
     // Keep 0x Protocol bubble visible - building conversation bubble map
 
@@ -1514,13 +1651,21 @@ export default function Home() {
       
       log('🔍 Price query detection:', { isSimplePriceQuery, useSearchFromStart, words });
       
-      // Build conversation history from messages state
-      const conversationHistory = messages.slice(-10).map(msg => ({
-        role: msg.type === 'user' ? 'user' : 'assistant',
-        content: msg.content
-      }));
+      // Conversation history already built at top of function
       
       log('🧠 Conversation history being sent:', conversationHistory);
+      
+      // Skip AI response if we successfully created a swap bubble OR if there's ongoing swap context
+      const hasRecentSwapContext = conversationHistory.slice(-4).some(msg => 
+        /swap|trade|exchange|pepe|usdc|usdt|eth|btc/i.test(msg.content) && 
+        /how much|which token|want to swap/i.test(msg.content)
+      );
+      
+      if (swapBubbleCreated || (mentions0x && hasRecentSwapContext)) {
+        console.log('🔄 Skipping AI response - swap processing or context detected');
+        setIsLoading(false);
+        return;
+      }
       
       let result;
       if (hasContext && !useSearchFromStart) {
@@ -1630,17 +1775,18 @@ export default function Home() {
       <div className="flex-1 flex items-center justify-center px-4 relative z-10 pb-36" style={{marginBottom: '-120px'}}>
         <div className="text-center max-w-xl w-full">
             
-            {/* Chat Messages - Fade to black and disappear, positioned above input */}
-            <div className="space-y-3 mb-6 overflow-hidden" style={{ maxHeight: '40vh' }}>
+            {/* Chat Messages - Scroll up and fade older messages */}
+            <div className="space-y-3 mb-6 overflow-y-auto overflow-x-hidden scrollbar-hide" style={{ maxHeight: '40vh' }}>
               {messages.map((msg, index) => {
                 // Calculate fade: newest messages (highest index) = 100% opacity
-                // Older messages (lower index) = fade to black and disappear
+                // Older messages (lower index) = fade and become smaller
                 const totalMessages = messages.length;
                 const messageAge = totalMessages - index - 1; // 0 = newest, higher = older
-                const fadeOpacity = Math.max(0, 1 - (messageAge * 0.15)); // Fade to 0 (black/gone)
+                const fadeOpacity = Math.max(0.1, 1 - (messageAge * 0.12)); // Keep minimum visibility
+                const scale = Math.max(0.85, 1 - (messageAge * 0.05)); // Slightly shrink older messages
                 
-                // Don't render messages that are completely faded
-                if (fadeOpacity <= 0.05) return null;
+                // Don't render messages that are too old (keep last 15 messages max)
+                if (messageAge > 15) return null;
                 
                 return (
                   <div 
@@ -1651,7 +1797,9 @@ export default function Home() {
                         : 'text-white'
                     }`}
                     style={{
-                      opacity: fadeOpacity
+                      opacity: fadeOpacity,
+                      transform: `scale(${scale})`,
+                      marginBottom: messageAge > 5 ? '0.25rem' : '0.75rem' // Compress older messages
                     }}
                     dangerouslySetInnerHTML={{
                       __html: (() => {
@@ -1699,6 +1847,8 @@ export default function Home() {
                   </div>
                 );
               }).filter(Boolean)}
+              {/* Invisible element to scroll to */}
+              <div ref={messagesEndRef} />
             </div>
 
             {/* Current Response or Loading */}
