@@ -8,7 +8,7 @@ export const changeNowService = {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`,
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
           'Origin': window.location.origin
         }
       });
@@ -32,7 +32,7 @@ export const changeNowService = {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`,
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
           'Origin': window.location.origin
         }
       });
@@ -56,7 +56,7 @@ export const changeNowService = {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`,
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
           'Origin': window.location.origin
         }
       });
@@ -80,7 +80,7 @@ export const changeNowService = {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`,
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
           'Origin': window.location.origin
         }
       });
@@ -183,7 +183,7 @@ export const changeNowService = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`,
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
           'Origin': window.location.origin
         },
         body: JSON.stringify(transactionData)
@@ -208,7 +208,7 @@ export const changeNowService = {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`,
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
           'Origin': window.location.origin
         }
       });

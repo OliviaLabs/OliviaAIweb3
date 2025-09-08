@@ -6,6 +6,8 @@ import { privacyService } from '../api/services/privacy.service.js';
 import { log, error, warn } from '../utils/logger.js';
 import { aiService } from '../api/services/ai.service.js';
 import { ENDPOINTS, OPENAI_MICROSERVICE_CONFIG } from '../api/config/endpoints.js';
+import { tradingService } from '../api/services/trading.service.js';
+import { useAccount } from 'wagmi';
 
 const WebSocketContext = createContext();
 
@@ -23,6 +25,9 @@ const CONNECTION_TIMEOUT = 60000; // 60 seconds
 
 export const WebSocketProvider = ({ children }) => {
   log('🟦 WebSocketProvider mounting...');
+  
+  // Get wallet connection info from Wagmi
+  const { address, isConnected: isWalletConnected, connector } = useAccount();
   
   const wsRef = useRef(null);
   const messageHandlersRef = useRef(new Set());
@@ -756,67 +761,26 @@ export const WebSocketProvider = ({ children }) => {
 
 
   const sendMessage = useCallback(async (message, conversationHistory = [], searchEnabled = false, imageEnabled = false) => {
-    try {
-      // Wait for WebSocket to be connected
-      await waitForConnection();
-    } catch (err) {
-      error('❌ Failed to establish WebSocket connection:', err);
-      return false;
-    }
-
-    // Double-check connection after waiting
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      log('❌ WebSocket still not connected after waiting');
-      return false;
-    }
-
-    // 🔍 Trading request handling removed - all messages now go to AI
-    // This allows the AI to handle trading requests with full context and capability
-
     const requestId = generateRequestId();
     const userOptions = extractUserOptions();
     
     // Retrieve conversation history from ICP if not provided
     let historyToSend = conversationHistory;
     if (historyToSend.length === 0) {
-      historyToSend = await getConversationHistory(10); // Get last 10 message pairs
-      log('🟦 Retrieved conversation history for AI context:', {
-        historyLength: historyToSend.length,
-        hasHistory: historyToSend.length > 0
-      });
-    }
-    
-    const messageData = {
-      type: 'text',
-      requestId,
-      data: {
-        model: MODEL_NAME,
-        text: message,
-        messages: historyToSend,
-        options: {
-          agentId: AGENT_ID,
-          search_available: searchEnabled,
-          image_available: imageEnabled,
-          context_awareness: window.contextAwarenessData || {},
-          ...userOptions
-        }
+      try {
+        historyToSend = await getConversationHistory(10); // Get last 10 message pairs
+        log('🟦 Retrieved conversation history for AI context:', {
+          historyLength: historyToSend.length,
+          hasHistory: historyToSend.length > 0
+        });
+      } catch (error) {
+        log('🟦 Could not retrieve conversation history, starting fresh:', error.message);
+        historyToSend = []; // Use empty history if ICP fails
       }
-    };
+    }
 
     try {
-      log('📡 Sending WebSocket message with history:', {
-        ...messageData,
-        data: {
-          ...messageData.data,
-          messages: `[${historyToSend.length} history messages]`,
-          options: {
-            ...messageData.data.options,
-            context_awareness: `[${Object.keys(messageData.data.options.context_awareness).length} categories]`
-          }
-        }
-      });
-      wsRef.current.send(JSON.stringify(messageData));
-      pendingRequestsRef.current.set(requestId, { content: message, timestamp: Date.now() });
+      log('🤖 Sending message to OpenAI API directly...');
       
       // Track for ICP storage
       pendingMessagesRef.current.set(requestId, { 
@@ -826,18 +790,176 @@ export const WebSocketProvider = ({ children }) => {
         imageEnabled
       });
       
-      log('🟦 Added message to pending:', { 
-        requestId,
-        message: message.substring(0, 50) + '...',
-        pendingCount: pendingMessagesRef.current.size
+      // Build OpenAI messages array
+      const openaiMessages = [
+        {
+          role: 'system',
+          content: `You are Olivia, a sophisticated AI crypto trading assistant with a friendly and knowledgeable personality. 
+
+PERSONALITY TRAITS:
+- Enthusiastic and passionate about crypto and Web3 technology
+- Helpful and patient, especially with beginners
+- Confident but not arrogant - you admit when you don't know something
+- Use emojis occasionally (🚀📈💎🔥⚡) but don't overdo it
+- Speak conversationally, like a knowledgeable friend
+- Stay positive and encouraging about crypto opportunities
+- Alert users to risks without being overly cautious
+
+EXPERTISE:
+- Real-time cryptocurrency prices, market data, and trends
+- Trading strategies and technical analysis
+- DeFi protocols and yield farming
+- NFTs and blockchain gaming
+- Portfolio management and risk assessment
+- Market sentiment and social analytics
+- **TOKEN TRADING**: Can execute swaps using 0x Protocol DEX aggregator
+
+TRADING CAPABILITIES:
+When users want to buy/sell/swap tokens, you can help them:
+1. **Quote trades**: Get best prices across DEXs via 0x Protocol
+2. **Execute swaps**: Facilitate actual token swaps through connected wallet
+3. **Check balances**: Verify available funds before trading
+4. **Explain trades**: Break down slippage, gas costs, and price impact
+
+TRADING APPROACH:
+When users ask about trading/swapping tokens:
+1. **Acknowledge the request** and explain you can help with trading
+2. **Ask for specific details** if not provided (what tokens, how much)
+3. **Explain the process** - mention you'll get quotes via 0x Protocol
+4. **Guide them through steps** - quote first, then execution if they confirm
+5. **Always mention risks** - slippage, gas fees, market volatility
+
+TRADING SAFETY PROTOCOL:
+- ALWAYS explain that trading involves getting quotes first
+- ALWAYS mention slippage tolerance and gas fees
+- ALWAYS require explicit user confirmation before any execution
+- Warn about market volatility and potential losses
+- Suggest starting with smaller amounts for new traders
+- Explain that they need a connected wallet to execute trades
+
+EXAMPLE RESPONSES:
+${isWalletConnected ? `
+User: "I want to sell some PEPE"
+Response: "Perfect! I can see your wallet is connected (${address?.slice(0, 6)}...${address?.slice(-4)}) 🐸 
+
+To get you the best price for selling PEPE:
+- How much PEPE do you want to sell?
+- What token do you want to receive? (ETH, USDC, USDT, etc.)
+
+I'll use 0x Protocol to find the best rates across all DEXs and get you a real-time quote with gas estimates!"
+` : `
+User: "I want to sell some PEPE"  
+Response: "I'd love to help you sell PEPE tokens! 🐸 However, I need you to connect your wallet first so I can:
+- Check your PEPE balance
+- Get accurate quotes with your address
+- Execute trades securely
+
+Please connect your wallet using the wallet button, then I can get you the best prices via 0x Protocol!"
+`}
+
+COMMUNICATION STYLE:
+- Keep responses concise but informative
+- Use current crypto slang when appropriate (HODL, diamond hands, to the moon, etc.)
+- Explain complex concepts in simple terms
+- Always provide actionable insights when possible
+- Reference the real-time data you have access to
+- For trading: Be explicit about confirmations and next steps needed
+
+CURRENT CONTEXT DATA:
+${JSON.stringify(window.contextAwarenessData || {})}
+
+USER PROFILE:
+${JSON.stringify(userOptions)}
+
+CONNECTED WALLET:
+${isWalletConnected ? '✅ Wallet Connected' : '❌ No Wallet Connected'}
+User Address: ${address || 'Not Available'}
+Wallet Type: ${connector?.name || 'None'}
+Connection Status: ${isWalletConnected ? 'Active' : 'Disconnected'}
+
+Remember: You have access to live market data, sentiment analysis, exchange rates, and portfolio information through the bubbles system. Use this data to provide accurate, up-to-date responses!`
+        }
+      ];
+      
+      // Add conversation history
+      historyToSend.forEach(msg => {
+        if (msg.type === 'user') {
+          openaiMessages.push({ role: 'user', content: msg.content });
+        } else if (msg.type === 'ai') {
+          openaiMessages.push({ role: 'assistant', content: msg.content });
+        }
       });
       
-      log('✅ Message sent successfully with requestId:', requestId);
+      // Add current user message
+      openaiMessages.push({ role: 'user', content: message });
       
-      // Return the requestId so upgrade tracking can be done by the caller
+      // Call OpenAI API through your microservice (non-streaming for now)
+      const response = await fetch('http://localhost:3001/api/openai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer dev-token'
+        },
+        body: JSON.stringify({
+          messages: openaiMessages,
+          model: 'gpt-4',
+          max_tokens: 1000,
+          temperature: 0.7
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+      }
+      
+      const result = await response.json();
+      const fullResponse = result.data?.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.';
+      
+      // Simulate streaming by sending the response in chunks
+      const words = fullResponse.split(' ');
+      
+      for (let i = 0; i < words.length; i++) {
+        // Simulate WebSocket stream_chunk message
+        messageHandlersRef.current.forEach(handler => {
+          handler({
+            type: 'stream_chunk',
+            data: { text: words[i] + (i < words.length - 1 ? ' ' : '') },
+            requestId
+          });
+        });
+        
+        // Small delay to simulate streaming
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      
+      // Simulate stream_complete message
+      messageHandlersRef.current.forEach(handler => {
+        handler({
+          type: 'stream_complete',
+          data: { fullResponse, text: fullResponse },
+          requestId
+        });
+      });
+      
+      log('✅ OpenAI API call completed successfully');
       return requestId;
+      
     } catch (err) {
-      error('Error sending message:', err);
+      error('❌ OpenAI API call failed:', err);
+      
+      // Send error message to handlers
+      messageHandlersRef.current.forEach(handler => {
+        handler({
+          type: 'stream_complete',
+          data: { 
+            fullResponse: 'Sorry, I\'m having trouble connecting to my AI service right now. Please try again in a moment!',
+            text: 'Sorry, I\'m having trouble connecting to my AI service right now. Please try again in a moment!'
+          },
+          requestId
+        });
+      });
+      
       return false;
     }
   }, [extractUserOptions, getConversationHistory]);
@@ -955,22 +1077,27 @@ export const WebSocketProvider = ({ children }) => {
     return () => clearTimeout(timer);
   }, []); // Only run once on mount
 
-  // Enable reconnection on mount and auto-connect
+  // Enable reconnection on mount and auto-connect - DISABLED FOR OPENAI API MODE
   useEffect(() => {
     setIsMounted(true);
     setShouldReconnect(true);
     
-    // Auto-connect when component mounts
-    log('🔌 Auto-connecting on mount...');
-    const timeoutId = setTimeout(() => {
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-        connectWebSocket();
-      }
-    }, 100); // Small delay to ensure state is set
+    // WebSocket auto-connect disabled - now using direct OpenAI API calls
+    log('🤖 OpenAI API mode: Skipping WebSocket auto-connect');
+    
+    // Simulate connected state for compatibility
+    setIsConnected(true);
+    setIsConnecting(false);
+    
+    // const timeoutId = setTimeout(() => {
+    //   if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+    //     connectWebSocket();
+    //   }
+    // }, 100); // Small delay to ensure state is set
     
     return () => {
-      log('🔌 Component unmounting, cleaning up WebSocket...');
-      clearTimeout(timeoutId);
+      log('🔌 Component unmounting, cleaning up...');
+      // clearTimeout(timeoutId); // Removed since we disabled auto-connect
       setIsMounted(false);
       setShouldReconnect(false); // Disable reconnection on unmount
       
@@ -1015,6 +1142,70 @@ export const WebSocketProvider = ({ children }) => {
     };
   }, [isConnected, isConnecting, connectionAttempts, currentEndpointIndex, wsError]);
 
+  // Trading functions for AI to use
+  const getTradeQuote = useCallback(async (fromToken, toToken, amount, userAddress = address) => {
+    log('🔄 AI requesting trade quote:', { fromToken, toToken, amount, userAddress: userAddress || address });
+    
+    if (!isWalletConnected || !address) {
+      return { success: false, error: 'Wallet not connected. Please connect your wallet first.' };
+    }
+    
+    try {
+      const quote = await tradingService.getTradeQuote(fromToken, toToken, amount, userAddress || address);
+      log('💰 Trade quote result:', quote);
+      return quote;
+    } catch (error) {
+      error('❌ Trade quote failed:', error);
+      return { success: false, error: error.message };
+    }
+  }, [address, isWalletConnected]);
+
+  const executeTradeSwap = useCallback(async (quoteData, userAddress = address) => {
+    log('⚡ AI requesting trade execution:', { quoteData, userAddress: userAddress || address });
+    
+    if (!isWalletConnected || !address) {
+      return { success: false, error: 'Wallet not connected. Please connect your wallet first.' };
+    }
+    
+    try {
+      const result = await tradingService.executeSwap(quoteData, userAddress || address);
+      log('✅ Trade execution result:', result);
+      return result;
+    } catch (error) {
+      error('❌ Trade execution failed:', error);
+      return { success: false, error: error.message };
+    }
+  }, [address, isWalletConnected]);
+
+  const checkTokenBalance = useCallback(async (tokenAddress, requiredAmount, userAddress = address) => {
+    log('💳 AI checking token balance:', { tokenAddress, requiredAmount, userAddress: userAddress || address });
+    
+    if (!isWalletConnected || !address) {
+      return { success: false, error: 'Wallet not connected. Please connect your wallet first.' };
+    }
+    
+    try {
+      const balance = await tradingService.checkBalance(tokenAddress, requiredAmount, userAddress || address);
+      log('💰 Balance check result:', balance);
+      return balance;
+    } catch (error) {
+      error('❌ Balance check failed:', error);
+      return { success: false, error: error.message };
+    }
+  }, [address, isWalletConnected]);
+
+  // Make trading functions available globally for AI access
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.aiTradingFunctions = {
+        getTradeQuote,
+        executeTradeSwap,
+        checkTokenBalance,
+        formatTradeSummary: tradingService.formatTradeSummary
+      };
+    }
+  }, [getTradeQuote, executeTradeSwap, checkTokenBalance]);
+
   const value = {
     isConnected,
     isConnecting,
@@ -1034,6 +1225,14 @@ export const WebSocketProvider = ({ children }) => {
     disconnect: disconnectWebSocket,
     cancelStreamingResponse,
     generateRequestId,
+    // Trading functions
+    getTradeQuote,
+    executeTradeSwap,
+    checkTokenBalance,
+    // Wallet connection info
+    walletAddress: address,
+    isWalletConnected,
+    walletConnector: connector,
     pendingRequests: pendingRequestsRef.current,
     getConnectionInfo, // Debug function
     // ICP Storage

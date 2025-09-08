@@ -126,7 +126,7 @@ const Plugins = () => {
         </div>
 
         {/* Responsive Plugin Grid */}
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 md:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
           {filteredPlugins.map(plugin => {
             const enabled = pluginStates[plugin.id] || false;
             
@@ -198,10 +198,10 @@ const Plugins = () => {
                     {plugin.name}
                   </div>
                   {/* Desktop Description - shows on larger screens */}
-                  <div className={`hidden md:block text-xs text-gray-400 mt-1 leading-tight h-8 overflow-hidden ${
+                  <div className={`hidden md:block text-xs text-gray-400 mt-2 leading-relaxed ${
                     enabled ? 'text-gray-300' : 'text-gray-500'
-                  }`} style={{fontSize: '10px', lineHeight: '12px'}}>
-                    {plugin.description}
+                  }`} style={{fontSize: '11px', lineHeight: '14px'}}>
+                    {plugin.detailedDescription || plugin.description}
                   </div>
                   {/* Mobile Category Badge */}
                   <div className={`md:hidden text-xs mt-1 truncate ${

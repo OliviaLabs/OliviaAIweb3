@@ -536,6 +536,12 @@ export default function Home() {
 
   // Create ICP Status bubble on startup and monitor ICP connection
   useEffect(() => {
+    // Skip ICP connection if plugin is disabled
+    if (!isPluginEnabled('icp')) {
+      log('🟦 ICP plugin disabled, skipping connection test');
+      return;
+    }
+
     // Create initial ICP status bubble showing current state
     const createICPStatusBubble = async () => {
       // Test backend connectivity using the existing ICP service method
@@ -624,6 +630,11 @@ export default function Home() {
 
   // Update ICP bubble when authentication status changes
   useEffect(() => {
+    // Skip ICP updates if plugin is disabled
+    if (!isPluginEnabled('icp')) {
+      return;
+    }
+
     if (icpBubbles.length > 0) {
       // Test backend connectivity on auth changes
       const updateBubbleStatus = async () => {
@@ -1461,11 +1472,13 @@ export default function Home() {
     }
 
     // Send message to Olivia - SMART CONTEXT OPTIMIZATION
-    try {
-      log('📤 Sending message to Olivia AI...')
-      
-      // 🧠 SMART DECISION: Check if we have relevant bubble context
-      const hasRelevantContext = () => {
+    // 🕐 DELAY AI RESPONSE: Give bubbles time to load data first
+    setTimeout(async () => {
+      try {
+        log('📤 Sending message to Olivia AI (after bubble loading delay)...')
+        
+        // 🧠 SMART DECISION: Check if we have relevant bubble context
+        const hasRelevantContext = () => {
         const contextData = window.contextAwarenessData || {};
         
         // Check if user mentions any tokens we have context for
@@ -1501,6 +1514,14 @@ export default function Home() {
       
       log('🔍 Price query detection:', { isSimplePriceQuery, useSearchFromStart, words });
       
+      // Build conversation history from messages state
+      const conversationHistory = messages.slice(-10).map(msg => ({
+        role: msg.type === 'user' ? 'user' : 'assistant',
+        content: msg.content
+      }));
+      
+      log('🧠 Conversation history being sent:', conversationHistory);
+      
       let result;
       if (hasContext && !useSearchFromStart) {
         if (isSimplePriceQuery) {
@@ -1508,10 +1529,10 @@ export default function Home() {
         } else {
           log('⚡ FAST MODE: Using bubble context first, no search needed');
         }
-        result = await sendMessage(message, [], false, false); // Bubble context only, no search
+        result = await sendMessage(message, conversationHistory, false, false); // Bubble context + conversation history, no search
       } else {
         log('🌐 COMPLETE MODE: Enabling search for comprehensive answer');
-        result = await sendMessage(message, [], true, false); // With search
+        result = await sendMessage(message, conversationHistory, true, false); // With search + conversation history
       }
       
       if (!result) {
@@ -1525,15 +1546,16 @@ export default function Home() {
       }
       // If successful, the WebSocket message handler will take care of the response
       
-    } catch (error) {
-      logError('Failed to send message:', error)
-      setMessages(prev => [...prev, { 
-        type: 'ai', 
-        content: 'I\'m currently offline, but you can still get crypto data from the bubbles above! Try asking about Bitcoin, Ethereum, or other coins.' 
-      }])
-      setIsLoading(false)
-      setShowInput(true)
-    }
+      } catch (error) {
+        logError('Failed to send message:', error)
+        setMessages(prev => [...prev, { 
+          type: 'ai', 
+          content: 'I\'m currently offline, but you can still get crypto data from the bubbles above! Try asking about Bitcoin, Ethereum, or other coins.' 
+        }])
+        setIsLoading(false)
+        setShowInput(true)
+      }
+    }, 2000); // 2 second delay to allow bubbles to load data
   }
 
   // Handle Enter key press

@@ -13,7 +13,7 @@ export const coinstatsService = {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`,
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
           'Origin': window.location.origin
         }
       });
@@ -37,7 +37,7 @@ export const coinstatsService = {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`,
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
           'Origin': window.location.origin
         }
       });
@@ -61,7 +61,7 @@ export const coinstatsService = {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`,
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
           'Origin': window.location.origin
         }
       });
@@ -85,7 +85,7 @@ export const coinstatsService = {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`,
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
           'Origin': window.location.origin
         }
       });
@@ -109,7 +109,7 @@ export const coinstatsService = {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`,
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
           'Origin': window.location.origin
         }
       });
