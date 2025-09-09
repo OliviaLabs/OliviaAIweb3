@@ -7,7 +7,7 @@ import { log, error, warn } from '../utils/logger.js';
 import { aiService } from '../api/services/ai.service.js';
 import { ENDPOINTS, OPENAI_MICROSERVICE_CONFIG } from '../api/config/endpoints.js';
 import { tradingService } from '../api/services/trading.service.js';
-import { useAccount } from 'wagmi';
+import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
 
 const WebSocketContext = createContext();
 
@@ -28,6 +28,10 @@ export const WebSocketProvider = ({ children }) => {
   
   // Get wallet connection info from Wagmi
   const { address, isConnected: isWalletConnected, connector } = useAccount();
+  
+  // Wagmi hooks for sending transactions
+  const { sendTransaction, isPending: isSendingTx, error: sendTxError } = useSendTransaction();
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt();
   
   const wsRef = useRef(null);
   const messageHandlersRef = useRef(new Set());
@@ -271,55 +275,96 @@ export const WebSocketProvider = ({ children }) => {
     }
   }, [userData, isGuestUser, icpInitialized, conversationId]);
 
-  // Retrieve conversation history from ICP
-  const getConversationHistory = useCallback(async (limit = 10) => {
-    if (!icpInitialized || !icpUser || !conversationId) {
-      log('🟦 ICP not ready for history retrieval');
+  // Session storage fallback for chat history
+  const getSessionHistory = useCallback((limit = 15) => {
+    try {
+      const sessionKey = `chat_history_${conversationId}`;
+      const storedHistory = sessionStorage.getItem(sessionKey);
+      
+      if (storedHistory) {
+        const history = JSON.parse(storedHistory);
+        // Return last 'limit' messages
+        return history.slice(-limit);
+      }
+      
       return [];
+    } catch (err) {
+      error('💾 Error retrieving session history:', err);
+      return [];
+    }
+  }, [conversationId]);
+  
+  const saveToSession = useCallback((userMessage, aiResponse) => {
+    try {
+      const sessionKey = `chat_history_${conversationId}`;
+      const storedHistory = sessionStorage.getItem(sessionKey);
+      let history = storedHistory ? JSON.parse(storedHistory) : [];
+      
+      // Add new message pair
+      history.push(
+        { role: 'user', content: userMessage, timestamp: Date.now() },
+        { role: 'assistant', content: aiResponse, timestamp: Date.now() }
+      );
+      
+      // Keep only last 30 messages (15 pairs) to prevent storage bloat
+      if (history.length > 30) {
+        history = history.slice(-30);
+      }
+      
+      sessionStorage.setItem(sessionKey, JSON.stringify(history));
+      log('💾 Saved to session storage:', { messageCount: history.length });
+    } catch (err) {
+      error('💾 Error saving to session storage:', err);
+    }
+  }, [conversationId]);
+
+  // Hybrid conversation history retrieval (ICP first, session fallback)
+  const getConversationHistory = useCallback(async (limit = 15) => {
+    // First try ICP if available
+    if (icpInitialized && icpUser && conversationId) {
+      try {
+        log('🟦 Attempting to retrieve conversation history from ICP...');
+        
+        // Get messages for this conversation
+        const result = await icpService.getConversationMessages(conversationId);
+        
+        if (result.success && result.messages) {
+          // Sort messages by timestamp (oldest first)
+          const sortedMessages = result.messages.sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
+          
+          // Take the most recent messages (limit)
+          const recentMessages = sortedMessages.slice(-limit);
+          
+          // Format for AI agent (alternating user/assistant messages)
+          const formattedHistory = [];
+          recentMessages.forEach(msg => {
+            formattedHistory.push({
+              role: 'user',
+              content: msg.userMessage
+            });
+            formattedHistory.push({
+              role: 'assistant', 
+              content: msg.aiResponse
+            });
+          });
+          
+          log('🟦 Retrieved conversation history from ICP:', {
+            totalMessages: result.messages.length,
+            recentMessages: recentMessages.length,
+            formattedHistory: formattedHistory.length
+          });
+          
+          return formattedHistory;
+        }
+      } catch (err) {
+        log('🟦 ICP history retrieval failed, falling back to session storage:', err.message);
+      }
     }
     
-    try {
-      log('🟦 Retrieving conversation history from ICP...');
-      
-      // Get messages for this conversation
-      const result = await icpService.getConversationMessages(conversationId);
-      
-      if (result.success && result.messages) {
-        // Sort messages by timestamp (oldest first)
-        const sortedMessages = result.messages.sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
-        
-        // Take the most recent messages (limit)
-        const recentMessages = sortedMessages.slice(-limit);
-        
-        // Format for AI agent (alternating user/assistant messages)
-        const formattedHistory = [];
-        recentMessages.forEach(msg => {
-          formattedHistory.push({
-            role: 'user',
-            content: msg.userMessage
-          });
-          formattedHistory.push({
-            role: 'assistant', 
-            content: msg.aiResponse
-          });
-        });
-        
-        log('🟦 Retrieved conversation history:', {
-          totalMessages: result.messages.length,
-          recentMessages: recentMessages.length,
-          formattedHistory: formattedHistory.length
-        });
-        
-        return formattedHistory;
-      } else {
-        log('🟦 No conversation history found or failed to retrieve');
-        return [];
-      }
-    } catch (err) {
-      error('🟦 Error retrieving conversation history:', err);
-      return [];
-    }
-  }, [icpInitialized, icpUser, conversationId]);
+    // Fallback to session storage
+    log('💾 Using session storage for conversation history');
+    return getSessionHistory(limit);
+  }, [icpInitialized, icpUser, conversationId, getSessionHistory]);
 
   // Save message to ICP with privacy filtering
   const saveToICP = useCallback(async (userMessage, aiResponse, requestId) => {
@@ -402,8 +447,14 @@ export const WebSocketProvider = ({ children }) => {
         
         // Remove from pending messages
         pendingMessagesRef.current.delete(requestId);
+        
+        // Also save to session storage as backup
+        saveToSession(finalUserMessage, finalAiResponse);
       } else {
         error('🟦 Failed to save message to ICP:', result.error);
+        
+        // If ICP fails, at least save to session storage
+        saveToSession(finalUserMessage, finalAiResponse);
       }
       
     } catch (err) {
@@ -425,13 +476,17 @@ export const WebSocketProvider = ({ children }) => {
           
           if (result.success) {
             pendingMessagesRef.current.delete(requestId);
+            // Save to session as backup
+            saveToSession(userMessage, aiResponse);
           }
         } catch (fallbackErr) {
           error('🟦 Fallback save also failed:', fallbackErr);
+          // Last resort: save to session storage only
+          saveToSession(userMessage, aiResponse);
         }
       }
     }
-  }, [icpInitialized, icpUser, conversationId]);
+  }, [icpInitialized, icpUser, conversationId, saveToSession]);
 
   // Extract user options for WebSocket messages
   const extractUserOptions = useCallback(() => {
@@ -764,19 +819,25 @@ export const WebSocketProvider = ({ children }) => {
     const requestId = generateRequestId();
     const userOptions = extractUserOptions();
     
-    // Retrieve conversation history from ICP if not provided
+    // Retrieve conversation history (max 15 messages) if not provided
     let historyToSend = conversationHistory;
     if (historyToSend.length === 0) {
       try {
-        historyToSend = await getConversationHistory(10); // Get last 10 message pairs
+        historyToSend = await getConversationHistory(15); // Get last 15 messages max
         log('🟦 Retrieved conversation history for AI context:', {
           historyLength: historyToSend.length,
           hasHistory: historyToSend.length > 0
         });
       } catch (error) {
         log('🟦 Could not retrieve conversation history, starting fresh:', error.message);
-        historyToSend = []; // Use empty history if ICP fails
+        historyToSend = []; // Use empty history if retrieval fails
       }
+    }
+    
+    // Ensure we don't exceed 15 messages (excluding system message)
+    if (historyToSend.length > 15) {
+      historyToSend = historyToSend.slice(-15);
+      log('🟦 Trimmed history to last 15 messages for API efficiency');
     }
 
     try {
@@ -833,14 +894,13 @@ When users ask about trading/swapping tokens:
 2. **Ask for specific details** if not provided (what tokens, how much)
 3. **Explain the process** - mention you'll get quotes via 0x Protocol
 4. **Guide them through steps** - quote first, then execution if they confirm
-5. **Always mention risks** - slippage, gas fees, market volatility
+5. **Focus on execution** - slippage, gas fees
 
 TRADING SAFETY PROTOCOL:
 - ALWAYS explain that trading involves getting quotes first
 - ALWAYS mention slippage tolerance and gas fees
 - ALWAYS require explicit user confirmation before any execution
-- Warn about market volatility and potential losses
-- Suggest starting with smaller amounts for new traders
+key b8nJ1wPtVCcPgTUdPhVqlaBNVCBoyFGY
 - Explain that they need a connected wallet to execute trades
 
 EXAMPLE RESPONSES:
@@ -889,9 +949,9 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
       
       // Add conversation history
       historyToSend.forEach(msg => {
-        if (msg.type === 'user') {
+        if (msg.role === 'user') {
           openaiMessages.push({ role: 'user', content: msg.content });
-        } else if (msg.type === 'ai') {
+        } else if (msg.role === 'assistant') {
           openaiMessages.push({ role: 'assistant', content: msg.content });
         }
       });
@@ -921,6 +981,47 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
       
       const result = await response.json();
       const fullResponse = result.data?.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.';
+      
+      // Check for wallet transactions that need approval
+      if (result.data?.walletTransactions && result.data.walletTransactions.length > 0) {
+        const walletTransaction = result.data.walletTransactions[0]; // Handle first transaction
+        log('🎯 Wallet transaction detected:', walletTransaction);
+        
+        if (walletTransaction.action === 'executeSwap' && walletTransaction.requiresApproval) {
+          // Trigger wallet transaction
+          try {
+            const txData = walletTransaction.transactionData;
+            log('🎯 Triggering wallet transaction:', txData);
+            
+            // Use wagmi to send the transaction directly to the wallet
+            log('🎯 Sending transaction to wallet using wagmi...');
+            
+            const txRequest = {
+              to: txData.to,
+              data: txData.data,
+              value: BigInt(txData.value || '0'),
+              gas: BigInt(txData.gas || '21000'),
+              gasPrice: BigInt(txData.gasPrice || '0')
+            };
+            
+            log('🎯 Transaction request:', txRequest);
+            
+            // This will trigger the wallet popup for user to sign
+            sendTransaction(txRequest, {
+              onSuccess: (hash) => {
+                log('🎯 Transaction sent successfully! Hash:', hash);
+                toast.success(`Transaction sent! Hash: ${hash.slice(0, 10)}...`);
+              },
+              onError: (error) => {
+                error('🎯 Transaction failed:', error);
+                toast.error(`Transaction failed: ${error.message}`);
+              }
+            });
+          } catch (walletError) {
+            error('🎯 Wallet transaction failed:', walletError);
+          }
+        }
+      }
       
       // Simulate streaming by sending the response in chunks
       const words = fullResponse.split(' ');

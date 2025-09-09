@@ -1,7 +1,7 @@
 import express from 'express';
 import openaiRoutes from './openaiRoutes.js';
 import changeNowRoutes from './changeNowRoutes.js';
-import coinStatsRoutes from './coinStatsRoutes.js';
+// import coinStatsRoutes from './coinStatsRoutes.js'; // DISABLED
 import lurkyRoutes from './lurkyRoutes.js';
 import okxRoutes from './okxRoutes.js';
 import zeroXRoutes from './zeroXRoutes.js';
@@ -19,8 +19,8 @@ router.use('/openai', openaiRoutes);
 // ChangeNOW routes
 router.use('/changenow', changeNowRoutes);
 
-// CoinStats routes
-router.use('/coinstats', coinStatsRoutes);
+// CoinStats routes - DISABLED (plugin turned off)
+// router.use('/coinstats', coinStatsRoutes);
 
 // Lurky routes
 router.use('/lurky', lurkyRoutes);
@@ -55,13 +55,14 @@ router.get('/', (req, res) => {
         transactions: '/api/changenow/transactions',
         transactionStatus: '/api/changenow/transactions/:id'
       },
-      coinstats: {
-        coins: '/api/coinstats/coins',
-        coin: '/api/coinstats/coins/:coinId',
-        markets: '/api/coinstats/markets',
-        search: '/api/coinstats/search',
-        portfolioInsights: '/api/coinstats/portfolio-insights'
-      },
+      // coinstats: DISABLED
+      // {
+      //   coins: '/api/coinstats/coins',
+      //   coin: '/api/coinstats/coins/:coinId',
+      //   markets: '/api/coinstats/markets',
+      //   search: '/api/coinstats/search',
+      //   portfolioInsights: '/api/coinstats/portfolio-insights'
+      // },
       lurky: {
         coins: '/api/lurky/coins',
         trending: '/api/lurky/trending',

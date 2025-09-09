@@ -5,8 +5,7 @@ import { useInternetIdentity } from '../contexts/InternetIdentityContext'
 import { isPluginEnabled, AVAILABLE_PLUGINS } from '../utils/pluginManager'
 import { useAccountUpgrade } from '../hooks/useAccountUpgrade';
 import { icpService } from '../api/services/icp.service.js';
-import { lurkyService, coingeckoService, coinstatsService, hgraphService, changeNowService, zeroXService } from '../api';
-import { parseSwapMessage, formatSwapForAPI, validateTokenPair } from '../api/services/tokenMapping.service';
+import { lurkyService, coingeckoService, coinstatsService, hgraphService, changeNowService } from '../api';
 import { log, error as logError } from '../utils/logger.js';
 import FloatingLurkyBubble from '../components/ui/FloatingLurkyBubble.jsx';
 import FloatingCoinGeckoBubble from '../components/ui/FloatingCoinGeckoBubble.jsx';
@@ -14,7 +13,6 @@ import FloatingCoinStatsBubble from '../components/ui/FloatingCoinStatsBubble.js
 import FloatingICPBubble from '../components/ui/FloatingICPBubble.jsx';
 import FloatingHederaBubble from '../components/ui/FloatingHederaBubble.jsx';
 import FloatingChangeNowBubble from '../components/ui/FloatingChangeNowBubble.jsx';
-import FloatingZeroXBubble from '../components/ui/FloatingZeroXBubble.jsx';
 import FloatingPortfolioBubble from '../components/ui/FloatingPortfolioBubble.jsx';
 import FloatingAlchemyBubble from '../components/ui/FloatingAlchemyBubble.jsx';
 import InAppBrowser from '../components/ui/InAppBrowser.jsx';
@@ -1366,12 +1364,14 @@ export default function Home() {
     }
     // Keep ChangeNOW bubble visible - building conversation bubble map
 
-    // Handle 0x Protocol bubble logic (dynamic swap parsing)
+    // 0x Protocol integration is now handled by AI function calling
+    // No bubble interface needed - AI handles swaps directly
     let swapBubbleCreated = false;
-    if (mentions0x) {
+    if (false && mentions0x) { // Disabled - using AI function calling instead
       console.log('🎯 0x Protocol triggered!');
       // Parse swap information from user message
-      const swapInfo = parseSwapMessage(message);
+      // parseSwapMessage removed - now using AI function calling for swaps
+      const swapInfo = null;
       console.log('📊 Parsed swap info:', swapInfo);
       
       // Also check if user is providing an amount for a previous swap request
@@ -1437,7 +1437,8 @@ export default function Home() {
         ;(async () => {
           try {
             // Format swap data for 0x API
-            const formattedSwap = formatSwapForAPI(finalSwapInfo);
+            // formatSwapForAPI removed - now using AI function calling for swaps
+            const formattedSwap = finalSwapInfo;
             
             // Get swap price from 0x API
             const swapData = await fetch(`http://localhost:3001/api/zerox/price?chainId=1&sellToken=${formattedSwap.sellToken}&buyToken=${formattedSwap.buyToken}&sellAmount=${formattedSwap.sellAmount}`, {

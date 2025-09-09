@@ -44,6 +44,7 @@
     "jsonwebtoken": "^9.0.2",
     "node-fetch": "^3.3.2",
     "openai": "^5.12.2",
+    "viem": "^2.37.5",
     "ws": "^8.14.2"
   },
   "devDependencies": {

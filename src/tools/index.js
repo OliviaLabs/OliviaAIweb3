@@ -2,7 +2,6 @@
 import { getCryptoPrice, getCryptoTrending, setCryptoAlert } from './crypto-tools';
 import { getTwitterUser, getTwitterTrends, trackInfluencer } from './social-tools';
 import { storeUserData, getUserContext, rememberPreference } from './memory-tools';
-import { getSwapQuote, getSwapPrice, executeSwap, getSupportedTokens } from './trading-tools';
 
 // Define all available tools
 export const AVAILABLE_TOOLS = {

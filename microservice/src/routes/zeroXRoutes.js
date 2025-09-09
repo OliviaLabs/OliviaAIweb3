@@ -1,5 +1,5 @@
 import express from 'express';
-import { ZeroXController } from '../controllers/zeroXController.js';
+import { getSwapPrice, getSwapQuote, getTokens, getGasPrice, getOrderBook } from '../controllers/zeroXController.js';
 import { authenticateAdmin } from '../middleware/auth.js';
 import { validateOrigin } from '../middleware/cors.js';
 import { createRateLimiter } from '../middleware/rateLimiter.js';
@@ -26,7 +26,7 @@ router.get('/quote',
   zeroXRateLimit,
   authenticateAdmin,
   validateOrigin,
-  ZeroXController.getSwapQuote
+  getSwapQuote
 );
 
 /**
@@ -38,7 +38,7 @@ router.get('/price',
   zeroXRateLimit,
   authenticateAdmin,
   validateOrigin,
-  ZeroXController.getSwapPrice
+  getSwapPrice
 );
 
 /**
@@ -49,7 +49,7 @@ router.get('/tokens',
   zeroXRateLimit,
   authenticateAdmin,
   validateOrigin,
-  ZeroXController.getTokens
+  getTokens
 );
 
 /**
@@ -60,7 +60,7 @@ router.get('/gas-price',
   zeroXRateLimit,
   authenticateAdmin,
   validateOrigin,
-  ZeroXController.getGasPrice
+  getGasPrice
 );
 
 /**
@@ -73,7 +73,7 @@ router.get('/orderbook',
   zeroXRateLimit,
   authenticateAdmin,
   validateOrigin,
-  ZeroXController.getOrderBook
+  getOrderBook
 );
 
 export default router;

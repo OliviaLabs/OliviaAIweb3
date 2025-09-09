@@ -1,5 +1,147 @@
 import OpenAI from 'openai';
 import { config } from '../config/config.js';
+import { getSwapPrice, getSwapQuote } from './zeroXController.js';
+import { TOKENS, resolveTokenStrict } from '../lib/tokens.js';
+import { formatSwapFrom0x } from '../lib/quoteFormatter.js';
+
+export const ALLOWED_TOOLS = new Set(["getSwapPrice", "getSwapQuote", "executeSwap"]);
+export const TOOL_POLICY_SYSTEM = `
+You may only call: getSwapPrice, getSwapQuote, executeSwap.
+Do NOT call CoinStats/Coingecko/etc.
+Never invent prices or fees; only display values from 0x responses.
+Always treat buyAmount/sellAmount as base units and convert with token decimals.
+When user confirms a swap, call executeSwap to prepare the transaction data.
+`;
+
+// Helper to call Express‑style controllers in‑process and capture JSON
+async function callController(controller, query) {
+  const mockReq = { query };
+  return new Promise((resolve) => {
+    const mockRes = {
+      json: (data) => resolve(data),
+      status: (code) => ({ json: (data) => resolve({ status: code, ...data }) }),
+    };
+    controller(mockReq, mockRes);
+  });
+}
+
+function injectWalletContext(functionArgs, session) {
+  const chainId = functionArgs.chainId || session?.walletChainId || 1;
+  const userAddress = functionArgs.userAddress || session?.walletAddress || undefined;
+  return { chainId, userAddress };
+}
+
+export async function handleToolCall({ functionName, functionArgs, session }) {
+  if (!ALLOWED_TOOLS.has(functionName)) {
+    return { status: 400, success: false, error: `Tool ${functionName} not allowed` };
+  }
+
+  const { chainId, userAddress } = injectWalletContext(functionArgs, session);
+  const cid = Number(chainId);
+
+  // Resolve token infos for correct decimals
+  const sellInfo = resolveTokenStrict(cid, functionArgs.sellToken);
+  const buyInfo  = resolveTokenStrict(cid, functionArgs.buyToken);
+  const chainLabel = cid === 1 ? "Ethereum" : cid === 8453 ? "Base (8453)" : `Chain ${cid}`;
+
+  if (functionName === "getSwapPrice") {
+    const raw = await callController(getSwapPrice, {
+      sellToken: functionArgs.sellToken,
+      buyToken: functionArgs.buyToken,
+      sellAmount: functionArgs.sellAmountHuman || functionArgs.sellAmount,
+      taker: userAddress,
+      chainId: cid
+    });
+
+    if (!raw?.success) return raw;
+    const formatted = formatSwapFrom0x({
+      quoteOrPrice: raw.data,
+      sellInfo, buyInfo, chainLabel
+    });
+
+    return {
+      success: true,
+      data: raw.data,
+      ui: formatted,                 // <- give the model + UI a safe, human string + numbers
+      message: formatted.message     // <- use THIS as the assistant reply
+    };
+  }
+
+  if (functionName === "getSwapQuote") {
+    const raw = await callController(getSwapQuote, {
+      sellToken: functionArgs.sellToken,
+      buyToken: functionArgs.buyToken,
+      sellAmount: functionArgs.sellAmountHuman || functionArgs.sellAmount,
+      slippageBps: functionArgs.slippageBps ?? 50,
+      taker: userAddress,
+      chainId: cid
+    });
+
+    if (!raw?.success) return raw;
+    const formatted = formatSwapFrom0x({
+      quoteOrPrice: raw.data,
+      sellInfo, buyInfo, chainLabel
+    });
+
+    return {
+      success: true,
+      data: raw.data,
+      ui: formatted,
+      message: formatted.message + "\n\nProceed with this quote?"
+    };
+  }
+
+  if (functionName === "executeSwap") {
+    console.log('🎯 executeSwap called with args:', functionArgs);
+    console.log('🎯 userAddress:', userAddress, 'chainId:', cid);
+    
+    // For executeSwap, we need to get the quote with transaction data
+    const raw = await callController(getSwapQuote, {
+      sellToken: functionArgs.sellToken,
+      buyToken: functionArgs.buyToken,
+      sellAmount: functionArgs.sellAmountHuman || functionArgs.sellAmount,
+      slippageBps: functionArgs.slippageBps ?? 50,
+      taker: userAddress,
+      chainId: cid
+    });
+    
+    console.log('🎯 Raw response from getSwapQuote:', raw);
+
+    if (!raw?.success) {
+      return {
+        success: false,
+        error: "Failed to prepare swap transaction: " + (raw.error || "Unknown error"),
+        message: "I apologize, but I couldn't prepare the swap transaction. Please try again or check your wallet connection."
+      };
+    }
+
+    // Format the transaction data for the frontend
+    const formatted = formatSwapFrom0x({
+      quoteOrPrice: raw.data,
+      sellInfo, buyInfo, chainLabel
+    });
+
+    const result = {
+      success: true,
+      data: raw.data,
+      ui: formatted,
+      transactionData: {
+        to: raw.data.transaction?.to,
+        data: raw.data.transaction?.data,
+        value: raw.data.transaction?.value || '0',
+        gasPrice: raw.data.transaction?.gasPrice,
+        gas: raw.data.transaction?.gas
+      },
+      // Special flag to trigger wallet transaction
+      requiresWalletApproval: true,
+      walletAction: 'executeSwap',
+      message: `🎯 **Swap Transaction Ready!**\n\n${formatted.message}\n\n**Next Step:** Please approve this transaction in your wallet to complete the swap.`
+    };
+    
+    console.log('🎯 executeSwap returning:', result);
+    return result;
+  }
+}
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -17,6 +159,8 @@ export class OpenAIController {
   static async generateChatCompletion(req, res) {
     try {
       const { messages, model = 'gpt-3.5-turbo', max_tokens = 1000, temperature = 0.7 } = req.body;
+
+      console.log('📧 Messages Content --> ', messages); 
 
       // Validate required fields
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -159,69 +303,29 @@ export class OpenAIController {
           console.log(`🚀 Executing function: ${functionName}`, functionArgs);
           
           try {
-            let result;
+            // Use the new handleToolCall function with proper formatting
+            const result = await handleToolCall({
+              functionName,
+              functionArgs,
+              session: req.session // Pass session for wallet context
+            });
             
-            if (functionName === 'getSwapQuote') {
-              // Validate tokens first
-              try {
-                // Import validation function
-                const { validateTokenPair } = await import('../../../src/api/services/tokenMapping.service.js');
-                const validation = validateTokenPair(functionArgs.sellToken, functionArgs.buyToken);
-                
-                if (!validation.valid) {
-                  result = {
-                    success: false,
-                    error: validation.error,
-                    availableTokens: validation.availableTokens,
-                    message: `Sorry, ${validation.error}. Available tokens include: ${validation.availableTokens?.join(', ')}`
-                  };
-                } else {
-                  // Call 0x API for quote
-                  const { ZeroXController } = await import('./zeroXController.js');
-                  const mockReq = { query: functionArgs };
-                  const mockRes = {
-                    json: (data) => data,
-                    status: (code) => ({ json: (data) => ({ status: code, ...data }) })
-                  };
-                  
-                  result = await ZeroXController.getSwapQuote(mockReq, mockRes);
-                }
-              } catch (validationError) {
-                result = {
-                  success: false,
-                  error: validationError.message,
-                  message: `Token validation failed: ${validationError.message}`
-                };
-              }
-              
-            } else if (functionName === 'getSwapPrice') {
-              // Call 0x API for price
-              const { ZeroXController } = await import('./zeroXController.js');
-              const mockReq = { query: functionArgs };
-              const mockRes = {
-                json: (data) => data,
-                status: (code) => ({ json: (data) => ({ status: code, ...data }) })
-              };
-              
-              result = await ZeroXController.getSwapPrice(mockReq, mockRes);
-              
-            } else if (functionName === 'executeSwap') {
-              // Execute swap transaction
-              const { ZeroXController } = await import('./zeroXController.js');
-              const mockReq = { query: functionArgs };
-              const mockRes = {
-                json: (data) => data,
-                status: (code) => ({ json: (data) => ({ status: code, ...data }) })
-              };
-              
-              // First get the quote with transaction data
-              result = await ZeroXController.getSwapQuote(mockReq, mockRes);
-              
-              // Add execution instructions
-              if (result.success) {
+            // Special handling for executeSwap - trigger wallet transaction
+            if (functionName === 'executeSwap') {
+              if (result.success && result.requiresWalletApproval) {
+                // Send transaction data directly to frontend via response
                 result.executionReady = true;
-                result.message = "Swap transaction prepared. User needs to confirm in their wallet.";
+                result.message = result.message + "\n\nTransaction data is ready. Please confirm in your wallet.";
                 result.instructions = "The transaction data is ready. Please ask the user to confirm the swap in their connected wallet.";
+                
+                // Include transaction data in the response that will be sent to frontend
+                result.walletTransaction = {
+                  action: 'executeSwap',
+                  transactionData: result.transactionData,
+                  requiresApproval: true
+                };
+                
+                console.log('🎯 Transaction data prepared for wallet:', result.walletTransaction);
               }
             }
             
@@ -264,7 +368,23 @@ export class OpenAIController {
           temperature
         });
         
-        // Return final response with function results
+        // Check if any function results require wallet approval
+        const walletTransactions = [];
+        for (const toolCall of message.tool_calls) {
+          const functionName = toolCall.function.name;
+          if (functionName === 'executeSwap') {
+            // Find the corresponding result
+            const result = functionResults.find(fr => fr.tool_call_id === toolCall.id);
+            if (result) {
+              const parsedResult = JSON.parse(result.content);
+              if (parsedResult.walletTransaction) {
+                walletTransactions.push(parsedResult.walletTransaction);
+              }
+            }
+          }
+        }
+        
+        // Return final response with function results and wallet transactions
         res.json({
           success: true,
           data: {
@@ -274,7 +394,8 @@ export class OpenAIController {
             model: finalCompletion.model,
             choices: finalCompletion.choices,
             usage: finalCompletion.usage,
-            function_calls_executed: message.tool_calls.length
+            function_calls_executed: message.tool_calls.length,
+            walletTransactions: walletTransactions.length > 0 ? walletTransactions : undefined
           }
         });
         
