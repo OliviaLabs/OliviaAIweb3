@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Config Test</title>
+</head>
+<body>
+    <h1>Environment Detection Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.includes('192.168');
+        const PRODUCTION_MICROSERVICE_URL = 'https://olivia-ai-microservice.onrender.com';
+        const DEVELOPMENT_MICROSERVICE_URL = 'http://localhost:3001';
+        
+        const MICROSERVICE_URL = isProduction ? PRODUCTION_MICROSERVICE_URL : DEVELOPMENT_MICROSERVICE_URL;
+        
+        document.getElementById('results').innerHTML = `
+            <p><strong>Hostname:</strong> ${window.location.hostname}</p>
+            <p><strong>Is Production:</strong> ${isProduction}</p>
+            <p><strong>Microservice URL:</strong> ${MICROSERVICE_URL}</p>
+            <p><strong>Environment:</strong> ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}</p>
+        `;
+        
+        console.log('🔧 Config Test:', {
+            hostname: window.location.hostname,
+            isProduction,
+            microserviceURL: MICROSERVICE_URL
+        });
+    </script>
+</body>
+</html>

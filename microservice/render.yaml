@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: olivia-ai-microservice
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ZERO_EX_API_KEY
+        sync: false
+      - key: COINSTATS_API_KEY
+        sync: false
+      - key: LURKY_API_KEY
+        sync: false
+      - key: CHANGENOW_API_KEY
+        sync: false
+      - key: ADMIN_ACCESS_SECRET
+        value: dev-token

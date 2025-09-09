@@ -1,9 +1,23 @@
 const API_GATEWAY_URL = import.meta.env.VITE_API_GATEWAY_URL || 'https://api.example.com';
 export const API_GATEWAY_JWT = import.meta.env.VITE_API_GATEWAY_JWT;
 
-// Secure OpenAI Microservice Configuration
-const OPENAI_MICROSERVICE_URL = import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3001';
-const OPENAI_MICROSERVICE_TOKEN = import.meta.env.VITE_APP_ACCESS_TOKEN;
+// Secure OpenAI Microservice Configuration - Auto-detect environment
+const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.includes('192.168');
+const PRODUCTION_MICROSERVICE_URL = 'https://olivia-ai-microservice.onrender.com';
+const DEVELOPMENT_MICROSERVICE_URL = 'http://localhost:3001';
+
+const OPENAI_MICROSERVICE_URL = import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 
+  (isProduction ? PRODUCTION_MICROSERVICE_URL : DEVELOPMENT_MICROSERVICE_URL);
+
+// Debug log the configuration
+console.log('🔧 Microservice Config:', {
+  isProduction,
+  hostname: window.location.hostname,
+  microserviceURL: OPENAI_MICROSERVICE_URL,
+  environment: isProduction ? 'PRODUCTION' : 'DEVELOPMENT'
+});
+
+const OPENAI_MICROSERVICE_TOKEN = import.meta.env.VITE_APP_ACCESS_TOKEN || 'dev-token';
 const SECURE_WEBSOCKET_URL = OPENAI_MICROSERVICE_URL.replace('http', 'ws') + '/ws/secure-proxy';
 
 // Streamlined endpoints - only what's actually used

@@ -1,58 +1,33 @@
 {
   "name": "openai-microservice",
   "version": "1.0.0",
+  "description": "OpenAI Microservice for Olivia AI",
   "main": "src/server.js",
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "NODE_OPTIONS=\"--experimental-vm-modules\" jest",
-    "test:watch": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --watch",
-    "test:coverage": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --coverage",
-    "test:jwt": "node test-jwt-manually.js",
-    "test:legacy": "node test-queries.js",
-    "test:legacy:watch": "nodemon test-queries.js",
-    "test:websocket": "node test-websocket.js",
-    "test:ws-responses": "node test-websocket-responses.js"
+    "build": "echo 'No build step required for Node.js'",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "jest": {
-    "testEnvironment": "node",
-    "transform": {},
-    "collectCoverageFrom": [
-      "src/**/*.js",
-      "!src/server.js"
-    ],
-    "testMatch": [
-      "**/tests/**/*.test.js"
-    ]
-  },
-  "keywords": [
-    "openai",
-    "microservice",
-    "api"
-  ],
-  "author": "",
-  "license": "ISC",
-  "description": "OpenAI Microservice with authentication and rate limiting",
+  "keywords": ["openai", "microservice", "crypto", "trading"],
+  "author": "Olivia AI Team",
+  "license": "MIT",
   "dependencies": {
-    "alchemy-sdk": "^3.6.3",
+    "express": "^4.18.2",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.1",
-    "express": "^4.21.2",
-    "express-rate-limit": "^8.0.1",
-    "helmet": "^8.1.0",
-    "jsonwebtoken": "^9.0.2",
-    "node-fetch": "^3.3.2",
-    "openai": "^5.12.2",
-    "viem": "^2.37.5",
-    "ws": "^8.14.2"
+    "helmet": "^7.0.0",
+    "express-rate-limit": "^6.7.0",
+    "dotenv": "^16.3.1",
+    "axios": "^1.4.0",
+    "openai": "^4.0.0",
+    "ws": "^8.13.0",
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.28.3",
-    "@babel/preset-env": "^7.28.3",
-    "babel-jest": "^30.0.5",
-    "jest": "^30.0.5",
-    "nodemon": "^3.1.10",
-    "supertest": "^7.1.4"
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

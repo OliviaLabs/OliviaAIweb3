@@ -932,6 +932,24 @@ COMMUNICATION STYLE:
 - Reference the real-time data you have access to
 - For trading: Be explicit about confirmations and next steps needed
 
+AVAILABLE PLUGINS & TOOLS:
+You have access to the following enabled plugins and their tools:
+✅ ENABLED: ${enabledPlugins.join(', ') || 'None'}
+❌ DISABLED: ${disabledPlugins.join(', ') || 'None'}
+
+Plugin Capabilities:
+- lurky: Trending coins, crypto analytics, social sentiment
+- coinstats: Coin prices, market data, portfolio tracking  
+- zerox: DEX aggregation, token swaps, best rates
+- changenow: Cross-chain exchanges, fiat-to-crypto
+- alchemy: Blockchain data, token balances, transaction history
+- portfolio: Wallet balances, holdings overview
+- icp: Internet Computer network status
+- hedera: Hedera Hashgraph network data
+- coingecko: Alternative market data source
+
+IMPORTANT: You can only use tools from ENABLED plugins. If a user asks about something requiring a DISABLED plugin, politely explain that the plugin is currently disabled and suggest they enable it in the plugins page.
+
 CURRENT CONTEXT DATA:
 ${JSON.stringify(window.contextAwarenessData || {})}
 
@@ -962,6 +980,14 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
       
       // Get current plugin states
       const pluginStates = getPluginStates();
+      
+      // Create plugin status summary for AI
+      const enabledPlugins = Object.entries(pluginStates)
+        .filter(([_, enabled]) => enabled)
+        .map(([pluginId, _]) => pluginId);
+      const disabledPlugins = Object.entries(pluginStates)
+        .filter(([_, enabled]) => !enabled)
+        .map(([pluginId, _]) => pluginId);
       
       // Call OpenAI API through your microservice (non-streaming for now)
       const response = await fetch('http://localhost:3001/api/openai/chat/completions', {
