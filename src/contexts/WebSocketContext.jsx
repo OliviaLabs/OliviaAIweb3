@@ -8,6 +8,7 @@ import { aiService } from '../api/services/ai.service.js';
 import { ENDPOINTS, OPENAI_MICROSERVICE_CONFIG } from '../api/config/endpoints.js';
 import { tradingService } from '../api/services/trading.service.js';
 import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
+import { getPluginStates } from '../utils/pluginManager';
 
 const WebSocketContext = createContext();
 
@@ -959,12 +960,16 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
       // Add current user message
       openaiMessages.push({ role: 'user', content: message });
       
+      // Get current plugin states
+      const pluginStates = getPluginStates();
+      
       // Call OpenAI API through your microservice (non-streaming for now)
       const response = await fetch('http://localhost:3001/api/openai/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer dev-token'
+          'Authorization': 'Bearer dev-token',
+          'X-Plugin-States': JSON.stringify(pluginStates)
         },
         body: JSON.stringify({
           messages: openaiMessages,
@@ -1021,6 +1026,18 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
             error('🎯 Wallet transaction failed:', walletError);
           }
         }
+      }
+      
+      // Check for bubble updates from AI tool calls
+      if (result.data?.bubbleUpdates && result.data.bubbleUpdates.length > 0) {
+        log('🫧 Bubble updates detected from AI:', result.data.bubbleUpdates);
+        
+        // Send bubble updates to Home component via custom event
+        result.data.bubbleUpdates.forEach(bubbleUpdate => {
+          window.dispatchEvent(new CustomEvent('aiBubbleUpdate', {
+            detail: bubbleUpdate
+          }));
+        });
       }
       
       // Simulate streaming by sending the response in chunks

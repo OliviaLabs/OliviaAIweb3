@@ -7,24 +7,10 @@ import { config } from '../config/config.js';
  * Allows all origins in development mode
  */
 export const corsMiddleware = cors({
-  origin: (origin, callback) => {
-    // In development mode, allow all origins
-    if (config.nodeEnv === 'development') {
-      return callback(null, true);
-    }
-    
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (origin === config.allowedOrigin) {
-      callback(null, true);
-    } else {
-      callback(new Error(`Origin ${origin} not allowed by CORS policy`));
-    }
-  },
+  origin: true, // Allow ALL origins - no restrictions
   credentials: true,
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Plugin-States', 'Origin', 'X-Requested-With', 'Accept']
 });
 
 /**
@@ -32,20 +18,7 @@ export const corsMiddleware = cors({
  * Skips validation in development mode for convenience
  */
 export const validateOrigin = (req, res, next) => {
-  // Skip origin validation in development mode
-  if (config.nodeEnv === 'development') {
-    console.log('🌐 Development mode: Skipping origin validation');
-    return next();
-  }
-
-  const origin = req.get('Origin') || req.get('Referer');
-  
-  if (origin && !origin.startsWith(config.allowedOrigin)) {
-    return res.status(403).json({
-      error: 'Origin not allowed',
-      code: 'FORBIDDEN_ORIGIN'
-    });
-  }
-  
-  next();
+  // ALWAYS skip origin validation - allow all origins
+  console.log('🌐 CORS: Allowing all origins - no validation');
+  return next();
 };

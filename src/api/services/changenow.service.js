@@ -1,15 +1,18 @@
 import { OPENAI_MICROSERVICE_CONFIG } from '../config/endpoints.js';
+import { getPluginStates } from '../../utils/pluginManager.js';
 
 export const changeNowService = {
   // Get list of all available currencies
   async getCurrencies() {
     try {
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/changenow/currencies?active=true`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates)
         }
       });
 
@@ -28,12 +31,14 @@ export const changeNowService = {
   // Get minimum exchange amount for a currency pair
   async getMinimalExchange(fromCurrency, toCurrency) {
     try {
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/changenow/min-amount?from=${fromCurrency.toLowerCase()}&to=${toCurrency.toLowerCase()}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates)
         }
       });
 
@@ -52,12 +57,14 @@ export const changeNowService = {
   // Get exchange amount estimate
   async getExchangeAmount(fromCurrency, toCurrency, amount) {
     try {
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/changenow/exchange-amount?from=${fromCurrency.toLowerCase()}&to=${toCurrency.toLowerCase()}&amount=${amount}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates)
         }
       });
 
@@ -76,12 +83,14 @@ export const changeNowService = {
   // Get exchange range (min and max limits)  
   async getExchangeRange(fromCurrency, toCurrency) {
     try {
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/changenow/exchange-rate?from=${fromCurrency.toLowerCase()}&to=${toCurrency.toLowerCase()}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates)
         }
       });
 
@@ -179,12 +188,14 @@ export const changeNowService = {
   // Create new exchange transaction
   async createTransaction(transactionData) {
     try {
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/changenow/transactions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates)
         },
         body: JSON.stringify(transactionData)
       });
@@ -204,12 +215,14 @@ export const changeNowService = {
   // Get transaction status
   async getTransactionStatus(transactionId) {
     try {
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/changenow/transactions/${transactionId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates)
         }
       });
 

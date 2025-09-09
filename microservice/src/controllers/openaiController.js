@@ -3,6 +3,7 @@ import { config } from '../config/config.js';
 import { getSwapPrice, getSwapQuote } from './zeroXController.js';
 import { TOKENS, resolveTokenStrict } from '../lib/tokens.js';
 import { formatSwapFrom0x } from '../lib/quoteFormatter.js';
+import { getAvailableTools, filterToolsForOpenAI } from '../lib/pluginManager.js';
 
 export const ALLOWED_TOOLS = new Set(["getSwapPrice", "getSwapQuote", "executeSwap"]);
 export const TOOL_POLICY_SYSTEM = `
@@ -31,9 +32,12 @@ function injectWalletContext(functionArgs, session) {
   return { chainId, userAddress };
 }
 
-export async function handleToolCall({ functionName, functionArgs, session }) {
-  if (!ALLOWED_TOOLS.has(functionName)) {
-    return { status: 400, success: false, error: `Tool ${functionName} not allowed` };
+export async function handleToolCall({ functionName, functionArgs, session, req }) {
+  // Check if tool is available based on enabled plugins
+  const availableTools = getAvailableTools(req);
+  if (!availableTools.has(functionName)) {
+    console.log(`🚫 Tool ${functionName} not available - plugin disabled`);
+    return { status: 403, success: false, error: `Tool ${functionName} is not available (plugin disabled)` };
   }
 
   const { chainId, userAddress } = injectWalletContext(functionArgs, session);
@@ -149,6 +153,117 @@ const openai = new OpenAI({
 });
 
 /**
+ * Create bubble data from tool call results
+ */
+function createBubbleDataFromTool(functionName, result) {
+  if (!result.success || !result.data) {
+    return null;
+  }
+
+  const bubbleId = Date.now() + Math.random();
+  
+  switch (functionName) {
+    case 'getCoinData':
+    case 'searchCoins':
+    case 'getMarketData':
+      return {
+        type: 'coinstats',
+        id: bubbleId,
+        title: 'CoinStats - AI Data',
+        content: formatCoinStatsData(result.data),
+        loading: false,
+        source: 'AI Tool Call'
+      };
+      
+    case 'getTrendingCoins':
+    case 'getCoinInsights':
+      return {
+        type: 'lurky',
+        id: bubbleId,
+        title: 'Lurky - AI Analytics',
+        content: formatLurkyData(result.data),
+        loading: false,
+        source: 'AI Tool Call'
+      };
+      
+    case 'getSwapPrice':
+    case 'getSwapQuote':
+      return {
+        type: 'zerox',
+        id: bubbleId,
+        title: '0x Protocol - AI Swap',
+        content: result.ui?.message || 'Swap data retrieved',
+        loading: false,
+        source: 'AI Tool Call',
+        swapData: result.data
+      };
+      
+    case 'getExchangeRate':
+    case 'createTransaction':
+      return {
+        type: 'changenow',
+        id: bubbleId,
+        title: 'ChangeNOW - AI Exchange',
+        content: formatChangeNowData(result.data),
+        loading: false,
+        source: 'AI Tool Call'
+      };
+      
+    case 'getTokenBalances':
+    case 'getTransactionHistory':
+      return {
+        type: 'alchemy',
+        id: bubbleId,
+        title: 'Alchemy - AI Blockchain Data',
+        content: formatAlchemyData(result.data),
+        loading: false,
+        source: 'AI Tool Call'
+      };
+      
+    default:
+      return null;
+  }
+}
+
+/**
+ * Format CoinStats data for bubble display
+ */
+function formatCoinStatsData(data) {
+  if (data.result && data.result.length > 0) {
+    const coin = data.result[0];
+    const change = coin.priceChange1d || 0;
+    const changeDirection = change > 0 ? '+' : '';
+    const price = coin.price > 1000 ? `${(coin.price/1000).toFixed(2)}k` : coin.price.toFixed(4);
+    const marketCap = coin.marketCap ? `$${(coin.marketCap/1e9).toFixed(2)}B` : 'N/A';
+    const volume = coin.volume ? `$${(coin.volume/1e6).toFixed(1)}M` : 'N/A';
+    
+    return `${coin.name} (${coin.symbol})\n\nPrice: $${price}\n24h: ${changeDirection}${change.toFixed(2)}%\nMarket Cap: ${marketCap}\nVolume: ${volume}\nRank: #${coin.rank || 'N/A'}`;
+  }
+  return 'Coin data retrieved by AI';
+}
+
+/**
+ * Format Lurky data for bubble display  
+ */
+function formatLurkyData(data) {
+  return 'Lurky analytics data retrieved by AI';
+}
+
+/**
+ * Format ChangeNOW data for bubble display
+ */
+function formatChangeNowData(data) {
+  return 'ChangeNOW exchange data retrieved by AI';
+}
+
+/**
+ * Format Alchemy data for bubble display
+ */
+function formatAlchemyData(data) {
+  return 'Alchemy blockchain data retrieved by AI';
+}
+
+/**
  * OpenAI Controller class
  */
 export class OpenAIController {
@@ -190,8 +305,8 @@ export class OpenAIController {
         });
       }
 
-      // Define trading function tools for OpenAI
-      const tradingTools = [
+      // Define all available function tools for OpenAI
+      const allTools = [
         {
           type: "function",
           function: {
@@ -277,13 +392,16 @@ export class OpenAIController {
         }
       ];
 
+      // Filter tools based on enabled plugins
+      const availableTools = filterToolsForOpenAI(req, allTools);
+
       // Make request to OpenAI with function calling tools
       const completion = await openai.chat.completions.create({
         model,
         messages,
         max_tokens,
         temperature,
-        tools: tradingTools,
+        tools: availableTools,
         tool_choice: "auto" // Let AI decide when to use tools
       });
 
@@ -307,7 +425,8 @@ export class OpenAIController {
             const result = await handleToolCall({
               functionName,
               functionArgs,
-              session: req.session // Pass session for wallet context
+              session: req.session, // Pass session for wallet context
+              req // Pass request for plugin state checking
             });
             
             // Special handling for executeSwap - trigger wallet transaction
@@ -368,23 +487,33 @@ export class OpenAIController {
           temperature
         });
         
-        // Check if any function results require wallet approval
+        // Check if any function results require wallet approval or bubble updates
         const walletTransactions = [];
+        const bubbleUpdates = [];
+        
         for (const toolCall of message.tool_calls) {
           const functionName = toolCall.function.name;
-          if (functionName === 'executeSwap') {
-            // Find the corresponding result
-            const result = functionResults.find(fr => fr.tool_call_id === toolCall.id);
-            if (result) {
-              const parsedResult = JSON.parse(result.content);
-              if (parsedResult.walletTransaction) {
-                walletTransactions.push(parsedResult.walletTransaction);
+          const result = functionResults.find(fr => fr.tool_call_id === toolCall.id);
+          
+          if (result) {
+            const parsedResult = JSON.parse(result.content);
+            
+            // Handle wallet transactions (existing logic)
+            if (functionName === 'executeSwap' && parsedResult.walletTransaction) {
+              walletTransactions.push(parsedResult.walletTransaction);
+            }
+            
+            // Handle bubble updates (new logic)
+            if (parsedResult.success && parsedResult.data) {
+              const bubbleData = createBubbleDataFromTool(functionName, parsedResult);
+              if (bubbleData) {
+                bubbleUpdates.push(bubbleData);
               }
             }
           }
         }
         
-        // Return final response with function results and wallet transactions
+        // Return final response with function results, wallet transactions, and bubble updates
         res.json({
           success: true,
           data: {
@@ -395,7 +524,8 @@ export class OpenAIController {
             choices: finalCompletion.choices,
             usage: finalCompletion.usage,
             function_calls_executed: message.tool_calls.length,
-            walletTransactions: walletTransactions.length > 0 ? walletTransactions : undefined
+            walletTransactions: walletTransactions.length > 0 ? walletTransactions : undefined,
+            bubbleUpdates: bubbleUpdates.length > 0 ? bubbleUpdates : undefined
           }
         });
         

@@ -1,4 +1,5 @@
 import { OPENAI_MICROSERVICE_CONFIG } from '../config/endpoints.js';
+import { getPluginStates } from '../../utils/pluginManager.js';
 
 /**
  * Lurky API Service via Microservice
@@ -23,12 +24,14 @@ export const lurkyService = {
         params.append('coinSymbol', coinSymbol);
       }
 
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/lurky/coins?${params}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates)
         }
       });
 
@@ -52,12 +55,14 @@ export const lurkyService = {
   // Get trending data - alias for getCoins
   async getTrending() {
     try {
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/lurky/trending`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates)
         }
       });
 
@@ -103,12 +108,14 @@ export const lurkyService = {
   // Generic POST helper
   async post(path, body = {}, config = {}) {
     try {
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/lurky/generic/${path}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
           'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates),
           ...config.headers
         },
         body: JSON.stringify(body)
@@ -129,12 +136,14 @@ export const lurkyService = {
   // Generic DELETE helper
   async del(path) {
     try {
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/lurky/generic/${path}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates)
         }
       });
 

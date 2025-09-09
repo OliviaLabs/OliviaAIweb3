@@ -1,4 +1,5 @@
 import { OPENAI_MICROSERVICE_CONFIG } from '../config/endpoints.js';
+import { getPluginStates } from '../../utils/pluginManager.js';
 
 /**
  * CoinStats API Service via Microservice
@@ -9,12 +10,14 @@ export const coinstatsService = {
   // Get coin prices and market data
   async getCoins(limit = 10, page = 1) {
     try {
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/coinstats/coins?page=${page}&limit=${limit}&currency=USD`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates)
         }
       });
 
@@ -33,12 +36,14 @@ export const coinstatsService = {
   // Get specific coin data
   async getCoin(coinId) {
     try {
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/coinstats/coins/${coinId}?currency=USD`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates)
         }
       });
 
@@ -57,12 +62,14 @@ export const coinstatsService = {
   // Get market data overview
   async getMarkets(limit = 50) {
     try {
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/coinstats/markets?limit=${limit}&currency=USD&sortBy=rank`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates)
         }
       });
 
@@ -81,12 +88,14 @@ export const coinstatsService = {
   // Get specific coin by ID
   async searchCoins(query) {
     try {
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/coinstats/search?query=${encodeURIComponent(query)}&currency=USD`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates)
         }
       });
 
@@ -105,12 +114,14 @@ export const coinstatsService = {
   // Get portfolio insights
   async getPortfolioInsights() {
     try {
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/coinstats/portfolio-insights?limit=5&sortBy=marketCap`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates)
         }
       });
 

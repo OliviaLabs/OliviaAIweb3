@@ -1,4 +1,5 @@
 import { OPENAI_MICROSERVICE_CONFIG } from '../config/endpoints.js';
+import { getPluginStates } from '../../utils/pluginManager.js';
 
 export const zeroXService = {
   // Get swap quote from 0x Protocol
@@ -14,12 +15,14 @@ export const zeroXService = {
       if (takerAddress) params.append('takerAddress', takerAddress);
       if (slippagePercentage) params.append('slippagePercentage', slippagePercentage);
 
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/zerox/quote?${params.toString()}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates)
         }
       });
 
@@ -46,12 +49,14 @@ export const zeroXService = {
       if (sellAmount) params.append('sellAmount', sellAmount);
       if (buyAmount) params.append('buyAmount', buyAmount);
 
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/zerox/price?${params.toString()}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates)
         }
       });
 
@@ -70,12 +75,14 @@ export const zeroXService = {
   // Get list of supported tokens
   async getTokens() {
     try {
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/zerox/tokens`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates)
         }
       });
 
@@ -94,12 +101,14 @@ export const zeroXService = {
   // Get current gas price estimates
   async getGasPrice() {
     try {
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/zerox/gas-price`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates)
         }
       });
 
@@ -124,12 +133,14 @@ export const zeroXService = {
         perPage: perPage.toString()
       });
 
+      const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/zerox/orderbook?${params.toString()}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
-          'Origin': window.location.origin
+          'Origin': window.location.origin,
+          'X-Plugin-States': JSON.stringify(pluginStates)
         }
       });
 

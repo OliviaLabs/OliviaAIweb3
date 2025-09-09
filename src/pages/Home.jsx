@@ -13,6 +13,7 @@ import FloatingCoinStatsBubble from '../components/ui/FloatingCoinStatsBubble.js
 import FloatingICPBubble from '../components/ui/FloatingICPBubble.jsx';
 import FloatingHederaBubble from '../components/ui/FloatingHederaBubble.jsx';
 import FloatingChangeNowBubble from '../components/ui/FloatingChangeNowBubble.jsx';
+import FloatingZeroXBubble from '../components/ui/FloatingZeroXBubble.jsx';
 import FloatingPortfolioBubble from '../components/ui/FloatingPortfolioBubble.jsx';
 import FloatingAlchemyBubble from '../components/ui/FloatingAlchemyBubble.jsx';
 import InAppBrowser from '../components/ui/InAppBrowser.jsx';
@@ -555,6 +556,38 @@ export default function Home() {
       inputRef.current.focus()
     }
   }, [showInput])
+
+  // Listen for AI bubble updates
+  useEffect(() => {
+    const handleAIBubbleUpdate = (event) => {
+      const bubbleData = event.detail;
+      log('🫧 Received AI bubble update:', bubbleData);
+      
+      // Add bubble based on type
+      switch (bubbleData.type) {
+        case 'coinstats':
+          setCoinstatsBubbles(prev => [...prev, bubbleData]);
+          break;
+        case 'lurky':
+          setLurkyBubbles(prev => [...prev, bubbleData]);
+          break;
+        case 'zerox':
+          setZeroXBubbles(prev => [...prev, bubbleData]);
+          break;
+        case 'changenow':
+          setChangeNowBubbles(prev => [...prev, bubbleData]);
+          break;
+        case 'alchemy':
+          setAlchemyBubbles(prev => [...prev, bubbleData]);
+          break;
+        default:
+          log('🫧 Unknown bubble type:', bubbleData.type);
+      }
+    };
+
+    window.addEventListener('aiBubbleUpdate', handleAIBubbleUpdate);
+    return () => window.removeEventListener('aiBubbleUpdate', handleAIBubbleUpdate);
+  }, [])
 
   // Create ICP Status bubble on startup and monitor ICP connection
   useEffect(() => {

@@ -1,38 +1,29 @@
 import express from 'express';
 import openaiRoutes from './openaiRoutes.js';
 import changeNowRoutes from './changeNowRoutes.js';
-// import coinStatsRoutes from './coinStatsRoutes.js'; // DISABLED
+import coinStatsRoutes from './coinStatsRoutes.js'; // Re-enabled with plugin control
 import lurkyRoutes from './lurkyRoutes.js';
 import okxRoutes from './okxRoutes.js';
 import zeroXRoutes from './zeroXRoutes.js';
 import alchemyRoutes from './alchemyRoutes.js';
 import { OpenAIController } from '../controllers/openaiController.js';
+import { pluginAccessMiddleware } from '../lib/pluginManager.js';
 
 const router = express.Router();
 
 // Health check endpoint (no authentication required)
 router.get('/health', OpenAIController.healthCheck);
 
-// OpenAI routes
+// OpenAI routes (always enabled - core functionality)
 router.use('/openai', openaiRoutes);
 
-// ChangeNOW routes
-router.use('/changenow', changeNowRoutes);
-
-// CoinStats routes - DISABLED (plugin turned off)
-// router.use('/coinstats', coinStatsRoutes);
-
-// Lurky routes
-router.use('/lurky', lurkyRoutes);
-
-// OKX DEX routes
-router.use('/okx', okxRoutes);
-
-// 0x Protocol routes
-router.use('/zerox', zeroXRoutes);
-
-// Alchemy routes
-router.use('/alchemy', alchemyRoutes);
+// Plugin-controlled routes with middleware
+router.use('/changenow', pluginAccessMiddleware, changeNowRoutes);
+router.use('/coinstats', pluginAccessMiddleware, coinStatsRoutes);
+router.use('/lurky', pluginAccessMiddleware, lurkyRoutes);
+router.use('/okx', pluginAccessMiddleware, okxRoutes);
+router.use('/zerox', pluginAccessMiddleware, zeroXRoutes);
+router.use('/alchemy', pluginAccessMiddleware, alchemyRoutes);
 
 // Default route
 router.get('/', (req, res) => {
@@ -55,14 +46,14 @@ router.get('/', (req, res) => {
         transactions: '/api/changenow/transactions',
         transactionStatus: '/api/changenow/transactions/:id'
       },
-      // coinstats: DISABLED
-      // {
-      //   coins: '/api/coinstats/coins',
-      //   coin: '/api/coinstats/coins/:coinId',
-      //   markets: '/api/coinstats/markets',
-      //   search: '/api/coinstats/search',
-      //   portfolioInsights: '/api/coinstats/portfolio-insights'
-      // },
+      coinstats: {
+        coins: '/api/coinstats/coins',
+        coin: '/api/coinstats/coins/:coinId',
+        markets: '/api/coinstats/markets',
+        search: '/api/coinstats/search',
+        portfolioInsights: '/api/coinstats/portfolio-insights',
+        note: 'Controlled by plugin state - disabled by default'
+      },
       lurky: {
         coins: '/api/lurky/coins',
         trending: '/api/lurky/trending',
