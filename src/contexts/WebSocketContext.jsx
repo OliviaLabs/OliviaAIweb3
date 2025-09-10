@@ -126,7 +126,7 @@ export const WebSocketProvider = ({ children }) => {
   ];
   
   // Fallback endpoints for development/emergency use (secured via environment variables)
-  const FALLBACK_ENDPOINTS = process.env.NODE_ENV === 'development' 
+  const FALLBACK_ENDPOINTS = import.meta.env.MODE === 'development' 
     ? [import.meta.env.VITE_FALLBACK_WS_URL || 'ws://localhost:8080/ws/agent/stream']
     : []; // No fallbacks in production - microservice only
   
@@ -819,6 +819,11 @@ export const WebSocketProvider = ({ children }) => {
   const sendMessage = useCallback(async (message, conversationHistory = [], searchEnabled = false, imageEnabled = false) => {
     const requestId = generateRequestId();
     const userOptions = extractUserOptions();
+
+    // Get plugin states FIRST
+    const pluginStates = getPluginStates();
+    const enabledPlugins = Object.entries(pluginStates).filter(([_, e]) => e).map(([id]) => id);
+    const disabledPlugins = Object.entries(pluginStates).filter(([_, e]) => !e).map(([id]) => id);
     
     // Retrieve conversation history (max 15 messages) if not provided
     let historyToSend = conversationHistory;
@@ -843,6 +848,7 @@ export const WebSocketProvider = ({ children }) => {
 
     try {
       log('🤖 Sending message to OpenAI API directly...');
+      log('🔧 OPENAI_MICROSERVICE_CONFIG:', OPENAI_MICROSERVICE_CONFIG);
       
       // Track for ICP storage
       pendingMessagesRef.current.set(requestId, { 
@@ -886,8 +892,10 @@ You have direct access to 0x Protocol through function calling tools:
 
 IMPORTANT: You can execute swaps autonomously! When a user wants to swap tokens:
 - Call getSwapPrice() first to show them the rate
-- If they confirm, call executeSwap() to prepare the transaction
+- Call getSwapQuote() to get detailed swap information
+- AUTOMATICALLY call executeSwap() immediately after getSwapQuote() - do not ask for confirmation
 - The user just needs to confirm in their wallet
+- DO NOT include swap execution details in your response - handle swaps as background function calls
 
 TRADING APPROACH:
 When users ask about trading/swapping tokens:
@@ -978,23 +986,22 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
       // Add current user message
       openaiMessages.push({ role: 'user', content: message });
       
-      // Get current plugin states
-      const pluginStates = getPluginStates();
-      
-      // Create plugin status summary for AI
-      const enabledPlugins = Object.entries(pluginStates)
-        .filter(([_, enabled]) => enabled)
-        .map(([pluginId, _]) => pluginId);
-      const disabledPlugins = Object.entries(pluginStates)
-        .filter(([_, enabled]) => !enabled)
-        .map(([pluginId, _]) => pluginId);
-      
       // Call OpenAI API through your microservice (non-streaming for now)
-      const response = await fetch('http://localhost:3001/api/openai/chat/completions', {
+      const apiUrl = `${OPENAI_MICROSERVICE_CONFIG.URL}/api/openai/chat/completions`;
+      log('🔗 Making API call to:', apiUrl);
+      log('🔌 Plugin states:', pluginStates);
+      log('📝 Request body:', JSON.stringify({
+        messages: openaiMessages,
+        model: 'gpt-4',
+        max_tokens: 1000,
+        temperature: 0.7
+      }, null, 2));
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer dev-token',
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`,
           'X-Plugin-States': JSON.stringify(pluginStates)
         },
         body: JSON.stringify({
@@ -1005,13 +1012,20 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
         })
       });
       
+      log('📡 API Response status:', response.status, response.statusText);
+      
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+        console.error('❌ Microservice non-OK:', response.status, errorText);
+        throw new Error(`HTTP_${response.status}: ${errorText}`);
       }
-      
+
       const result = await response.json();
-      const fullResponse = result.data?.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.';
+      // Support both raw OpenAI and wrapped shape
+      const fullResponse =
+        result?.choices?.[0]?.message?.content ??
+        result?.data?.choices?.[0]?.message?.content ??
+        'Sorry, I could not generate a response.';
       
       // Check for wallet transactions that need approval
       if (result.data?.walletTransactions && result.data.walletTransactions.length > 0) {
@@ -1096,15 +1110,35 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
       return requestId;
       
     } catch (err) {
-      error('❌ OpenAI API call failed:', err);
+      console.error('❌ OpenAI API call failed:', err);
+      
+      // Determine error message based on error type
+      let errorMessage = 'Sorry, I\'m having trouble connecting to my AI service right now. Please try again in a moment!';
+      
+      if (err.message.includes('Failed to fetch')) {
+        errorMessage = `🔌 Connection Error: Cannot reach AI service at ${OPENAI_MICROSERVICE_CONFIG.URL}. Check HTTPS/mixed-content and that the server is up.`;
+      } else if (err.message.includes('CORS')) {
+        errorMessage = '🚫 CORS Error: Backend must allow your frontend origin and include proper CORS headers.';
+      } else if (err.message.includes('401') || err.message.includes('403')) {
+        errorMessage = '🔐 Authentication Error: Invalid or missing API token.';
+      } else if (err.message.startsWith('HTTP_')) {
+        errorMessage = `⚠️ Server responded with ${err.message.replace('HTTP_','')} (see console for details).`;
+      }
+      
+      log('🔍 Detailed error for debugging:', {
+        message: err.message,
+        stack: err.stack,
+        microserviceUrl: OPENAI_MICROSERVICE_CONFIG.URL,
+        hasToken: !!OPENAI_MICROSERVICE_CONFIG.TOKEN
+      });
       
       // Send error message to handlers
       messageHandlersRef.current.forEach(handler => {
         handler({
           type: 'stream_complete',
           data: { 
-            fullResponse: 'Sorry, I\'m having trouble connecting to my AI service right now. Please try again in a moment!',
-            text: 'Sorry, I\'m having trouble connecting to my AI service right now. Please try again in a moment!'
+            fullResponse: errorMessage,
+            text: errorMessage
           },
           requestId
         });

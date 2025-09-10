@@ -11,8 +11,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001', 
   'http://192.168.0.66:3000', // Local network
-  'https://oliviaaiweb3-1.onrender.com', // Production
-  'https://olivia-ai-microservice.onrender.com' // Microservice itself
+  'https://oliviaaiweb3-1.onrender.com' // Production frontend
 ];
 
 export const corsMiddleware = cors({

@@ -40,6 +40,132 @@ export async function handleToolCall({ functionName, functionArgs, session, req 
     return { status: 403, success: false, error: `Tool ${functionName} is not available (plugin disabled)` };
   }
 
+  // Handle CoinStats tools
+  if (functionName === "getCoinData" || functionName === "searchCoins" || functionName === "getMarketData") {
+    try {
+      // Import CoinStats controller dynamically
+      const { CoinStatsController } = await import('./coinStatsController.js');
+      
+      if (functionName === "getCoinData") {
+        const result = await CoinStatsController.getCoinById({ params: { coinId: functionArgs.coinSymbol } }, { json: (data) => data });
+        return {
+          success: true,
+          data: result,
+          message: `Retrieved data for ${functionArgs.coinSymbol}`
+        };
+      }
+      
+      if (functionName === "searchCoins") {
+        const result = await CoinStatsController.searchCoins({ query: { query: functionArgs.query } }, { json: (data) => data });
+        return {
+          success: true,
+          data: result,
+          message: `Search results for "${functionArgs.query}"`
+        };
+      }
+      
+      if (functionName === "getMarketData") {
+        const result = await CoinStatsController.getCoins({ query: { limit: functionArgs.limit || 10 } }, { json: (data) => data });
+        return {
+          success: true,
+          data: result,
+          message: `Market data for top ${functionArgs.limit || 10} cryptocurrencies`
+        };
+      }
+    } catch (error) {
+      console.error(`CoinStats ${functionName} error:`, error);
+      return {
+        success: false,
+        error: `Failed to fetch ${functionName}: ${error.message}`
+      };
+    }
+  }
+
+  // Handle Lurky tools
+  if (functionName === "getTrendingCoins" || functionName === "getCoinInsights") {
+    try {
+      // Import Lurky controller dynamically
+      const { LurkyController } = await import('./lurkyController.js');
+      
+      if (functionName === "getTrendingCoins") {
+        const result = await LurkyController.getCoins({ 
+          query: { 
+            coinSymbol: functionArgs.coinSymbol,
+            limit: functionArgs.limit || 10 
+          } 
+        }, { json: (data) => data });
+        return {
+          success: true,
+          data: result,
+          message: `Trending coins data retrieved`
+        };
+      }
+      
+      if (functionName === "getCoinInsights") {
+        const result = await LurkyController.getCoinInsights({ 
+          params: { coinSymbol: functionArgs.coinSymbol } 
+        }, { json: (data) => data });
+        return {
+          success: true,
+          data: result,
+          message: `Insights for ${functionArgs.coinSymbol}`
+        };
+      }
+    } catch (error) {
+      console.error(`Lurky ${functionName} error:`, error);
+      return {
+        success: false,
+        error: `Failed to fetch ${functionName}: ${error.message}`,
+        message: `Sorry, Lurky analytics are temporarily unavailable. Please try CoinStats for market data instead.`
+      };
+    }
+  }
+
+  // Handle ChangeNOW tools
+  if (functionName === "getExchangeRate" || functionName === "createTransaction") {
+    try {
+      // Import ChangeNOW controller dynamically
+      const { ChangeNowController } = await import('./changeNowController.js');
+      
+      if (functionName === "getExchangeRate") {
+        const result = await ChangeNowController.getExchangeRate({ 
+          query: { 
+            from: functionArgs.fromCurrency,
+            to: functionArgs.toCurrency,
+            amount: functionArgs.amount || 1
+          } 
+        }, { json: (data) => data });
+        return {
+          success: true,
+          data: result,
+          message: `Exchange rate: ${functionArgs.fromCurrency} to ${functionArgs.toCurrency}`
+        };
+      }
+      
+      if (functionName === "createTransaction") {
+        const result = await ChangeNowController.createTransaction({ 
+          body: {
+            from: functionArgs.fromCurrency,
+            to: functionArgs.toCurrency,
+            amount: functionArgs.amount,
+            address: functionArgs.address
+          }
+        }, { json: (data) => data });
+        return {
+          success: true,
+          data: result,
+          message: `Transaction created: ${functionArgs.fromCurrency} to ${functionArgs.toCurrency}`
+        };
+      }
+    } catch (error) {
+      console.error(`ChangeNOW ${functionName} error:`, error);
+      return {
+        success: false,
+        error: `Failed to fetch ${functionName}: ${error.message}`
+      };
+    }
+  }
+
   const { chainId, userAddress } = injectWalletContext(functionArgs, session);
   const cid = Number(chainId);
 
@@ -246,14 +372,49 @@ function formatCoinStatsData(data) {
  * Format Lurky data for bubble display  
  */
 function formatLurkyData(data) {
-  return 'Lurky analytics data retrieved by AI';
+  if (data.coins && Array.isArray(data.coins) && data.coins.length > 0) {
+    const coin = data.coins[0];
+    let text = `${coin.name || coin.symbol} Social Analytics\n\n`;
+    
+    if (coin.mentions) {
+      text += `Sentiment Analysis:\n`;
+      text += `• Bullish: ${coin.mentions.bullish || 0}\n`;
+      text += `• Bearish: ${coin.mentions.bearish || 0}\n`;
+      text += `• Neutral: ${coin.mentions.neutral || 0}\n`;
+      text += `• Total: ${coin.mentions.total || 0}\n`;
+      text += `• Overall: ${coin.mentions.overall_sentiment || 'Unknown'}\n\n`;
+    }
+    
+    text += `Powered by Lurky Analytics`;
+    return text;
+  }
+  return 'Lurky social sentiment data retrieved';
 }
 
 /**
  * Format ChangeNOW data for bubble display
  */
 function formatChangeNowData(data) {
-  return 'ChangeNOW exchange data retrieved by AI';
+  if (data.fromCurrency && data.toCurrency) {
+    let text = `${data.fromCurrency.ticker?.toUpperCase()} → ${data.toCurrency.ticker?.toUpperCase()} Exchange\n\n`;
+    
+    if (data.exchangeAmount) {
+      text += `Rate: 1 ${data.fromCurrency.ticker?.toUpperCase()} = ${data.exchangeAmount.estimatedAmount} ${data.toCurrency.ticker?.toUpperCase()}\n`;
+    }
+    
+    if (data.minAmount) {
+      text += `Minimum: ${data.minAmount.minAmount} ${data.fromCurrency.ticker?.toUpperCase()}\n`;
+    }
+    
+    if (data.marketInfo?.fee) {
+      text += `Fee: ${(data.marketInfo.fee * 100).toFixed(2)}%\n`;
+    }
+    
+    text += `\nProcessing: ~5-30 minutes\n`;
+    text += `Powered by ChangeNOW`;
+    return text;
+  }
+  return 'ChangeNOW exchange data retrieved';
 }
 
 /**
@@ -307,6 +468,56 @@ export class OpenAIController {
 
       // Define all available function tools for OpenAI
       const allTools = [
+        {
+          type: "function",
+          function: {
+            name: "getCoinData",
+            description: "Get cryptocurrency market data and price information",
+            parameters: {
+              type: "object",
+              properties: {
+                coinSymbol: {
+                  type: "string",
+                  description: "Cryptocurrency symbol (e.g., BTC, ETH, PEPE)"
+                }
+              },
+              required: ["coinSymbol"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "searchCoins",
+            description: "Search for cryptocurrency information by name or symbol",
+            parameters: {
+              type: "object",
+              properties: {
+                query: {
+                  type: "string",
+                  description: "Search query for cryptocurrency"
+                }
+              },
+              required: ["query"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "getMarketData",
+            description: "Get general cryptocurrency market overview",
+            parameters: {
+              type: "object",
+              properties: {
+                limit: {
+                  type: "number",
+                  description: "Number of coins to return (default 10)"
+                }
+              }
+            }
+          }
+        },
         {
           type: "function",
           function: {
@@ -389,11 +600,110 @@ export class OpenAIController {
               required: ["sellToken", "buyToken", "sellAmount", "userAddress"]
             }
           }
+        },
+        {
+          type: "function",
+          function: {
+            name: "getTrendingCoins",
+            description: "Get trending cryptocurrency data and social sentiment from Lurky",
+            parameters: {
+              type: "object",
+              properties: {
+                coinSymbol: {
+                  type: "string",
+                  description: "Cryptocurrency symbol to get trending data for (optional)"
+                },
+                limit: {
+                  type: "number",
+                  description: "Number of trending coins to return (default 10)"
+                }
+              }
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "getCoinInsights",
+            description: "Get detailed cryptocurrency insights and analytics from Lurky",
+            parameters: {
+              type: "object",
+              properties: {
+                coinSymbol: {
+                  type: "string",
+                  description: "Cryptocurrency symbol to get insights for"
+                }
+              },
+              required: ["coinSymbol"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "getExchangeRate",
+            description: "Get exchange rate between cryptocurrencies using ChangeNOW",
+            parameters: {
+              type: "object",
+              properties: {
+                fromCurrency: {
+                  type: "string",
+                  description: "Source currency symbol (e.g., BTC, ETH, USD)"
+                },
+                toCurrency: {
+                  type: "string",
+                  description: "Target currency symbol (e.g., BTC, ETH, USD)"
+                },
+                amount: {
+                  type: "number",
+                  description: "Amount to exchange (default 1)"
+                }
+              },
+              required: ["fromCurrency", "toCurrency"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "createTransaction",
+            description: "Create a cryptocurrency exchange transaction using ChangeNOW",
+            parameters: {
+              type: "object",
+              properties: {
+                fromCurrency: {
+                  type: "string",
+                  description: "Source currency symbol"
+                },
+                toCurrency: {
+                  type: "string",
+                  description: "Target currency symbol"
+                },
+                amount: {
+                  type: "number",
+                  description: "Amount to exchange"
+                },
+                address: {
+                  type: "string",
+                  description: "Recipient wallet address"
+                }
+              },
+              required: ["fromCurrency", "toCurrency", "amount", "address"]
+            }
+          }
         }
       ];
 
       // Filter tools based on enabled plugins
       const availableTools = filterToolsForOpenAI(req, allTools);
+
+      console.log('🤖 Making OpenAI API call with:', {
+        model,
+        messageCount: messages.length,
+        toolCount: availableTools.length,
+        maxTokens: max_tokens,
+        temperature
+      });
 
       // Make request to OpenAI with function calling tools
       const completion = await openai.chat.completions.create({
@@ -401,8 +711,15 @@ export class OpenAIController {
         messages,
         max_tokens,
         temperature,
-        tools: availableTools,
-        tool_choice: "auto" // Let AI decide when to use tools
+        tools: availableTools.length > 0 ? availableTools : undefined, // Only include tools if available
+        tool_choice: availableTools.length > 0 ? "auto" : undefined // Only set tool_choice if tools available
+      });
+
+      console.log('✅ OpenAI API call successful:', {
+        id: completion.id,
+        model: completion.model,
+        choices: completion.choices.length,
+        hasToolCalls: !!completion.choices[0].message.tool_calls
       });
 
       // Check if AI wants to call functions
