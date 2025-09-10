@@ -1,5 +1,5 @@
 import express from 'express';
-import { getSwapPrice, getSwapQuote, getTokens, getGasPrice, getOrderBook } from '../controllers/zeroXController.js';
+import { getSwapPrice, getSwapQuote, getTokens, getGasPrice, getOrderBook, simulateSwap } from '../controllers/zeroXController.js';
 import { authenticateAdmin } from '../middleware/auth.js';
 import { validateOrigin } from '../middleware/cors.js';
 import { createRateLimiter } from '../middleware/rateLimiter.js';
@@ -74,6 +74,19 @@ router.get('/orderbook',
   authenticateAdmin,
   validateOrigin,
   getOrderBook
+);
+
+/**
+ * POST /api/zerox/simulate
+ * Simulate a swap transaction before execution (preflight check)
+ * Required body params: to, data, from
+ * Optional params: value, chainId
+ */
+router.post('/simulate',
+  zeroXRateLimit,
+  authenticateAdmin,
+  validateOrigin,
+  simulateSwap
 );
 
 export default router;

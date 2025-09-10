@@ -8,11 +8,18 @@ const nf = (n, dp = 6) =>
 export function formatSwapFrom0x({ quoteOrPrice, sellInfo, buyInfo, chainLabel }) {
   if (!quoteOrPrice) throw new Error("Missing 0x response");
 
-  // 0x fields we care about (handle both /price and /quote shapes)
+  // 0x v2 fields we care about (handle both /price and /quote shapes)
   const sellAmountWei = quoteOrPrice.sellAmount ?? quoteOrPrice.sellAmountBaseUnits ?? "0";
   const buyAmountWei  = quoteOrPrice.buyAmount  ?? quoteOrPrice.buyAmountBaseUnits  ?? "0";
-  const gasUnits      = quoteOrPrice.gas ?? quoteOrPrice.estimatedGas;
-  const gasPriceWei   = quoteOrPrice.gasPrice ?? quoteOrPrice.gasPriceWei;
+  const gasUnits      = quoteOrPrice.gas ?? quoteOrPrice.estimatedGas ?? quoteOrPrice.transaction?.gas;
+  const gasPriceWei   = quoteOrPrice.gasPrice ?? quoteOrPrice.gasPriceWei ?? quoteOrPrice.transaction?.gasPrice;
+  
+  // v2 specific fields
+  const issues = quoteOrPrice.issues || null;
+  const allowanceTarget = quoteOrPrice.allowanceTarget || null;
+  const value = quoteOrPrice.value || null; // Required for native ETH sells
+  const to = quoteOrPrice.to || null; // Settler address
+  const liquidityAvailable = quoteOrPrice.liquidityAvailable !== false; // v2 signal
 
   // Convert to human units using token decimals
   const sellHuman = Number(formatUnits(BigInt(sellAmountWei), sellInfo.decimals));
@@ -60,6 +67,22 @@ export function formatSwapFrom0x({ quoteOrPrice, sellInfo, buyInfo, chainLabel }
     lines.push(`0x protocol fee: ${nf(protoFeeHuman, buyInfo.decimals)} ${buyInfo.symbol}`);
   }
 
+  // Add issues information to the message if present
+  if (issues) {
+    lines.push("⚠️ Transaction Issues:");
+    if (issues.balance) {
+      lines.push(`  • Insufficient balance`);
+    }
+    if (issues.allowance) {
+      lines.push(`  • Token approval required for ${issues.allowance.spender || allowanceTarget}`);
+    }
+  }
+  
+  // Add liquidity warning if not available
+  if (!liquidityAvailable) {
+    lines.push("❌ No liquidity available for this route");
+  }
+
   return {
     // structured values for UI
     amounts: {
@@ -78,6 +101,12 @@ export function formatSwapFrom0x({ quoteOrPrice, sellInfo, buyInfo, chainLabel }
       raw: protoFeeWei ?? null,
       human: protoFeeHuman
     },
+    // v2 specific fields
+    issues: issues,
+    allowanceTarget: allowanceTarget,
+    value: value,
+    to: to,
+    liquidityAvailable: liquidityAvailable,
     message: lines.join("\n")
   };
 }

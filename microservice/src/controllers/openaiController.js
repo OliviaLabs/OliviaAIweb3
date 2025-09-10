@@ -4,6 +4,40 @@ import { getSwapPrice, getSwapQuote } from './zeroXController.js';
 import { TOKENS, resolveTokenStrict } from '../lib/tokens.js';
 import { formatSwapFrom0x } from '../lib/quoteFormatter.js';
 import { getAvailableTools, filterToolsForOpenAI } from '../lib/pluginManager.js';
+import { needsAllowance, hasInsufficientBalance } from '../lib/allowanceChecker.js';
+import { createTxEnvelope } from '../types/transaction.js';
+
+// Helper function to convert human-readable amounts to base units
+function toBaseUnits(human, decimals) {
+  const humanStr = String(human).trim().replace(/^\+/, '');
+  
+  // Validate decimal format
+  if (!/^\d*(\.\d*)?$/.test(humanStr)) {
+    throw new Error('Invalid decimal amount');
+  }
+  
+  // Split into integer and fraction parts
+  const [iRaw, fRaw = ""] = humanStr.includes('.') ? humanStr.split('.') : [humanStr, ""];
+  
+  // Normalize integer part (remove leading zeros but keep at least one)
+  const integer = iRaw === "" ? "0" : iRaw.replace(/^0+(?=\d)/, "") || "0";
+  const fraction = fRaw;
+  
+  // Pad or truncate fraction to match decimals
+  const frac = (fraction + "0".repeat(decimals)).slice(0, decimals);
+  
+  // Combine integer and fraction parts
+  const baseUnitsStr = integer + (decimals ? frac : "");
+  
+  // Use BigInt to ensure no precision loss
+  return BigInt(baseUnitsStr || "0").toString();
+}
+
+// Cache for recent quotes to avoid re-quoting on confirmation
+const lastQuoteCache = new Map(); // key: `${taker}|${chainId}|${sellToken}|${buyToken}|${sellAmountBase}`
+// Cache last quote ARGS per taker+chain to keep parameters consistent (prevents model drift)
+const lastQuoteArgsCache = new Map(); // key: `${taker}|${chainId}` -> { sellToken, buyToken, sellAmount, slippageBps }
+const LAST_QUOTE_TTL = 20000; // 20 seconds TTL for cached quotes
 
 export const ALLOWED_TOOLS = new Set(["getSwapPrice", "getSwapQuote", "executeSwap"]);
 export const TOOL_POLICY_SYSTEM = `
@@ -13,6 +47,10 @@ Never invent prices or fees; only display values from 0x responses.
 Always treat buyAmount/sellAmount as base units and convert with token decimals.
 When user confirms a swap, call executeSwap to prepare the transaction data.
 `;
+
+// Request cache for deduplication
+const requestCache = new Map();
+const CACHE_TTL = 5000; // 5 seconds
 
 // Helper to call Express‑style controllers in‑process and capture JSON
 async function callController(controller, query) {
@@ -28,8 +66,8 @@ async function callController(controller, query) {
 
 function injectWalletContext(functionArgs, session) {
   const chainId = functionArgs.chainId || session?.walletChainId || 1;
-  const userAddress = functionArgs.userAddress || session?.walletAddress || undefined;
-  return { chainId, userAddress };
+  const taker = functionArgs.taker || session?.walletAddress || undefined;
+  return { chainId, taker };
 }
 
 export async function handleToolCall({ functionName, functionArgs, session, req }) {
@@ -166,7 +204,7 @@ export async function handleToolCall({ functionName, functionArgs, session, req 
     }
   }
 
-  const { chainId, userAddress } = injectWalletContext(functionArgs, session);
+  const { chainId, taker } = injectWalletContext(functionArgs, session);
   const cid = Number(chainId);
 
   // Resolve token infos for correct decimals
@@ -179,7 +217,7 @@ export async function handleToolCall({ functionName, functionArgs, session, req 
       sellToken: functionArgs.sellToken,
       buyToken: functionArgs.buyToken,
       sellAmount: functionArgs.sellAmountHuman || functionArgs.sellAmount,
-      taker: userAddress,
+      taker: taker,
       chainId: cid
     });
 
@@ -198,15 +236,35 @@ export async function handleToolCall({ functionName, functionArgs, session, req 
   }
 
   if (functionName === "getSwapQuote") {
+    // v2 REQUIRES taker for /quote
+    if (!taker) {
+      console.error('❌ Missing taker address for getSwapQuote - v2 requires it');
+      return {
+        success: false,
+        error: 'Wallet address (taker) is required for swap quotes. Please connect your wallet.',
+        requiresWallet: true
+      };
+    }
+    
+    console.log('🔄 Calling getSwapQuote with params:', {
+      sellToken: functionArgs.sellToken,
+      buyToken: functionArgs.buyToken,
+      sellAmount: functionArgs.sellAmountHuman || functionArgs.sellAmount,
+      slippageBps: functionArgs.slippageBps ?? 50,
+      taker: taker,
+      chainId: cid
+    });
+    
     const raw = await callController(getSwapQuote, {
       sellToken: functionArgs.sellToken,
       buyToken: functionArgs.buyToken,
       sellAmount: functionArgs.sellAmountHuman || functionArgs.sellAmount,
       slippageBps: functionArgs.slippageBps ?? 50,
-      taker: userAddress,
+      taker: taker, // REQUIRED in v2
       chainId: cid
     });
 
+    console.log('🔄 getSwapQuote result:', raw);
     if (!raw?.success) return raw;
     const formatted = formatSwapFrom0x({
       quoteOrPrice: raw.data,
@@ -222,8 +280,18 @@ export async function handleToolCall({ functionName, functionArgs, session, req 
   }
 
   if (functionName === "executeSwap") {
+    // v2 REQUIRES taker for /quote (which executeSwap uses)
+    if (!taker) {
+      console.error('❌ Missing taker address for executeSwap - v2 requires it');
+      return {
+        success: false,
+        error: 'Wallet address (taker) is required to execute swaps. Please connect your wallet.',
+        requiresWallet: true
+      };
+    }
+    
     console.log('🎯 executeSwap called with args:', functionArgs);
-    console.log('🎯 userAddress:', userAddress, 'chainId:', cid);
+    console.log('🎯 taker:', taker, 'chainId:', cid);
     
     // For executeSwap, we need to get the quote with transaction data
     const raw = await callController(getSwapQuote, {
@@ -231,7 +299,7 @@ export async function handleToolCall({ functionName, functionArgs, session, req 
       buyToken: functionArgs.buyToken,
       sellAmount: functionArgs.sellAmountHuman || functionArgs.sellAmount,
       slippageBps: functionArgs.slippageBps ?? 50,
-      taker: userAddress,
+      taker: taker, // REQUIRED in v2
       chainId: cid
     });
     
@@ -244,28 +312,135 @@ export async function handleToolCall({ functionName, functionArgs, session, req 
         message: "I apologize, but I couldn't prepare the swap transaction. Please try again or check your wallet connection."
       };
     }
+    
+    // CRITICAL FIX: Check for ACTUAL shortfalls with proper fallback logic
+    const issues = raw.data?.issues || null;
+    const sellAmountBase = raw.data?.sellAmount || toBaseUnits(functionArgs.sellAmountHuman || functionArgs.sellAmount, sellInfo.decimals);
+    
+    // ROBUST allowance check - handles missing 'required' field with on-chain fallback
+    const allowanceShort = await needsAllowance({
+      quote: raw.data,
+      sellAmountBase,
+      taker,
+      chainId: cid
+    });
+    
+    const balanceShort = hasInsufficientBalance(issues, sellAmountBase);
+    
+    console.log('🔍 Issue checks:', { 
+      hasIssues: !!issues,
+      allowanceActual: issues?.allowance?.actual,
+      allowanceRequired: issues?.allowance?.required || 'computed locally as sellAmount',
+      sellAmountBase,
+      allowanceShort, 
+      balanceShort, 
+      issues 
+    });
+    
+    // Only block on actual insufficient balance
+    if (balanceShort) {
+      return {
+        success: false,
+        error: 'Transaction cannot proceed due to insufficient balance',
+        issues,
+        messages: [
+          `Insufficient balance: have ${issues.balance.actual}, need ${issues.balance.required}`
+        ],
+        hint: 'Please reduce sell amount or top up your wallet.'
+      };
+    }
+    
+    // Only block on actual insufficient allowance
+    if (allowanceShort) {
+      const spender = issues?.allowance?.spender || raw.data.allowanceTarget;
+      const approvalAmount = issues?.allowance?.required || sellAmountBase;
+      
+      console.log('⚠️ Approval needed:', {
+        token: raw.data.sellToken,
+        spender,
+        currentAllowance: issues?.allowance?.actual || '0',
+        requiredAmount: approvalAmount
+      });
+      
+      return {
+        success: true,
+        action: 'approval_required',
+        requiresApproval: true,
+        approval: {
+          token: raw.data.sellToken,
+          spender,
+          amount: approvalAmount
+        },
+        allowanceTarget: spender,
+        issues,
+        data: raw.data,
+        message: `Token approval required before executing the swap. Please approve the transaction in your wallet to allow the contract to spend your tokens. After approval, the swap will be executed automatically.`
+      };
+    }
+    
+    // If we get here, no blocking issues - proceed with swap!
 
+    // CRITICAL: Ensure we have valid transaction data from v2 response
+    if (!raw.data?.transaction?.to || !raw.data?.transaction?.data) {
+      console.error('❌ Malformed quote: missing transaction.to/data', raw.data);
+      return {
+        success: false,
+        error: 'Malformed quote: missing transaction.to/data fields required for execution',
+        details: raw.data,
+        hint: 'The 0x API did not return executable transaction data. Please try again.'
+      };
+    }
+    
     // Format the transaction data for the frontend
     const formatted = formatSwapFrom0x({
       quoteOrPrice: raw.data,
       sellInfo, buyInfo, chainLabel
     });
 
+    // CRITICAL: Use standardized transaction envelope contract
+    const qtx = raw.data.transaction;
+    
+    // Create properly formatted transaction envelope
+    const txEnvelope = createTxEnvelope({
+      from: taker,                    // REQUIRED for MetaMask
+      to: qtx?.to,                    // AllowanceHolder address
+      data: qtx?.data,                 // Transaction calldata  
+      value: qtx?.value ?? '0',        // ETH value (will be hex-encoded)
+      gas: qtx?.gas,                   // Gas limit (will be hex-encoded)
+      gasPrice: qtx?.gasPrice,         // Gas price (will be hex-encoded)
+      chainId: cid                     // Chain ID
+    });
+    
+    console.log('🎯 Transaction envelope prepared:', {
+      from: txEnvelope.from,
+      to: txEnvelope.to,
+      dataLength: txEnvelope.data?.length || 0,
+      value: txEnvelope.value,
+      gas: txEnvelope.gas,
+      gasPrice: txEnvelope.gasPrice,
+      chainId: txEnvelope.chainId
+    });
+
     const result = {
       success: true,
       data: raw.data,
       ui: formatted,
-      transactionData: {
-        to: raw.data.transaction?.to,
-        data: raw.data.transaction?.data,
-        value: raw.data.transaction?.value || '0',
-        gasPrice: raw.data.transaction?.gasPrice,
-        gas: raw.data.transaction?.gas
-      },
-      // Special flag to trigger wallet transaction
-      requiresWalletApproval: true,
+      // PRIMARY: Standardized transaction envelope
+      txEnvelope: txEnvelope,
+      // LEGACY: Keep these for backward compatibility
+      transaction: txEnvelope,
+      walletTransactions: [{
+        action: 'executeSwap',
+        transactionData: txEnvelope
+      }],
+      transactionData: txEnvelope,
+      // Flags
+      requiresWalletApproval: false,
       walletAction: 'executeSwap',
-      message: `🎯 **Swap Transaction Ready!**\n\n${formatted.message}\n\n**Next Step:** Please approve this transaction in your wallet to complete the swap.`
+      // CRITICAL: Don't generate AI response - let frontend handle wallet interaction
+      message: `Transaction prepared. Please approve in your wallet.`,
+      // Signal to frontend that this needs wallet interaction before AI responds
+      needsWalletInteraction: true
     };
     
     console.log('🎯 executeSwap returning:', result);
@@ -429,14 +604,40 @@ function formatAlchemyData(data) {
  */
 export class OpenAIController {
   
+  // Simple request deduplication cache
+  static requestCache = new Map();
+  static CACHE_TTL = 5000; // 5 seconds
+
   /**
    * Generate chat completion using OpenAI
    */
   static async generateChatCompletion(req, res) {
     try {
-      const { messages, model = 'gpt-3.5-turbo', max_tokens = 1000, temperature = 0.7 } = req.body;
+      console.log('🚀 DEBUG: Request received, starting processing...');
+      const { messages, model = 'gpt-4o-mini', max_tokens = 1000, temperature = 0.7, taker, chainId, skip_final_completion = false } = req.body;
+      console.log('🚀 DEBUG: Request body parsed, last message:', messages[messages.length - 1]?.content);
 
-      console.log('📧 Messages Content --> ', messages); 
+      // Create cache key for deduplication
+      const cacheKey = JSON.stringify({ messages, taker, chainId });
+      const now = Date.now();
+      
+      // Check if we have a recent identical request
+      if (requestCache.has(cacheKey)) {
+        const cached = requestCache.get(cacheKey);
+        if (now - cached.timestamp < CACHE_TTL) {
+          console.log('🔄 Returning cached response for duplicate request');
+          return res.json(cached.response);
+        }
+      }
+
+      console.log('📧 Messages Content --> ', messages);
+      console.log('🔗 Wallet Info --> ', { taker, chainId });
+
+      // Create session with wallet context for tool calls
+      const session = {
+        walletAddress: taker,
+        walletChainId: chainId
+      }; 
 
       // Validate required fields
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -526,6 +727,10 @@ export class OpenAIController {
             parameters: {
               type: "object",
               properties: {
+                chainId: {
+                  type: "number",
+                  description: "Chain ID (1 for Ethereum mainnet)"
+                },
                 sellToken: {
                   type: "string",
                   description: "Token to sell (symbol or address)"
@@ -538,12 +743,12 @@ export class OpenAIController {
                   type: "string",
                   description: "Amount to sell (in token units)"
                 },
-                userAddress: {
+                taker: {
                   type: "string",
                   description: "User wallet address"
                 }
               },
-              required: ["sellToken", "buyToken", "sellAmount"]
+              required: ["chainId", "sellToken", "buyToken", "sellAmount", "taker"]
             }
           }
         },
@@ -555,6 +760,10 @@ export class OpenAIController {
             parameters: {
               type: "object",
               properties: {
+                chainId: {
+                  type: "number",
+                  description: "Chain ID (1 for Ethereum mainnet)"
+                },
                 sellToken: {
                   type: "string",
                   description: "Token to sell (symbol or address)"
@@ -566,9 +775,13 @@ export class OpenAIController {
                 sellAmount: {
                   type: "string", 
                   description: "Amount to sell (in token units)"
+                },
+                taker: {
+                  type: "string",
+                  description: "User wallet address"
                 }
               },
-              required: ["sellToken", "buyToken", "sellAmount"]
+              required: ["chainId", "sellToken", "buyToken", "sellAmount", "taker"]
             }
           }
         },
@@ -580,6 +793,10 @@ export class OpenAIController {
             parameters: {
               type: "object",
               properties: {
+                chainId: {
+                  type: "number",
+                  description: "Chain ID (1 for Ethereum mainnet)"
+                },
                 sellToken: {
                   type: "string",
                   description: "Token to sell (symbol or address)"
@@ -592,12 +809,12 @@ export class OpenAIController {
                   type: "string",
                   description: "Amount to sell (in token units)"
                 },
-                userAddress: {
+                taker: {
                   type: "string",
                   description: "User wallet address"
                 }
               },
-              required: ["sellToken", "buyToken", "sellAmount", "userAddress"]
+              required: ["chainId", "sellToken", "buyToken", "sellAmount", "taker"]
             }
           }
         },
@@ -702,12 +919,15 @@ export class OpenAIController {
         messageCount: messages.length,
         toolCount: availableTools.length,
         maxTokens: max_tokens,
-        temperature
+        temperature,
+        hasTools: availableTools.length > 0,
+        tools: availableTools.map(t => t.function.name)
       });
 
       // Make request to OpenAI with function calling tools
+      console.log('🚀 DEBUG: Making initial OpenAI API call...');
       const completion = await openai.chat.completions.create({
-        model,
+        model, // Use consistent model from request
         messages,
         max_tokens,
         temperature,
@@ -730,21 +950,34 @@ export class OpenAIController {
         
         // Execute function calls
         const functionResults = [];
+        let hasSwapPrice = false;
+        let hasSwapQuote = false;
+        let hasExecuteSwap = false;
+        let swapQuoteResult = null;
         
         for (const toolCall of message.tool_calls) {
           const functionName = toolCall.function.name;
           const functionArgs = JSON.parse(toolCall.function.arguments);
           
           console.log(`🚀 Executing function: ${functionName}`, functionArgs);
+          console.log(`🔍 Total tool calls in this message: ${message.tool_calls.length}`);
           
           try {
             // Use the new handleToolCall function with proper formatting
             const result = await handleToolCall({
               functionName,
               functionArgs,
-              session: req.session, // Pass session for wallet context
+              session: session, // Pass session for wallet context
               req // Pass request for plugin state checking
             });
+            
+            // Track swap function calls
+            if (functionName === 'getSwapPrice') hasSwapPrice = true;
+            if (functionName === 'getSwapQuote') {
+              hasSwapQuote = true;
+              swapQuoteResult = result;
+            }
+            if (functionName === 'executeSwap') hasExecuteSwap = true;
             
             // Special handling for executeSwap - trigger wallet transaction
             if (functionName === 'executeSwap') {
@@ -781,33 +1014,124 @@ export class OpenAIController {
           }
         }
         
-        // Send function results back to OpenAI for final response
-        const followUpMessages = [
-          ...messages,
-          message, // AI's function call message
-          ...functionResults // Function results
-        ];
-        
-        // Add instruction to avoid emojis in final response
-        const finalMessages = [
-          {
-            role: "system",
-            content: "Keep responses clean and professional without emojis. Present trading information clearly and concisely."
-          },
-          ...followUpMessages
-        ];
-        
-        const finalCompletion = await openai.chat.completions.create({
-          model,
-          messages: finalMessages,
-          max_tokens,
-          temperature
-        });
-        
-        // Check if any function results require wallet approval or bubble updates
+        // Prepare aggregations for tool results and UI actions
         const walletTransactions = [];
         const bubbleUpdates = [];
+        let nextAction = null;
+        let approval = null; // { token, spender, amount }
+        let allowanceTarget = null;
+        let issues = null;
+
+        // Force execute after user confirmation if we have a recent quote but no execute
+        try {
+          let swapQuoteArgs = null;
+          let hasExecuteSwap = false;
+          for (const tc of message.tool_calls) {
+            const fn = tc.function?.name;
+            const args = (() => { try { return JSON.parse(tc.function?.arguments || '{}'); } catch { return {}; }})();
+            if (fn === 'getSwapQuote') swapQuoteArgs = args;
+            if (fn === 'executeSwap') hasExecuteSwap = true;
+          }
+
+          // Get last user message safely from request body (avoid undefined vars)
+          const convMessages = Array.isArray(req?.body?.messages) ? req.body.messages : [];
+          const lastUserMsg = convMessages.filter(m => m?.role === 'user').at(-1)?.content?.trim()?.toLowerCase() || '';
+          const confirmed = /^(yes|yep|yeah|ok|okay|confirm|execute|proceed|go ahead|do it)$/.test(lastUserMsg);
+
+          if (confirmed && swapQuoteArgs && !hasExecuteSwap) {
+            console.log('⚡ Forcing executeSwap after user confirmation with previous quote args');
+            const execResult = await handleToolCall({
+              functionName: 'executeSwap',
+              functionArgs: swapQuoteArgs,
+              session,
+              req
+            });
+            functionResults.push({
+              tool_call_id: `forced_exec_${Date.now()}`,
+              role: 'tool',
+              content: JSON.stringify(execResult)
+            });
+            // Also push a bubble update if applicable
+            if (execResult?.success && execResult?.data) {
+              const bubbleData = createBubbleDataFromTool('executeSwap', execResult);
+              if (bubbleData) bubbleUpdates.push(bubbleData);
+            }
+          }
+        } catch (e) {
+          console.warn('Force-exec guard error:', e?.message);
+        }
         
+        // Filter function results to only include those with valid tool_call_ids
+        const validToolCallIds = new Set(message.tool_calls.map(tc => tc.id));
+        const validFunctionResults = functionResults.filter(result => 
+          validToolCallIds.has(result.tool_call_id)
+        );
+        
+        let finalCompletion = null;
+        
+        // If skip_final_completion is true, return tool results immediately
+        if (skip_final_completion) {
+          console.log('🚀 Skipping final completion - returning tool results immediately');
+          
+          // Collect messages from tool results to show meaningful content
+          let toolMessages = [];
+          for (const result of functionResults) {
+            try {
+              const parsedResult = JSON.parse(result.content);
+              if (parsedResult.message) {
+                toolMessages.push(parsedResult.message);
+              }
+            } catch (e) {
+              // Skip invalid JSON
+            }
+          }
+          
+          const toolContent = toolMessages.length > 0 
+            ? toolMessages.join('\n\n') 
+            : 'Tool execution completed. Results are ready.';
+          
+          // Create a mock completion response with actual tool messages
+          finalCompletion = {
+            id: `skip_${Date.now()}`,
+            object: 'chat.completion',
+            created: Math.floor(Date.now() / 1000),
+            model: model,
+            choices: [{
+              index: 0,
+              message: {
+                role: 'assistant',
+                content: toolContent
+              },
+              finish_reason: 'tool_calls'
+            }],
+            usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
+          };
+        } else {
+          // Send function results back to OpenAI for final response
+          const followUpMessages = [
+            ...messages,
+            message, // AI's function call message
+            ...validFunctionResults // Only valid function results
+          ];
+          
+          // Add instruction to avoid emojis in final response
+          const finalMessages = [
+            {
+              role: "system",
+              content: "Keep responses clean and professional without emojis. Present trading information clearly and concisely."
+            },
+            ...followUpMessages
+          ];
+          
+          finalCompletion = await openai.chat.completions.create({
+            model,
+            messages: finalMessages,
+            max_tokens,
+            temperature
+          });
+        }
+        
+        // Check if any function results require wallet approval or bubble updates
         for (const toolCall of message.tool_calls) {
           const functionName = toolCall.function.name;
           const result = functionResults.find(fr => fr.tool_call_id === toolCall.id);
@@ -815,9 +1139,22 @@ export class OpenAIController {
           if (result) {
             const parsedResult = JSON.parse(result.content);
             
-            // Handle wallet transactions (existing logic)
-            if (functionName === 'executeSwap' && parsedResult.walletTransaction) {
-              walletTransactions.push(parsedResult.walletTransaction);
+            // Handle wallet transactions and approval data
+            if (functionName === 'executeSwap') {
+              // Handle both singular and plural forms
+              if (parsedResult.walletTransactions && Array.isArray(parsedResult.walletTransactions)) {
+                walletTransactions.push(...parsedResult.walletTransactions);
+              } else if (parsedResult.walletTransaction) {
+                walletTransactions.push(parsedResult.walletTransaction);
+              }
+              
+              // Handle approval path
+              if (parsedResult.action === 'approval_required') {
+                nextAction = 'approval_required';
+                approval = parsedResult.approval || null;
+                allowanceTarget = parsedResult.allowanceTarget || parsedResult.approval?.spender || null;
+                issues = parsedResult.issues || null;
+              }
             }
             
             // Handle bubble updates (new logic)
@@ -827,11 +1164,21 @@ export class OpenAIController {
                 bubbleUpdates.push(bubbleData);
               }
             }
+
+            // Capture approval-required flow for UI
+            if (functionName === 'executeSwap') {
+              if (parsedResult?.action === 'approval_required' || parsedResult?.requiresApproval === true) {
+                nextAction = 'approval_required';
+                approval = parsedResult?.approval || null;
+                allowanceTarget = parsedResult?.allowanceTarget || parsedResult?.approval?.spender || null;
+                issues = parsedResult?.issues || null;
+              }
+            }
           }
         }
         
-        // Return final response with function results, wallet transactions, and bubble updates
-        res.json({
+        // Store response in cache for deduplication
+        const response = {
           success: true,
           data: {
             id: finalCompletion.id,
@@ -841,10 +1188,38 @@ export class OpenAIController {
             choices: finalCompletion.choices,
             usage: finalCompletion.usage,
             function_calls_executed: message.tool_calls.length,
-            walletTransactions: walletTransactions.length > 0 ? walletTransactions : undefined,
-            bubbleUpdates: bubbleUpdates.length > 0 ? bubbleUpdates : undefined
+            walletTransactions: walletTransactions,
+            bubbleUpdates: bubbleUpdates,
+            // Expose approval fields so the frontend can trigger wallet approval
+            nextAction,
+            approval,
+            allowanceTarget,
+            issues
           }
+        };
+        
+        console.log('🚀 DEBUG: About to send response to frontend:', {
+          hasWalletTransactions: walletTransactions.length > 0,
+          hasBubbleUpdates: bubbleUpdates.length > 0,
+          responseSize: JSON.stringify(response).length
         });
+        
+        // Cache the response
+        requestCache.set(cacheKey, {
+          response: response,
+          timestamp: now
+        });
+        
+        // Clean old cache entries (keep only last 100)
+        if (requestCache.size > 100) {
+          const oldestKey = requestCache.keys().next().value;
+          requestCache.delete(oldestKey);
+        }
+        
+        // Return final response with function results, wallet transactions, and bubble updates
+        console.log('🚀 DEBUG: Sending final response to frontend now...');
+        res.json(response);
+        console.log('🚀 DEBUG: Response sent successfully!');
         
       } else {
         // No function calls, return normal response

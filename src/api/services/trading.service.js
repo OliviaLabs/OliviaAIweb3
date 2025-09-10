@@ -99,16 +99,30 @@ export const tradingService = {
    */
   async executeSwap(quoteData, userAddress) {
     try {
+      // Convert numeric values to hex strings for MetaMask compatibility
+      const toHex = (value) => {
+        if (typeof value === 'string' && value.startsWith('0x')) return value;
+        if (typeof value === 'number') return `0x${value.toString(16)}`;
+        if (typeof value === 'string') return `0x${parseInt(value).toString(16)}`;
+        return value;
+      };
+
+      // Create properly formatted transaction envelope
+      const txEnvelope = {
+        from: userAddress,
+        to: quoteData.to,
+        data: quoteData.data,
+        value: toHex(quoteData.value || '0'),
+        gas: toHex(quoteData.estimatedGas || '300000'),
+        gasPrice: toHex(quoteData.gasPrice || '20000000000'), // 20 gwei default
+        chainId: 1 // Ethereum mainnet
+      };
+
       // Return transaction data that can be executed by the wallet
       return {
         success: true,
-        transaction: {
-          to: quoteData.to,
-          data: quoteData.data,
-          value: quoteData.value,
-          from: userAddress,
-          gasLimit: quoteData.estimatedGas
-        },
+        txEnvelope: txEnvelope,
+        transaction: txEnvelope,
         message: 'Transaction ready for wallet approval'
       };
     } catch (error) {

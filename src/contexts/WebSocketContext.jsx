@@ -7,8 +7,10 @@ import { log, error, warn } from '../utils/logger.js';
 import { aiService } from '../api/services/ai.service.js';
 import { ENDPOINTS, OPENAI_MICROSERVICE_CONFIG } from '../api/config/endpoints.js';
 import { tradingService } from '../api/services/trading.service.js';
-import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useSendTransaction, useWaitForTransactionReceipt, useWriteContract, usePublicClient } from 'wagmi';
+import { erc20Abi, maxUint256 } from 'viem';
 import { getPluginStates } from '../utils/pluginManager';
+import { extractTxEnvelope, isValidTxEnvelope } from '../types/transaction.js';
 
 const WebSocketContext = createContext();
 
@@ -27,17 +29,89 @@ const CONNECTION_TIMEOUT = 60000; // 60 seconds
 export const WebSocketProvider = ({ children }) => {
   log('🟦 WebSocketProvider mounting...');
   
+  // v2 Approval Configuration
+  // CRITICAL: In 0x v2, approve the AllowanceHolder/Permit2 returned in
+  // issues.allowance.spender or allowanceTarget. In v2 this often equals
+  // the transaction.to (Settler/AllowanceHolder).
+  const ALWAYS_APPROVE = false; // Let the UI handle approval based on issues field
+  const APPROVAL_MODE = 'exact'; // 'exact' = approve just the sellAmount; 'infinite' = maxUint256
+  
+  // Default 0x AllowanceHolder addresses per chain (v2)
+  // These are fallbacks - always prefer issues.allowance.spender or allowanceTarget from API
+  const ZEROX_ALLOWANCE_HOLDERS = {
+    1: '0x0000000000001ff3684f28c67538d4d072c22734', // Ethereum Mainnet
+    137: '0x0000000000001ff3684f28c67538d4d072c22734', // Polygon
+    10: '0x0000000000001ff3684f28c67538d4d072c22734', // Optimism
+    42161: '0x0000000000001ff3684f28c67538d4d072c22734', // Arbitrum
+    8453: '0x0000000000001ff3684f28c67538d4d072c22734', // Base
+    // Add more chains as needed
+  };
+  
   // Get wallet connection info from Wagmi
-  const { address, isConnected: isWalletConnected, connector } = useAccount();
+  const { address, isConnected: isWalletConnected, connector, chainId } = useAccount();
   
   // Wagmi hooks for sending transactions
-  const { sendTransaction, isPending: isSendingTx, error: sendTxError } = useSendTransaction();
+  const { sendTransaction, sendTransactionAsync, isPending: isSendingTx, error: sendTxError } = useSendTransaction();
+  const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt();
   
   const wsRef = useRef(null);
   const messageHandlersRef = useRef(new Set());
   const requestIdRef = useRef(0);
   const pendingRequestsRef = useRef(new Map());
+
+  // Helper: Handle token approval for v2 (only approve AllowanceHolder/Permit2, never Settler)
+  async function handleTokenApproval(params) {
+    const { token, owner, spender, sellAmount, issues } = params;
+
+    // No approval for native ETH
+    if (!token || token.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') return;
+    
+    // CRITICAL v2 check: Never approve the Settler address
+    // The spender should be from issues.allowance.spender or allowanceTarget
+    if (!spender) {
+      console.error('❌ No spender address provided for approval');
+      throw new Error('Missing approval spender address');
+    }
+    
+    // Log for debugging
+    console.log('🔐 Approving token:', {
+      token,
+      spender,
+      amount: sellAmount.toString(),
+      mode: APPROVAL_MODE
+    });
+
+    const amount = APPROVAL_MODE === 'infinite' ? maxUint256 : sellAmount;
+
+    // Show clear approval message
+    const approvalType = APPROVAL_MODE === 'infinite' ? 'infinite' : 'exact';
+    toast.info(`🔐 Token Approval Required: ${approvalType} approval for ${spender.slice(0, 6)}...${spender.slice(-4)}`);
+    
+    console.log('🔐 Calling writeContractAsync for ERC-20 approval:', {
+      abi: 'erc20Abi',
+      address: token,
+      functionName: 'approve',
+      args: [spender, amount],
+      account: owner
+    });
+    
+    const approveHash = await writeContractAsync({
+      abi: erc20Abi,
+      address: token,
+      functionName: 'approve',
+      args: [spender, amount],
+      account: owner
+    });
+
+    // Wait until mined so the subsequent swap won't revert on allowance
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: approveHash });
+    if (receipt.status !== 'success') {
+      throw new Error('Approval tx failed or was reverted');
+    }
+    toast.success('Approval confirmed on-chain.');
+  }
   const reconnectTimeoutRef = useRef(null);
   const heartbeatIntervalRef = useRef(null);
   const connectionTimeoutRef = useRef(null);
@@ -712,16 +786,16 @@ export const WebSocketProvider = ({ children }) => {
       }
     };
 
-    wsRef.current.onerror = (error) => {
+    wsRef.current.onerror = (evt) => {
       error('🚨 Secure WebSocket Proxy Error:', {
         url: wsUrl,
-        error: error,
+        error: evt,
         readyState: wsRef.current?.readyState,
         attempt: connectionAttempts + 1,
         isSecureProxy: wsUrl === ENDPOINTS.WEBSOCKET.SECURE_PROXY,
         message: 'Failed to connect to secure microservice proxy'
       });
-      setWsError(error);
+      setWsError(evt);
       setIsConnected(false);
       setIsConnecting(false);
       
@@ -825,25 +899,25 @@ export const WebSocketProvider = ({ children }) => {
     const enabledPlugins = Object.entries(pluginStates).filter(([_, e]) => e).map(([id]) => id);
     const disabledPlugins = Object.entries(pluginStates).filter(([_, e]) => !e).map(([id]) => id);
     
-    // Retrieve conversation history (max 15 messages) if not provided
+    // Always use conversation history so AI maintains context for confirmations
     let historyToSend = conversationHistory;
     if (historyToSend.length === 0) {
       try {
-        historyToSend = await getConversationHistory(15); // Get last 15 messages max
+        historyToSend = await getConversationHistory(3);
         log('🟦 Retrieved conversation history for AI context:', {
           historyLength: historyToSend.length,
           hasHistory: historyToSend.length > 0
         });
       } catch (error) {
         log('🟦 Could not retrieve conversation history, starting fresh:', error.message);
-        historyToSend = []; // Use empty history if retrieval fails
+        historyToSend = [];
       }
     }
     
-    // Ensure we don't exceed 15 messages (excluding system message)
-    if (historyToSend.length > 15) {
-      historyToSend = historyToSend.slice(-15);
-      log('🟦 Trimmed history to last 15 messages for API efficiency');
+    // Ensure we don't exceed 3 messages to avoid token limits
+    if (historyToSend.length > 3) {
+      historyToSend = historyToSend.slice(-3);
+      log('🟦 Trimmed history to last 3 messages for API efficiency');
     }
 
     try {
@@ -890,26 +964,50 @@ You have direct access to 0x Protocol through function calling tools:
 4. **Check balances**: Verify available funds before trading
 5. **Explain trades**: Break down slippage, gas costs, and price impact
 
-IMPORTANT: You can execute swaps autonomously! When a user wants to swap tokens:
-- Call getSwapPrice() first to show them the rate
-- Call getSwapQuote() to get detailed swap information
-- AUTOMATICALLY call executeSwap() immediately after getSwapQuote() - do not ask for confirmation
-- The user just needs to confirm in their wallet
-- DO NOT include swap execution details in your response - handle swaps as background function calls
+CRITICAL: You MUST use function calling for swaps! When a user wants to swap tokens:
+- NEVER respond with text about quotes - ALWAYS call the functions first
+- You MUST call getSwapPrice() function first to show them the rate
+- You MUST call getSwapQuote() function to get detailed swap information  
+- You MUST present the quote to the user and ask for confirmation
+- ONLY call executeSwap() AFTER the user confirms they want to proceed
+- The user must explicitly say "yes", "execute", "confirm", "okay", "ok", "proceed", "go ahead", "do it" before you call executeSwap()
+- When you see ANY of these confirmation words, IMMEDIATELY call executeSwap() with the same parameters from the quote
+- DO NOT automatically execute swaps - always get user confirmation first
+- DO NOT make up quote numbers - ONLY use data from function calls
+
+REMEMBER: You have access to these functions: getSwapPrice, getSwapQuote, executeSwap. USE THEM!
+
+🚨 CRITICAL INSTRUCTION FOR SWAP REQUESTS 🚨
+
+When a user says "swap", "trade", "exchange", or "convert" tokens:
+
+1. Call getSwapPrice() and getSwapQuote() to get the quote
+2. Present the quote to the user with amounts and fees
+3. Ask "Do you want to execute this swap?"
+4. If user responds with "yes", "okay", "ok", "execute", "confirm", "proceed", "go ahead", or "do it" - IMMEDIATELY call executeSwap() with the same parameters
+
+CRITICAL: When user confirms, you MUST call executeSwap() - do not just respond with text!
 
 TRADING APPROACH:
-When users ask about trading/swapping tokens:
-1. **Acknowledge the request** and explain you can help with trading
-2. **Ask for specific details** if not provided (what tokens, how much)
-3. **Explain the process** - mention you'll get quotes via 0x Protocol
-4. **Guide them through steps** - quote first, then execution if they confirm
-5. **Focus on execution** - slippage, gas fees
+1. Get quote (getSwapPrice + getSwapQuote)
+2. Show quote to user and ask for confirmation
+3. When user confirms with "yes", "okay", "ok", "execute", "confirm", "proceed", "go ahead", "do it" - IMMEDIATELY call executeSwap() with the SAME parameters as the previous getSwapQuote
+
+IMPORTANT: If user has already received a quote and says "yes" or any confirmation word, do NOT call getSwapQuote again - call executeSwap directly!
+
+APPROVAL LOGIC (CRITICAL):
+- Check the quote response for needsAllowance or allowanceShort flags
+- ONLY mention approval if needsAllowance: true or allowanceShort: true
+- If needsAllowance: false, proceed directly to execution without mentioning approval
+- Never ask for approval when the quote shows sufficient allowance already exists
+- After an approval is complete, re-quote to clear issues before executing
+- NEVER claim a swap is "successfully executed" until you receive actual transaction confirmation
+- When approval is required, explain that the swap will happen AFTER approval, not before
 
 TRADING SAFETY PROTOCOL:
 - ALWAYS explain that trading involves getting quotes first
 - ALWAYS mention slippage tolerance and gas fees
-- ALWAYS require explicit user confirmation before any execution
-key b8nJ1wPtVCcPgTUdPhVqlaBNVCBoyFGY
+- ALWAYS ask for user confirmation before executing swaps
 - Explain that they need a connected wallet to execute trades
 
 EXAMPLE RESPONSES:
@@ -992,9 +1090,10 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
       log('🔌 Plugin states:', pluginStates);
       log('📝 Request body:', JSON.stringify({
         messages: openaiMessages,
-        model: 'gpt-4',
-        max_tokens: 1000,
-        temperature: 0.7
+        max_tokens: 200,
+        temperature: 0.7,
+        taker: address,
+        chainId: chainId
       }, null, 2));
       
       const response = await fetch(apiUrl, {
@@ -1006,9 +1105,12 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
         },
         body: JSON.stringify({
           messages: openaiMessages,
-          model: 'gpt-4',
-          max_tokens: 1000,
-          temperature: 0.7
+          model: 'gpt-4o-mini',          // tools-capable model
+          max_tokens: 200,
+          temperature: 0.7,
+          taker: address,
+          chainId: chainId
+          // Removed skip_final_completion - let OpenAI handle the full conversation flow
         })
       });
       
@@ -1021,63 +1123,273 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
       }
 
       const result = await response.json();
-      // Support both raw OpenAI and wrapped shape
-      const fullResponse =
-        result?.choices?.[0]?.message?.content ??
-        result?.data?.choices?.[0]?.message?.content ??
-        'Sorry, I could not generate a response.';
       
-      // Check for wallet transactions that need approval
-      if (result.data?.walletTransactions && result.data.walletTransactions.length > 0) {
-        const walletTransaction = result.data.walletTransactions[0]; // Handle first transaction
-        log('🎯 Wallet transaction detected:', walletTransaction);
-        
-        if (walletTransaction.action === 'executeSwap' && walletTransaction.requiresApproval) {
-          // Trigger wallet transaction
+      log('🧪 Raw microservice result:', result);
+
+      // ---------- unwrap tool results safely (new backend shape) ----------
+      const dataNode = result?.data ?? result ?? {};
+      
+      // Debug: Log the exact structure we're getting
+      console.log('🔍 Full dataNode structure:', JSON.stringify(dataNode, null, 2));
+
+      // Handle approval-only responses (no tx envelope yet)
+      const requiresApproval =
+        dataNode?.requiresApproval === true ||
+        dataNode?.action === 'approval_required' ||
+        dataNode?.nextAction === 'approval_required';
+      const approval = dataNode?.approval;
+      const approvalIssues = dataNode?.issues;
+      
+      console.log('🔍 Approval detection:', {
+        requiresApproval,
+        hasApproval: !!approval,
+        approval,
+        dataNodeKeys: Object.keys(dataNode || {}),
+        action: dataNode?.action,
+        nextAction: dataNode?.nextAction
+      });
+      
+      if (requiresApproval && approval?.token && approval?.spender && address) {
+        try {
+          console.log('🔐 Approval required detected. Approving exact amount…', approval);
+          await handleTokenApproval({
+            token: approval.token,
+            owner: address,
+            spender: approval.spender,
+            sellAmount: BigInt(String(approval.amount)),
+            issues: approvalIssues
+          });
+          toast.success('Approval confirmed. Fetching fresh quote…');
+
+          // Re-quote then execute
           try {
-            const txData = walletTransaction.transactionData;
-            log('🎯 Triggering wallet transaction:', txData);
-            
-            // Use wagmi to send the transaction directly to the wallet
-            log('🎯 Sending transaction to wallet using wagmi...');
-            
-            const txRequest = {
-              to: txData.to,
-              data: txData.data,
-              value: BigInt(txData.value || '0'),
-              gas: BigInt(txData.gas || '21000'),
-              gasPrice: BigInt(txData.gasPrice || '0')
-            };
-            
-            log('🎯 Transaction request:', txRequest);
-            
-            // This will trigger the wallet popup for user to sign
-            sendTransaction(txRequest, {
-              onSuccess: (hash) => {
-                log('🎯 Transaction sent successfully! Hash:', hash);
-                toast.success(`Transaction sent! Hash: ${hash.slice(0, 10)}...`);
-              },
-              onError: (error) => {
-                error('🎯 Transaction failed:', error);
-                toast.error(`Transaction failed: ${error.message}`);
-              }
+            console.log('🔄 Re-quoting after approval...', {
+              token: approval.token,
+              buyToken: dataNode?.data?.buyToken ?? 'USDC',
+              amount: approval.amount,
+              address
             });
-          } catch (walletError) {
-            error('🎯 Wallet transaction failed:', walletError);
+            
+            const reQuote = await tradingService.getTradeQuote(
+              approval.token,
+              dataNode?.data?.buyToken ?? 'USDC',
+              approval.amount,
+              address
+            );
+            console.log('🔄 Re-quote result:', reQuote);
+            
+            if (reQuote?.success) {
+              console.log('🔄 Executing swap after approval...');
+              const exec = await tradingService.executeSwap(reQuote.data, address);
+              console.log('🔄 Execute result:', exec);
+              
+              if (exec?.success && exec?.txEnvelope) {
+                // Actually send the transaction to wallet
+                console.log('🎯 Sending swap transaction to wallet:', exec.txEnvelope);
+                const txRequest = {
+                  ...exec.txEnvelope,
+                  account: address,
+                  chainId: exec.txEnvelope.chainId || chainId
+                };
+                
+                sendTransaction(txRequest, {
+                  onSuccess: (hash) => {
+                    console.log('✅ Swap transaction sent successfully! Hash:', hash);
+                    toast.success(`Swap executed! Transaction: ${hash.slice(0, 10)}...`);
+                    
+                    // Send a message to the AI about the successful transaction
+                    const successMessage = `The swap has been successfully executed! Transaction hash: ${hash}. You can view it on Etherscan at https://etherscan.io/tx/${hash}`;
+                    
+                    // Dispatch a custom event to update the AI's response
+                    window.dispatchEvent(new CustomEvent('swapTransactionSuccess', { 
+                      detail: { 
+                        hash, 
+                        message: successMessage,
+                        sellAmount: approval.amount,
+                        buyToken: dataNode?.data?.buyToken ?? 'USDC'
+                      } 
+                    }));
+                  },
+                  onError: (err) => {
+                    console.error('❌ Swap transaction failed:', err);
+                    toast.error(`Swap failed: ${err?.shortMessage ?? err?.message ?? String(err)}`);
+                    
+                    // Send error message to AI
+                    window.dispatchEvent(new CustomEvent('swapTransactionError', { 
+                      detail: { 
+                        error: err?.message || 'Transaction failed',
+                        message: `The swap transaction failed: ${err?.shortMessage ?? err?.message ?? String(err)}`
+                      } 
+                    }));
+                  }
+                });
+              } else {
+                console.error('❌ Failed to prepare swap after approval:', exec);
+                toast.error(exec?.error ?? 'Failed to prepare swap after approval.');
+              }
+            } else {
+              console.error('❌ Failed to get quote after approval:', reQuote);
+              toast.error(reQuote?.error ?? 'Failed to get quote after approval.');
+            }
+          } catch (e) {
+            console.error('❌ Re-quote or execution failed after approval:', e);
+            toast.error(e?.message ?? 'Re-quote or execution failed after approval');
           }
+        } catch (e) {
+          toast.error(e?.message ?? 'Approval flow failed.');
         }
+
+        // Stop normal handling; approval flow handled.
+        return;
+      }
+
+      // CRITICAL: Use standardized extraction to find transaction envelope (only after approval path)
+      // The transaction envelope is in the tool result, not the main dataNode
+      console.log('🔍 Looking for transaction envelope in:', {
+        dataNodeKeys: Object.keys(dataNode || {}),
+        resultKeys: Object.keys(result || {}),
+        hasTxEnvelopeInDataNode: !!dataNode?.txEnvelope,
+        hasTxEnvelopeInResult: !!result?.txEnvelope
+      });
+      
+      // Check result first since that's where the txEnvelope is located
+      const txEnvelope = extractTxEnvelope(result) || extractTxEnvelope(dataNode);
+      console.log('🔍 Transaction envelope found:', !!txEnvelope);
+
+      // v2 fields for approval and execution
+      const allowanceTarget =
+        dataNode.walletTransactions?.[0]?.allowanceTarget ??
+        dataNode.allowanceTarget ??
+        null;
+      
+      // v2 issues field (contains allowance/balance requirements)
+      const issues = dataNode.issues || null;
+      // Strict approval gate: only when 0x provides numbers or backend marks action
+      const aIssue = issues?.allowance;
+      const needsAllowance =
+        dataNode?.action === 'approval_required' ||
+        (aIssue?.actual != null && aIssue?.required != null && (BigInt(aIssue.actual) < BigInt(aIssue.required)));
+      const insufficientBalance = dataNode.insufficientBalance || false;
+      
+      // Native ETH value (required for ETH sells)
+      const ethValue = (txEnvelope && txEnvelope.value) ?? dataNode.value ?? null;
+
+      const sellToken = 
+        dataNode.sellToken ?? 
+        dataNode?.tokenMetadata?.sellToken?.address ?? 
+        null;
+
+      const sellAmount = 
+        dataNode.sellAmount ?? 
+        null;
+
+      // assistant text (works for both skip/non-skip modes)
+      const fullResponse =
+        dataNode?.choices?.[0]?.message?.content ??
+        result?.choices?.[0]?.message?.content ??
+        '';
+
+      // bubbles from tool calls (quotes/prices)
+      const bubbleUpdates = Array.isArray(dataNode.bubbleUpdates) ? dataNode.bubbleUpdates : [];
+      
+      // Dispatch bubble updates immediately
+      if (bubbleUpdates.length > 0) {
+        log('🫧 Bubble updates detected from AI:', bubbleUpdates);
+        bubbleUpdates.forEach(bubbleUpdate => {
+          window.dispatchEvent(new CustomEvent('aiBubbleUpdate', { detail: bubbleUpdate }));
+        });
       }
       
-      // Check for bubble updates from AI tool calls
-      if (result.data?.bubbleUpdates && result.data.bubbleUpdates.length > 0) {
-        log('🫧 Bubble updates detected from AI:', result.data.bubbleUpdates);
+      // Handle wallet transactions from backend
+      const walletTxs = dataNode?.walletTransactions || [];
+      
+      if (walletTxs.length > 0) {
+        console.log('🎯 Processing wallet transactions:', walletTxs);
         
-        // Send bubble updates to Home component via custom event
-        result.data.bubbleUpdates.forEach(bubbleUpdate => {
-          window.dispatchEvent(new CustomEvent('aiBubbleUpdate', {
-            detail: bubbleUpdate
-          }));
-        });
+        // Process each wallet transaction
+        for (const walletTx of walletTxs) {
+          const tx = walletTx.transactionData;
+          
+          if (!tx) {
+            console.warn('⚠️ Wallet transaction missing transactionData:', walletTx);
+            continue;
+          }
+          
+          // Ensure hex strings where needed
+          if (typeof tx.gas === 'number') tx.gas = '0x' + tx.gas.toString(16);
+          if (typeof tx.gasPrice === 'number') tx.gasPrice = '0x' + tx.gasPrice.toString(16);
+          if (typeof tx.value === 'number') tx.value = '0x' + tx.value.toString(16);
+          
+          // Validate transaction
+          if (!tx.to || !tx.data || !String(tx.data).startsWith('0x')) {
+            console.error('❌ Invalid transaction data:', tx);
+            toast.error('Invalid transaction data received from backend');
+            continue;
+          }
+          
+          console.log('🎯 Sending transaction to wallet:', tx);
+          
+          // Check if we need to switch chains
+          const expectedChainId = tx.chainId || chainId;
+          if (expectedChainId !== chainId) {
+            console.log(`🔄 Chain mismatch detected. Switching from ${chainId} to ${expectedChainId}`);
+            
+            try {
+              // Switch to the correct chain
+              await window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: `0x${expectedChainId.toString(16)}` }],
+              });
+              
+              // Wait a moment for the chain switch to complete
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              
+              console.log(`✅ Successfully switched to chain ${expectedChainId}`);
+            } catch (switchError) {
+              console.error('❌ Failed to switch chain:', switchError);
+              toast.error(`Please switch to chain ${expectedChainId} in your wallet and try again`);
+              return;
+            }
+          }
+          
+          // Send transaction to wallet
+          const txRequest = {
+            ...tx,
+            account: address,
+            chainId: expectedChainId
+          };
+          
+          sendTransaction(txRequest, {
+            onSuccess: (hash) => {
+              console.log('✅ Transaction sent successfully! Hash:', hash);
+              toast.success(`Transaction sent! Hash: ${hash.slice(0, 10)}...`);
+              
+              // Notify AI about successful transaction
+              window.dispatchEvent(new CustomEvent('swapTransactionSuccess', { 
+                detail: { 
+                  hash, 
+                  message: `The swap has been successfully executed! Transaction hash: ${hash}`,
+                  sellAmount: sellAmount,
+                  buyToken: dataNode?.data?.buyToken ?? 'USDC'
+                } 
+              }));
+            },
+            onError: (err) => {
+              console.error('❌ Transaction failed:', err);
+              toast.error(`Transaction failed: ${err?.shortMessage ?? err?.message ?? String(err)}`);
+              
+              // Notify AI about failed transaction
+              window.dispatchEvent(new CustomEvent('swapTransactionError', { 
+                detail: { 
+                  error: err?.message || 'Transaction failed',
+                  message: `The swap transaction failed: ${err?.shortMessage ?? err?.message ?? String(err)}`
+                } 
+              }));
+            }
+          });
+        }
+      } else if (!txEnvelope) {
+        console.warn('🟡 No wallet transactions or tx envelope returned — likely just price/quote. Not sending a transaction.');
       }
       
       // Simulate streaming by sending the response in chunks
