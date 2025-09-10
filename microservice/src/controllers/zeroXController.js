@@ -158,6 +158,129 @@ export async function getSwapPrice(req, res) {
   }
 }
 
+export async function getWalletBalance(req, res) {
+  try {
+    const { address, chainId = 1 } = req.query;
+    
+    if (!address) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required parameter: address' 
+      });
+    }
+    
+    const cid = Number(chainId);
+    
+    // Use Alchemy to get real wallet balance
+    const alchemyApiKey = '_pGB49JjZobNT7IahUuqg';
+    const network = cid === 1 ? 'eth-mainnet' : 
+                    cid === 8453 ? 'base-mainnet' : 
+                    cid === 137 ? 'polygon-mainnet' : 
+                    cid === 10 ? 'opt-mainnet' : 
+                    cid === 42161 ? 'arb-mainnet' : 
+                    'eth-mainnet';
+    
+    console.log(`💰 Checking wallet balance for ${address} on ${network}`);
+    
+    const portfolio = [];
+    
+    try {
+      // Get native balance (ETH/MATIC/etc)
+      const nativeResponse = await axios.post(`https://${network}.g.alchemy.com/v2/${alchemyApiKey}`, {
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_getBalance',
+        params: [address, 'latest']
+      });
+      
+      const nativeBalance = parseInt(nativeResponse.data.result, 16) / 1e18;
+      if (nativeBalance > 0) {
+        portfolio.push({
+          symbol: cid === 137 ? 'MATIC' : 'ETH',
+          balance: nativeBalance.toFixed(4),
+          type: 'native',
+          name: cid === 137 ? 'Polygon' : 'Ethereum'
+        });
+      }
+      
+      // Get ERC-20 tokens
+      const tokenResponse = await axios.post(`https://${network}.g.alchemy.com/v2/${alchemyApiKey}`, {
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'alchemy_getTokenBalances',
+        params: [address]
+      });
+      
+      if (tokenResponse.data.result?.tokenBalances) {
+        const nonZeroTokens = tokenResponse.data.result.tokenBalances.filter(
+          token => token.tokenBalance !== '0x0' && 
+                  token.tokenBalance !== '0x00' && 
+                  token.tokenBalance !== '0x0000000000000000000000000000000000000000000000000000000000000000'
+        );
+        
+        // Get metadata for top 5 tokens
+        for (const token of nonZeroTokens.slice(0, 5)) {
+          try {
+            const metadataResponse = await axios.post(`https://${network}.g.alchemy.com/v2/${alchemyApiKey}`, {
+              id: 1,
+              jsonrpc: '2.0',
+              method: 'alchemy_getTokenMetadata',
+              params: [token.contractAddress]
+            });
+            
+            const metadata = metadataResponse.data.result;
+            const balance = parseInt(token.tokenBalance, 16);
+            const decimals = metadata?.decimals || 18;
+            const formattedBalance = (balance / Math.pow(10, decimals)).toFixed(6);
+            
+            portfolio.push({
+              symbol: metadata?.symbol || 'Unknown',
+              name: metadata?.name || 'Unknown Token',
+              balance: formattedBalance,
+              type: 'ERC-20',
+              contract: token.contractAddress
+            });
+          } catch (metaError) {
+            console.error('Error getting token metadata:', metaError);
+          }
+        }
+      }
+      
+      return res.json({ 
+        success: true, 
+        data: {
+          address: address,
+          chainId: cid,
+          network: network,
+          balances: portfolio,
+          message: `Found ${portfolio.length} tokens for ${address} on ${network}`
+        }
+      });
+      
+    } catch (alchemyError) {
+      console.error('[Alchemy Balance] Error:', alchemyError);
+      return res.json({ 
+        success: true, 
+        data: {
+          address: address,
+          chainId: cid,
+          balances: [],
+          message: `Wallet connected: ${address} on chain ${cid}. Could not fetch balance data.`,
+          fallback: true
+        }
+      });
+    }
+    
+  } catch (error) {
+    console.error('[Wallet Balance] Error:', error);
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      error: error.response?.data?.message || error.message || 'Failed to get wallet balance',
+      details: error.response?.data
+    });
+  }
+}
+
 export async function getSwapQuote(req, res) {
   try {
     const { sellToken, buyToken, sellAmount, chainId = 1, taker } = req.query;

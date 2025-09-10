@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { config } from '../config/config.js';
-import { getSwapPrice, getSwapQuote } from './zeroXController.js';
+import { getSwapPrice, getSwapQuote, getWalletBalance } from './zeroXController.js';
 import { TOKENS, resolveTokenStrict } from '../lib/tokens.js';
 import { formatSwapFrom0x } from '../lib/quoteFormatter.js';
 import { getAvailableTools, filterToolsForOpenAI } from '../lib/pluginManager.js';
@@ -39,14 +39,7 @@ const lastQuoteCache = new Map(); // key: `${taker}|${chainId}|${sellToken}|${bu
 const lastQuoteArgsCache = new Map(); // key: `${taker}|${chainId}` -> { sellToken, buyToken, sellAmount, slippageBps }
 const LAST_QUOTE_TTL = 20000; // 20 seconds TTL for cached quotes
 
-export const ALLOWED_TOOLS = new Set(["getSwapPrice", "getSwapQuote", "executeSwap"]);
-export const TOOL_POLICY_SYSTEM = `
-You may only call: getSwapPrice, getSwapQuote, executeSwap.
-Do NOT call CoinStats/Coingecko/etc.
-Never invent prices or fees; only display values from 0x responses.
-Always treat buyAmount/sellAmount as base units and convert with token decimals.
-When user confirms a swap, call executeSwap to prepare the transaction data.
-`;
+// REMOVED: This was blocking bubble tools! Now using plugin-based filtering instead.
 
 // Request cache for deduplication
 const requestCache = new Map();
@@ -78,46 +71,6 @@ export async function handleToolCall({ functionName, functionArgs, session, req 
     return { status: 403, success: false, error: `Tool ${functionName} is not available (plugin disabled)` };
   }
 
-  // Handle CoinStats tools
-  if (functionName === "getCoinData" || functionName === "searchCoins" || functionName === "getMarketData") {
-    try {
-      // Import CoinStats controller dynamically
-      const { CoinStatsController } = await import('./coinStatsController.js');
-      
-      if (functionName === "getCoinData") {
-        const result = await CoinStatsController.getCoinById({ params: { coinId: functionArgs.coinSymbol } }, { json: (data) => data });
-        return {
-          success: true,
-          data: result,
-          message: `Retrieved data for ${functionArgs.coinSymbol}`
-        };
-      }
-      
-      if (functionName === "searchCoins") {
-        const result = await CoinStatsController.searchCoins({ query: { query: functionArgs.query } }, { json: (data) => data });
-        return {
-          success: true,
-          data: result,
-          message: `Search results for "${functionArgs.query}"`
-        };
-      }
-      
-      if (functionName === "getMarketData") {
-        const result = await CoinStatsController.getCoins({ query: { limit: functionArgs.limit || 10 } }, { json: (data) => data });
-        return {
-          success: true,
-          data: result,
-          message: `Market data for top ${functionArgs.limit || 10} cryptocurrencies`
-        };
-      }
-    } catch (error) {
-      console.error(`CoinStats ${functionName} error:`, error);
-      return {
-        success: false,
-        error: `Failed to fetch ${functionName}: ${error.message}`
-      };
-    }
-  }
 
   // Handle Lurky tools
   if (functionName === "getTrendingCoins" || functionName === "getCoinInsights") {
@@ -200,6 +153,91 @@ export async function handleToolCall({ functionName, functionArgs, session, req 
       return {
         success: false,
         error: `Failed to fetch ${functionName}: ${error.message}`
+      };
+    }
+  }
+
+  // Handle wallet balance first (doesn't need token resolution)
+  if (functionName === "getWalletBalance") {
+    const { chainId, taker } = injectWalletContext(functionArgs, session);
+    // Default to Base (8453) if no specific chain provided, since that's where most tokens are
+    const cid = Number(chainId) || 8453;
+    const chainLabel = cid === 1 ? "Ethereum" : cid === 8453 ? "Base" : `Chain ${cid}`;
+
+    // Wallet balance requires taker address
+    if (!taker) {
+      console.error('❌ Missing taker address for getWalletBalance');
+      return {
+        success: false,
+        error: 'Wallet address is required to check balance. Please connect your wallet.',
+        requiresWallet: true
+      };
+    }
+    
+    console.log('💰 Calling portfolio API for:', {
+      address: taker,
+      chainId: cid
+    });
+    
+    try {
+      // Use the new multi-chain portfolio scanner
+      const response = await fetch(`http://localhost:3001/api/portfolio/${taker}`);
+      const portfolioResult = await response.json();
+
+      console.log('💰 Multi-chain portfolio result:', portfolioResult);
+      
+      if (!portfolioResult.success) {
+        return {
+          success: false,
+          error: portfolioResult.error || 'Failed to fetch portfolio'
+        };
+      }
+
+      const tokens = portfolioResult.data || [];
+      
+      if (tokens.length > 0) {
+        // Group tokens by chain for better message
+        const chainGroups = tokens.reduce((acc, token) => {
+          if (!acc[token.chain]) acc[token.chain] = [];
+          acc[token.chain].push(token);
+          return acc;
+        }, {});
+        
+        const chainSummary = Object.entries(chainGroups)
+          .map(([chain, chainTokens]) => `${chainTokens.length} tokens on ${chain}`)
+          .join(', ');
+          
+        const topTokens = tokens.slice(0, 5).map(t => `${t.balance} ${t.symbol} (${t.chain})`).join(', ');
+        
+        const message = `Found ${tokens.length} tokens across multiple chains: ${chainSummary}. Top tokens: ${topTokens}`;
+        
+        return {
+          success: true,
+          data: {
+            address: taker,
+            balances: tokens,
+            totalTokens: tokens.length,
+            message: message
+          },
+          message: message
+        };
+      } else {
+        return {
+          success: true,
+          data: {
+            address: taker,
+            balances: [],
+            totalTokens: 0,
+            message: `Scanned your wallet ${taker} across all major chains but found no tokens.`
+          },
+          message: `Scanned your wallet ${taker} across all major chains but found no tokens.`
+        };
+      }
+    } catch (error) {
+      console.error('💰 Portfolio API error:', error);
+      return {
+        success: false,
+        error: 'Failed to fetch wallet portfolio: ' + error.message
       };
     }
   }
@@ -476,6 +514,17 @@ function createBubbleDataFromTool(functionName, result) {
         source: 'AI Tool Call'
       };
       
+    case 'getCoinGeckoData':
+    case 'getCoinGeckoPrices':
+      return {
+        type: 'coingecko',
+        id: bubbleId,
+        title: 'CoinGecko - AI Data',
+        content: formatCoinGeckoData(result.data),
+        loading: false,
+        source: 'AI Tool Call'
+      };
+      
     case 'getTrendingCoins':
     case 'getCoinInsights':
       return {
@@ -487,6 +536,7 @@ function createBubbleDataFromTool(functionName, result) {
         source: 'AI Tool Call'
       };
       
+      
     case 'getSwapPrice':
     case 'getSwapQuote':
       return {
@@ -497,6 +547,17 @@ function createBubbleDataFromTool(functionName, result) {
         loading: false,
         source: 'AI Tool Call',
         swapData: result.data
+      };
+      
+    case 'getWalletBalance':
+      return {
+        type: 'portfolio',
+        id: bubbleId,
+        title: '0x Portfolio - Wallet Balance',
+        content: result.message || 'Wallet balance retrieved',
+        loading: false,
+        source: 'AI Tool Call',
+        portfolioData: result.data
       };
       
     case 'getExchangeRate':
@@ -782,6 +843,23 @@ export class OpenAIController {
                 }
               },
               required: ["chainId", "sellToken", "buyToken", "sellAmount", "taker"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "getWalletBalance",
+            description: "Get wallet balance and token holdings using 0x Protocol",
+            parameters: {
+              type: "object",
+              properties: {
+                chainId: {
+                  type: "number",
+                  description: "Chain ID (1 for Ethereum mainnet, 8453 for Base)"
+                }
+              },
+              required: []
             }
           }
         },

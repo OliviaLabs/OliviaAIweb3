@@ -11,6 +11,7 @@ import { useAccount, useSendTransaction, useWaitForTransactionReceipt, useWriteC
 import { erc20Abi, maxUint256 } from 'viem';
 import { getPluginStates } from '../utils/pluginManager';
 import { extractTxEnvelope, isValidTxEnvelope } from '../types/transaction.js';
+import { detectAllWalletTokens, getNetworkInfo } from '../utils/chainDetection';
 
 const WebSocketContext = createContext();
 
@@ -38,17 +39,45 @@ export const WebSocketProvider = ({ children }) => {
   
   // Default 0x AllowanceHolder addresses per chain (v2)
   // These are fallbacks - always prefer issues.allowance.spender or allowanceTarget from API
-  const ZEROX_ALLOWANCE_HOLDERS = {
+  const [ZEROX_ALLOWANCE_HOLDERS, setZEROX_ALLOWANCE_HOLDERS] = useState({
     1: '0x0000000000001ff3684f28c67538d4d072c22734', // Ethereum Mainnet
     137: '0x0000000000001ff3684f28c67538d4d072c22734', // Polygon
     10: '0x0000000000001ff3684f28c67538d4d072c22734', // Optimism
     42161: '0x0000000000001ff3684f28c67538d4d072c22734', // Arbitrum
     8453: '0x0000000000001ff3684f28c67538d4d072c22734', // Base
+    56: '0x0000000000001ff3684f28c67538d4d072c22734', // BSC
+    250: '0x0000000000001ff3684f28c67538d4d072c22734', // Fantom
+    43114: '0x0000000000001ff3684f28c67538d4d072c22734', // Avalanche
     // Add more chains as needed
-  };
+  });
   
   // Get wallet connection info from Wagmi
-  const { address, isConnected: isWalletConnected, connector, chainId } = useAccount();
+  const { address, isConnected: isWalletConnected, connector, chainId, chain } = useAccount();
+  
+  // Dynamically populate allowance holders based on wallet's supported chains
+  useEffect(() => {
+    if (connector) {
+      const updateAllowanceHolders = async () => {
+        try {
+          // Only use the current chain to avoid triggering network additions
+          const currentChainId = chainId || 1;
+          const newAllowanceHolders = { ...ZEROX_ALLOWANCE_HOLDERS };
+          
+          // Ensure current chain has allowance holder
+          if (!newAllowanceHolders[currentChainId]) {
+            newAllowanceHolders[currentChainId] = '0x0000000000001ff3684f28c67538d4d072c22734';
+          }
+          
+          setZEROX_ALLOWANCE_HOLDERS(newAllowanceHolders);
+          console.log('🔗 Updated allowance holders for current chain:', currentChainId);
+        } catch (error) {
+          console.error('Failed to update allowance holders:', error);
+        }
+      };
+      
+      updateAllowanceHolders();
+    }
+  }, [connector, chainId]);
   
   // Wagmi hooks for sending transactions
   const { sendTransaction, sendTransactionAsync, isPending: isSendingTx, error: sendTxError } = useSendTransaction();
@@ -894,10 +923,14 @@ export const WebSocketProvider = ({ children }) => {
     const requestId = generateRequestId();
     const userOptions = extractUserOptions();
 
-    // Get plugin states FIRST
-    const pluginStates = getPluginStates();
-    const enabledPlugins = Object.entries(pluginStates).filter(([_, e]) => e).map(([id]) => id);
-    const disabledPlugins = Object.entries(pluginStates).filter(([_, e]) => !e).map(([id]) => id);
+      // Get plugin states FIRST
+      const pluginStates = getPluginStates();
+      const enabledPlugins = Object.entries(pluginStates).filter(([_, e]) => e).map(([id]) => id);
+      const disabledPlugins = Object.entries(pluginStates).filter(([_, e]) => !e).map(([id]) => id);
+      
+      console.log('🔌 DEBUG: Plugin states being sent to backend:', pluginStates);
+      console.log('🔌 DEBUG: Enabled plugins:', enabledPlugins);
+      console.log('🔌 DEBUG: Disabled plugins:', disabledPlugins);
     
     // Always use conversation history so AI maintains context for confirmations
     let historyToSend = conversationHistory;
@@ -963,6 +996,29 @@ You have direct access to 0x Protocol through function calling tools:
 3. **executeSwap()**: Execute token swaps directly (prepares transaction for wallet confirmation)
 4. **Check balances**: Verify available funds before trading
 5. **Explain trades**: Break down slippage, gas costs, and price impact
+
+BUBBLE SYSTEM - FRONTEND HANDLES DATA FETCHING:
+
+The frontend automatically creates bubbles based on user input keywords. You MUST be proactive and use the data they provide!
+
+**HOW IT WORKS:**
+- User asks "price of popcat" → Frontend creates CoinGecko bubble with real price data
+- User asks "market overview" → Frontend creates CoinStats + Lurky bubbles with market data  
+- User asks "hedera network" → Frontend creates Hedera bubble with HBAR price data
+- User asks "exchange" → Frontend creates ChangeNOW bubble with currency data
+- User asks "trending tokens" or "pumping tokens" → Frontend creates CoinGecko bubble with trending data
+- User asks "Base tokens" or "tokens on Base" → Frontend creates CoinGecko bubble with Base network data
+
+**CRITICAL: AI RESPONSES ARE ONE-SHOT ONLY:**
+- You CANNOT "come back" with data later - you respond ONCE and that's it!
+- NEVER say "hold on", "let me check", "I'll get that for you", or "please wait"
+- You can ONLY use data that's available in contextAwarenessData RIGHT NOW
+- If data isn't there, say "I don't have that data available right now"
+- The bubbles provide data INSTANTLY - use whatever is in contextAwarenessData immediately
+- If user asks about trending tokens and lurky_data exists, use it NOW
+- If user asks about prices and coinstats_data exists, use it NOW  
+- Give specific answers with available data or admit you don't have it
+- NEVER promise to fetch data later - that's impossible for AI!
 
 CRITICAL: You MUST use function calling for swaps! When a user wants to swap tokens:
 - NEVER respond with text about quotes - ALWAYS call the functions first
@@ -1067,6 +1123,16 @@ ${isWalletConnected ? '✅ Wallet Connected' : '❌ No Wallet Connected'}
 User Address: ${address || 'Not Available'}
 Wallet Type: ${connector?.name || 'None'}
 Connection Status: ${isWalletConnected ? 'Active' : 'Disconnected'}
+Current Chain: ${chainId || 'Not Available'} (${chain?.name || 'Unknown'})
+
+IMPORTANT: Always use the user's connected chain (${chainId || 1}) for swaps, not hardcoded Ethereum. The user's tokens are on their connected chain.
+
+BUBBLE TRIGGERS:
+- When user asks about wallet contents, balances, or tokens: Trigger "alchemy" bubble for detailed token information
+- When user asks about prices or market data: Trigger "alchemy" bubble
+- When user asks about trading or swaps: Trigger "zerox" bubble
+
+IMPORTANT: For wallet information, use WalletConnect's built-in portfolio display. The alchemy bubble provides detailed token information when needed.
 
 Remember: You have access to live market data, sentiment analysis, exchange rates, and portfolio information through the bubbles system. Use this data to provide accurate, up-to-date responses!`
         }
@@ -1109,7 +1175,7 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
           max_tokens: 200,
           temperature: 0.7,
           taker: address,
-          chainId: chainId
+          chainId: chainId || 1  // Use connected wallet's chain, fallback to Ethereum
           // Removed skip_final_completion - let OpenAI handle the full conversation flow
         })
       });
@@ -1174,7 +1240,9 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
               approval.token,
               dataNode?.data?.buyToken ?? 'USDC',
               approval.amount,
-              address
+              address,
+              chainId,
+              connector
             );
             console.log('🔄 Re-quote result:', reQuote);
             
@@ -1294,10 +1362,14 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
       
       // Dispatch bubble updates immediately
       if (bubbleUpdates.length > 0) {
+        console.log('🫧 DEBUG: Bubble updates detected from AI:', bubbleUpdates);
         log('🫧 Bubble updates detected from AI:', bubbleUpdates);
         bubbleUpdates.forEach(bubbleUpdate => {
+          console.log('🫧 DEBUG: Dispatching bubble update:', bubbleUpdate);
           window.dispatchEvent(new CustomEvent('aiBubbleUpdate', { detail: bubbleUpdate }));
         });
+      } else {
+        console.log('🫧 DEBUG: No bubble updates in response');
       }
       
       // Handle wallet transactions from backend
@@ -1640,21 +1712,21 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
 
   // Trading functions for AI to use
   const getTradeQuote = useCallback(async (fromToken, toToken, amount, userAddress = address) => {
-    log('🔄 AI requesting trade quote:', { fromToken, toToken, amount, userAddress: userAddress || address });
+    log('🔄 AI requesting trade quote:', { fromToken, toToken, amount, userAddress: userAddress || address, chainId });
     
     if (!isWalletConnected || !address) {
       return { success: false, error: 'Wallet not connected. Please connect your wallet first.' };
     }
     
     try {
-      const quote = await tradingService.getTradeQuote(fromToken, toToken, amount, userAddress || address);
+      const quote = await tradingService.getTradeQuote(fromToken, toToken, amount, userAddress || address, chainId, connector);
       log('💰 Trade quote result:', quote);
       return quote;
     } catch (error) {
       error('❌ Trade quote failed:', error);
       return { success: false, error: error.message };
     }
-  }, [address, isWalletConnected]);
+  }, [address, isWalletConnected, chainId]);
 
   const executeTradeSwap = useCallback(async (quoteData, userAddress = address) => {
     log('⚡ AI requesting trade execution:', { quoteData, userAddress: userAddress || address });

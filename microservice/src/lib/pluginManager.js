@@ -5,12 +5,12 @@
 export const PLUGIN_API_MAP = {
   'zerox': {
     routes: ['/api/zerox/*'],
-    tools: ['getSwapPrice', 'getSwapQuote', 'executeSwap'],
-    description: '0x Protocol DEX aggregator for token swaps'
+    tools: ['getSwapPrice', 'getSwapQuote', 'executeSwap', 'getWalletBalance'],
+    description: '0x Protocol DEX aggregator for token swaps and wallet balance'
   },
   'coinstats': {
     routes: ['/api/coinstats/*'],
-    tools: ['getCoinData', 'searchCoins', 'getMarketData'],
+    tools: [],
     description: 'CoinStats API for market data and coin information'
   },
   'changenow': {
@@ -32,6 +32,26 @@ export const PLUGIN_API_MAP = {
     routes: ['/api/alchemy/*'],
     tools: ['getTokenBalances', 'getTransactionHistory'],
     description: 'Alchemy API for blockchain data'
+  },
+  'icp': {
+    routes: ['/api/icp/*'],
+    tools: ['getICPStatus', 'getICPNetworkData'],
+    description: 'Internet Computer Protocol network status and data'
+  },
+  'hedera': {
+    routes: ['/api/hedera/*'],
+    tools: ['getHederaStatus', 'getHederaNetworkData'],
+    description: 'Hedera Hashgraph network data and insights'
+  },
+  'coingecko': {
+    routes: ['/api/coingecko/*'],
+    tools: ['getCoinGeckoData', 'getCoinGeckoPrices'],
+    description: 'CoinGecko API for cryptocurrency prices and market data'
+  },
+  'coinstats': {
+    routes: ['/api/coinstats/*'],
+    tools: ['getCoinData', 'searchCoins', 'getMarketData', 'getTrendingCoins', 'getCoinInsights'],
+    description: 'CoinStats API for portfolio tracking and market analytics'
   }
 };
 
@@ -44,8 +64,12 @@ export function getEnabledPlugins(req) {
   try {
     // Check for plugin states in request headers
     const pluginStatesHeader = req.headers['x-plugin-states'];
+    console.log('🔌 DEBUG: Plugin states header received:', pluginStatesHeader);
+    
     if (pluginStatesHeader) {
       const pluginStates = JSON.parse(pluginStatesHeader);
+      console.log('🔌 DEBUG: Parsed plugin states:', pluginStates);
+      
       const enabledPlugins = Object.entries(pluginStates)
         .filter(([_, enabled]) => enabled === true)
         .map(([pluginId, _]) => pluginId);
@@ -57,9 +81,9 @@ export function getEnabledPlugins(req) {
     console.warn('⚠️ Failed to parse plugin states from header:', error.message);
   }
   
-  // NO DEFAULTS - if no plugin states provided, return empty array
-  console.log('🔌 No plugin states provided - no plugins enabled');
-  return [];
+  // DEFAULTS - if no plugin states provided, enable all plugins
+  console.log('🔌 No plugin states provided - enabling all plugins by default');
+  return Object.keys(PLUGIN_API_MAP);
 }
 
 /**
@@ -131,6 +155,15 @@ export function pluginAccessMiddleware(req, res, next) {
 export function filterToolsForOpenAI(req, allTools) {
   const availableTools = getAvailableTools(req);
   
+  console.log('🛠️ DEBUG: Available tools from plugins:', Array.from(availableTools));
+  console.log('🛠️ DEBUG: All tools before filtering:', allTools.map(t => t.function?.name));
+  
+  // If no plugins are enabled, return all tools (fallback)
+  if (availableTools.size === 0) {
+    console.log('🛠️ No plugins enabled - returning all tools');
+    return allTools;
+  }
+  
   const filteredTools = allTools.filter(tool => {
     const toolName = tool.function?.name;
     if (!toolName) return false;
@@ -143,5 +176,6 @@ export function filterToolsForOpenAI(req, allTools) {
   });
   
   console.log(`🛠️ OpenAI tools filtered: ${filteredTools.length}/${allTools.length} tools available`);
+  console.log('🛠️ DEBUG: Final tools being sent to AI:', filteredTools.map(t => t.function?.name));
   return filteredTools;
 }

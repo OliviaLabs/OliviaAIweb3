@@ -6,6 +6,7 @@ import lurkyRoutes from './lurkyRoutes.js';
 import okxRoutes from './okxRoutes.js';
 import zeroXRoutes from './zeroXRoutes.js';
 import alchemyRoutes from './alchemyRoutes.js';
+import portfolioRoutes from './portfolio.js';
 import { OpenAIController } from '../controllers/openaiController.js';
 import { pluginAccessMiddleware } from '../lib/pluginManager.js';
 
@@ -24,6 +25,7 @@ router.use('/lurky', pluginAccessMiddleware, lurkyRoutes);
 router.use('/okx', pluginAccessMiddleware, okxRoutes);
 router.use('/zerox', pluginAccessMiddleware, zeroXRoutes);
 router.use('/alchemy', pluginAccessMiddleware, alchemyRoutes);
+router.use('/portfolio', portfolioRoutes);
 
 // Default route
 router.get('/', (req, res) => {

@@ -3,7 +3,7 @@ import { getPluginStates } from '../../utils/pluginManager.js';
 
 export const zeroXService = {
   // Get swap quote from 0x Protocol
-  async getSwapQuote(sellToken, buyToken, sellAmount = null, buyAmount = null, takerAddress = null, slippagePercentage = null) {
+  async getSwapQuote(sellToken, buyToken, sellAmount = null, buyAmount = null, takerAddress = null, slippagePercentage = null, chainId = null) {
     try {
       const params = new URLSearchParams({
         sellToken: sellToken.toUpperCase(),
@@ -14,6 +14,7 @@ export const zeroXService = {
       if (buyAmount) params.append('buyAmount', buyAmount);
       if (takerAddress) params.append('takerAddress', takerAddress);
       if (slippagePercentage) params.append('slippagePercentage', slippagePercentage);
+      if (chainId) params.append('chainId', chainId);
 
       const pluginStates = getPluginStates();
       const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/zerox/quote?${params.toString()}`, {

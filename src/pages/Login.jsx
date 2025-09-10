@@ -9,7 +9,7 @@ import { Wallet, Shield, UserCheck, LogOut } from 'lucide-react';
 import { useAppKit } from '@reown/appkit/react';
 export default function Login() {
   // Authentication context
-  const { setUserAuthenticated, setUserData, loginAsGuest, setIsGuestUser, userAuthenticated, logout } = useAuth();
+  const { setUserAuthenticated, setUserData, loginAsGuest, setIsGuestUser, userAuthenticated, userData, logout } = useAuth();
   const { login: internetIdentityLogin, principal, isLoading: iiLoading, isAuthenticated } = useInternetIdentity();
   const { isConnected, address, connector } = useAccount();
   const { disconnect } = useDisconnect();
@@ -95,7 +95,15 @@ export default function Login() {
       // Navigate after state is set
       navigate('/home');
     }
-  }, [isConnected, address]); // ONLY watch connection state - NO SETTERS
+  }, [isConnected, address, setUserData, setIsGuestUser, setUserAuthenticated, navigate]);
+
+  // Check for existing authentication on page load
+  useEffect(() => {
+    if (userAuthenticated && userData) {
+      console.log('User already authenticated, redirecting to home');
+      navigate('/home');
+    }
+  }, [userAuthenticated, userData, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900 flex items-center justify-center relative overflow-hidden">

@@ -8,11 +8,14 @@ import Layout from './components/layout/Layout';
 import { PrivateRoute, PublicRoute } from './components/auth/RouteGuards';
 import React, { useState, useEffect } from 'react';
 import QrCode from './pages/QrCode';
+import { useAuth } from './contexts/AuthContext';
 
 function App() {
   console.log('📱 App component rendering...');
   const [showQrCode, setShowQrCode] = useState(false);
+  const { userAuthenticated, userData } = useAuth();
   console.log('📱 App component state initialized');
+  console.log('📱 Auth state:', { userAuthenticated, userData: userData?.user_id });
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp;

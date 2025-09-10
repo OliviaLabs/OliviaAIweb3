@@ -1,4 +1,5 @@
 import { zeroXService } from './zerox.service.js';
+import { detectAllWalletTokens, getNetworkInfo } from '../../utils/chainDetection.js';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseUnits, formatUnits, parseEther } from 'viem';
 
@@ -11,8 +12,24 @@ export const tradingService = {
   /**
    * Get a trading quote with detailed breakdown
    */
-  async getTradeQuote(fromToken, toToken, amount, userAddress) {
+  async getTradeQuote(fromToken, toToken, amount, userAddress, chainId = null, connector = null) {
     try {
+      // Use dynamic chain detection if connector is available
+      let targetChainId = chainId;
+      if (connector && chainId) {
+        try {
+          const networkInfo = await getNetworkInfo(connector);
+          const supportedChains = networkInfo.supportedChains || [];
+          const currentChain = supportedChains.find(chain => chain.id === chainId);
+          if (currentChain) {
+            console.log(`🔗 Using wallet's supported chain: ${currentChain.name} (${currentChain.id})`);
+            targetChainId = currentChain.id;
+          }
+        } catch (error) {
+          console.warn('Failed to get network info, using provided chainId:', error);
+        }
+      }
+      
       // Convert amount to wei if dealing with ETH/tokens
       const sellAmount = fromToken.toLowerCase() === 'eth' 
         ? parseEther(amount.toString()).toString()
@@ -24,7 +41,8 @@ export const tradingService = {
         sellAmount,
         null,
         userAddress,
-        '0.02' // 2% slippage default
+        '0.02', // 2% slippage default
+        targetChainId // Pass the target chain ID
       );
       
       if (!quote.result) {

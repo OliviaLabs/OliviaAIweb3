@@ -15,8 +15,9 @@ import FloatingICPBubble from '../components/ui/FloatingICPBubble.jsx';
 import FloatingHederaBubble from '../components/ui/FloatingHederaBubble.jsx';
 import FloatingChangeNowBubble from '../components/ui/FloatingChangeNowBubble.jsx';
 import FloatingZeroXBubble from '../components/ui/FloatingZeroXBubble.jsx';
-import FloatingPortfolioBubble from '../components/ui/FloatingPortfolioBubble.jsx';
 import FloatingAlchemyBubble from '../components/ui/FloatingAlchemyBubble.jsx';
+import FloatingTransactionBubble from '../components/ui/FloatingTransactionBubble.jsx';
+import FloatingPortfolioBubble0x from '../components/ui/FloatingPortfolioBubble0x.jsx';
 import InAppBrowser from '../components/ui/InAppBrowser.jsx';
 
 export default function Home() {
@@ -37,8 +38,9 @@ export default function Home() {
   const [hederaBubbles, setHederaBubbles] = useState([])
   const [changeNowBubbles, setChangeNowBubbles] = useState([])
   const [zeroXBubbles, setZeroXBubbles] = useState([])
-  const [portfolioBubbles, setPortfolioBubbles] = useState([])
   const [alchemyBubbles, setAlchemyBubbles] = useState([])
+  const [transactionBubbles, setTransactionBubbles] = useState([])
+  const [portfolioBubbles0x, setPortfolioBubbles0x] = useState([])
 
   // Context awareness data for AI chat
   const [contextAwarenessData, setContextAwarenessData] = useState({
@@ -46,9 +48,15 @@ export default function Home() {
     sentiment_data: {},
     exchange_data: {},
     blockchain_data: {},
-    portfolio_data: {},
+    wallet_data: {},
     last_updated: null
   })
+
+  // Sync context data to window object for AI access
+  useEffect(() => {
+    window.contextAwarenessData = contextAwarenessData;
+  }, [contextAwarenessData])
+
 
   // In-app browser state
   const [browserOpen, setBrowserOpen] = useState(false)
@@ -133,7 +141,6 @@ export default function Home() {
       'changenow': 'changenow',
       '0x protocol': 'zerox',
       'icp': 'icp',
-      'portfolio': 'portfolio'
     };
     
     // Check if the plugin for this data source is enabled
@@ -166,9 +173,36 @@ export default function Home() {
 
   const inputRef = useRef(null)
   const { userData, isGuestUser } = useAuth()
-  const { isConnected, sendMessage, subscribe, connect, isConnecting, connectionAttempts, currentEndpointIndex, wsEndpoints } = useWebSocket()
+  const { isConnected, sendMessage, subscribe, connect, isConnecting, connectionAttempts, currentEndpointIndex, wsEndpoints, walletAddress, isWalletConnected, walletConnector } = useWebSocket()
   const { principal, isAuthenticated } = useInternetIdentity()
   const { forceShowUpgrade } = useAccountUpgrade(); // ICP upgrade
+
+  // Update wallet data in AI context when wallet connects/disconnects
+  useEffect(() => {
+    if (isWalletConnected && walletAddress) {
+      setContextAwarenessData(prev => ({
+        ...prev,
+        wallet_data: {
+          connected: true,
+          address: walletAddress,
+          connector: walletConnector?.name || 'Unknown',
+          message: 'Wallet connected - use WalletConnect to view portfolio'
+        },
+        last_updated: new Date().toISOString()
+      }));
+    } else {
+      setContextAwarenessData(prev => ({
+        ...prev,
+        wallet_data: {
+          connected: false,
+          address: null,
+          connector: null,
+          message: 'No wallet connected - connect wallet to view portfolio'
+        },
+        last_updated: new Date().toISOString()
+      }));
+    }
+  }, [isWalletConnected, walletAddress, walletConnector])
 
   // Track mouse position
   useEffect(() => {
@@ -415,30 +449,103 @@ export default function Home() {
   useEffect(() => {
     const handleAIBubbleUpdate = (event) => {
       const bubbleData = event.detail;
+      console.log('🫧 DEBUG: Received AI bubble update:', bubbleData);
       log('🫧 Received AI bubble update:', bubbleData);
       
       // Add bubble based on type
       switch (bubbleData.type) {
         case 'coinstats':
+          console.log('🫧 Adding CoinStats bubble:', bubbleData);
           setCoinstatsBubbles(prev => [...prev, bubbleData]);
+          // Send CoinStats data to AI context
+          setContextAwarenessData(prev => ({
+            ...prev,
+            coinstats_data: bubbleData.content,
+            last_updated: new Date().toISOString()
+          }));
+          console.log('📊 Sent AI CoinStats data to context:', bubbleData.content);
           break;
         case 'lurky':
+          console.log('🫧 Adding Lurky bubble:', bubbleData);
           setLurkyBubbles(prev => [...prev, bubbleData]);
+          // Send Lurky data to AI context
+          setContextAwarenessData(prev => ({
+            ...prev,
+            lurky_data: bubbleData.content,
+            last_updated: new Date().toISOString()
+          }));
+          console.log('📊 Sent AI Lurky data to context:', bubbleData.content);
           break;
         case 'zerox':
+          console.log('🫧 Adding 0x bubble:', bubbleData);
           setZeroXBubbles(prev => [...prev, bubbleData]);
+          // 0x data is handled by AI tools - no context needed
           break;
         case 'changenow':
+          console.log('🫧 Adding ChangeNOW bubble:', bubbleData);
           setChangeNowBubbles(prev => [...prev, bubbleData]);
+          // Send ChangeNOW data to AI context
+          setContextAwarenessData(prev => ({
+            ...prev,
+            changenow_data: bubbleData.content,
+            last_updated: new Date().toISOString()
+          }));
+          console.log('📊 Sent AI ChangeNOW data to context:', bubbleData.content);
           break;
         case 'alchemy':
+          console.log('🫧 Adding Alchemy bubble:', bubbleData);
           setAlchemyBubbles(prev => [...prev, bubbleData]);
+          // Send Alchemy data to AI context
+          setContextAwarenessData(prev => ({
+            ...prev,
+            alchemy_data: bubbleData.content,
+            last_updated: new Date().toISOString()
+          }));
+          console.log('📊 Sent AI Alchemy data to context:', bubbleData.content);
+          break;
+        case 'portfolio':
+          console.log('🫧 Portfolio bubble data received:', bubbleData);
+          
+          // Only show bubble if we have actual token data
+          const hasTokens = bubbleData.portfolioData?.balances?.length > 0;
+          
+          if (hasTokens) {
+            console.log('✅ Portfolio has tokens, showing bubble');
+            setPortfolioBubbles0x(prev => [...prev, bubbleData]);
+            
+            // Send Portfolio data to AI context
+            setContextAwarenessData(prev => ({
+              ...prev,
+              wallet_data: {
+                ...prev.wallet_data,
+                portfolio_info: bubbleData.content,
+                last_portfolio_update: new Date().toISOString()
+              },
+              last_updated: new Date().toISOString()
+            }));
+            console.log('📊 Sent AI Portfolio data to context:', bubbleData.content);
+          } else {
+            console.log('❌ No tokens found, not showing bubble');
+          }
+          break;
+        case 'icp':
+          console.log('🫧 Adding ICP bubble:', bubbleData);
+          setIcpBubbles(prev => [...prev, bubbleData]);
+          // Send ICP data to AI context
+          setContextAwarenessData(prev => ({
+            ...prev,
+            icp_data: bubbleData.content,
+            last_updated: new Date().toISOString()
+          }));
+          console.log('📊 Sent AI ICP data to context:', bubbleData.content);
           break;
         default:
+          console.log('🫧 Unknown bubble type:', bubbleData.type);
           log('🫧 Unknown bubble type:', bubbleData.type);
       }
     };
 
+    console.log('🫧 DEBUG: Setting up aiBubbleUpdate listener');
     window.addEventListener('aiBubbleUpdate', handleAIBubbleUpdate);
     return () => window.removeEventListener('aiBubbleUpdate', handleAIBubbleUpdate);
   }, [])
@@ -619,20 +726,19 @@ export default function Home() {
     // Use the first known crypto token found
     const mentionedCoin = potentialTokens[0];
     
-    // Detect price queries
-    const mentionsPrice = /\b(price|prices|cost|value|worth|usd|dollar)\b/i.test(message)
+    // Detect price queries - more flexible detection
+    const mentionsPrice = /\b(price|prices|cost|value|worth|usd|dollar|market|markets|how much|what.*price|current|fetching|issue.*fetch)\b/i.test(message)
     
-    // Detect Hedera mentions
-    const mentionsHedera = /\b(hedera|hbar|hashgraph|hgraph)\b/i.test(message)
+    // If user mentions a known crypto without explicit price words, assume they want price info
+    const wantsPriceInfo = mentionedCoin && !mentionsPrice && message.length < 20
+    
     
     // Detect CoinStats mentions (coin and price triggers)
-    const mentionsCoinstats = /\b(coin|coins|price|prices)\b/i.test(message)
+    const mentionsCoinstats = /\b(coin|coins|price|prices|market|markets)\b/i.test(message)
     
-    // Detect ChangeNOW mentions (buy with fiat/card triggers)
-    const mentionsChangeNow = /\b(buy|purchase|convert.*usd|buy.*with.*card|fiat)\b/i.test(message)
     
-    // Detect 0x Protocol mentions (swap/trade existing tokens) - also detect numbers for context reconstruction
-    const mentions0x = /\b(swap|trade|exchange|dex|aggregator|0x|best rate|compare rates|cheapest swap)\b/i.test(message) || /^\s*(\d+(?:\.\d+)?)\s*(pepe|usdc|eth|btc|usdt)?\s*$/i.test(message)
+    // Detect 0x Protocol mentions (swap/trade existing tokens) - be more specific to avoid false triggers
+    const mentions0x = /\b(swap|trade|exchange|dex|aggregator|0x|best rate|compare rates|cheapest swap|sell|buy.*for)\b/i.test(message) && !/\b(wallet|balance|holdings|portfolio|what do i have|show me|my tokens|my coins)\b/i.test(message)
     
     // Debug logging for swap detection
     console.log('🔄 Swap Detection Debug:', {
@@ -646,12 +752,14 @@ export default function Home() {
     })
     
     
-    // Detect Portfolio mentions (wallet, balance, holdings triggers)
-    const mentionsPortfolio = /\b(wallet|balance|holdings|portfolio|my tokens|my coins|what do i have|what's in my wallet)\b/i.test(message)
     
     // Detect Alchemy mentions (detailed tokens, all tokens, token list)
     const mentionsAlchemy = /\b(all tokens|token list|detailed balance|all my tokens|every token|alchemy)\b/i.test(message)
     console.log('🔮 Alchemy trigger check:', { message, mentionsAlchemy, isPluginEnabled: isPluginEnabled('alchemy') })
+    
+    // Detect Portfolio mentions (wallet, balance, holdings triggers) - NEW 0x Portfolio System
+    const mentionsPortfolio = /\b(wallet|balance|holdings|portfolio|my tokens|my coins|what do i have|what's in my wallet|show.*balance|check.*wallet)\b/i.test(message)
+    console.log('💰 Portfolio trigger check:', { message, mentionsPortfolio, isPluginEnabled: isPluginEnabled('zerox') })
     
     // Add user message to conversation
     setMessages(prev => [...prev, { type: 'user', content: message }])
@@ -660,10 +768,209 @@ export default function Home() {
     setIsLoading(true)
     setCurrentResponse('')
 
-    // Lurky bubble creation is now handled by AI backend through tool calls
-    // AI will automatically detect coin mentions and create Lurky bubbles via getTrendingCoins/getCoinInsights tool calls
-    log('🤖 Lurky bubble creation now handled by AI backend through tool calls');
-    // Keep Lurky bubble visible - building conversation bubble map
+    // Detect Lurky mentions (trending, analytics triggers)
+    const mentionsLurky = /\b(trending|trends|analytics|insights|social|sentiment|viral|hot|popular|lurky)\b/i.test(message)
+    
+    // Detect TRENDING TOKEN questions (needs multiple data sources)
+    const mentionsTrendingTokens = /\b(trending.*token|pumping.*token|hot.*token|trending.*coin|pumping.*coin|what.*pumping|tokens.*trending|coins.*trending)\b/i.test(message)
+    
+    // Detect CoinGecko mentions (crypto prices, market data)
+    const mentionsCoinGecko = /\b(gecko|coingecko|crypto|bitcoin|ethereum|btc|eth|coin|coins|price|prices)\b/i.test(message)
+    
+    // Detect ICP mentions (internet computer, blockchain)
+    const mentionsICP = /\b(icp|internet computer|dfinity|canister|blockchain|network)\b/i.test(message)
+    
+    // Detect Hedera mentions (hedera, hashgraph)
+    const mentionsHedera = /\b(hedera|hbar|hashgraph|hgraph|consensus|gossip)\b/i.test(message)
+    
+    // Detect ChangeNOW mentions (exchange, swap, buy)
+    const mentionsChangeNow = /\b(changenow|change now|exchange|swap|buy|purchase|convert|fiat|card)\b/i.test(message)
+    
+    // Detect WalletConnect mentions (wallet, balance, connect)
+    const mentionsWalletConnect = /\b(wallet|balance|connect|walletconnect|holdings|my tokens|my coins)\b/i.test(message)
+    
+    // Detect transaction success messages
+    const mentionsTransactionSuccess = /\b(transaction sent successfully|hash:|0x[a-fA-F0-9]{64})\b/i.test(message)
+    
+    // COMPREHENSIVE TRENDING ANALYSIS - Multiple bubbles for trending questions
+    if (mentionsTrendingTokens) {
+      console.log('🔥 TRENDING TOKENS QUESTION - Triggering multiple data sources')
+      
+      // 1. Lurky for social sentiment
+      if (isPluginEnabled('lurky')) {
+        const lurkyBubble = {
+          id: Date.now() + Math.random(),
+          title: 'Lurky - Social Trending',
+          content: 'Loading social trending data...',
+          loading: true
+        }
+        setLurkyBubbles(prev => [...prev, lurkyBubble])
+        
+        fetch('/api/lurky/trending?limit=20')
+          .then(response => response.json())
+          .then(data => {
+            const coins = data.data?.coins || data.coins || [];
+            const trendingData = coins.slice(0, 15).map(coin => ({
+              symbol: coin.symbol?.toUpperCase(),
+              sentiment: coin.sentiment,
+              mentions: coin.mentions,
+              trend: coin.trend || 'bullish'
+            }));
+            
+            setLurkyBubbles(prev => prev.map(bubble => 
+              bubble.id === lurkyBubble.id 
+                ? { 
+                    ...bubble, 
+                    loading: false, 
+                    content: `🔥 TRENDING (Social):\n${trendingData.map(coin => 
+                      `${coin.symbol}: ${coin.sentiment} (${coin.mentions} mentions)`
+                    ).join('\n') || 'Social trending data loaded'}`
+                  }
+                : bubble
+            ))
+            
+            setContextAwarenessData(prev => ({
+              ...prev,
+              lurky_trending: trendingData,
+              last_updated: new Date().toISOString()
+            }));
+          })
+          .catch(error => {
+            console.error('Error fetching Lurky trending:', error)
+            setLurkyBubbles(prev => prev.map(bubble => 
+              bubble.id === lurkyBubble.id 
+                ? { ...bubble, loading: false, content: 'Error loading social trending' }
+                : bubble
+            ))
+          })
+      }
+      
+      // 2. CoinStats for market gainers/losers
+      if (isPluginEnabled('coinstats')) {
+        const coinStatsBubble = {
+          id: Date.now() + Math.random() + 1,
+          title: 'CoinStats - Market Gainers',
+          content: 'Loading market gainers/losers...',
+          loading: true
+        }
+        setCoinstatsBubbles(prev => [...prev, coinStatsBubble])
+        
+        fetch('/api/coinstats/markets?limit=50&currency=USD&sortBy=rank')
+          .then(response => response.json())
+          .then(data => {
+            const coins = data.data?.coins || data.coins || [];
+            const gainers = coins.filter(coin => coin.priceChange1d > 5).slice(0, 10);
+            
+            setCoinstatsBubbles(prev => prev.map(bubble => 
+              bubble.id === coinStatsBubble.id 
+                ? { 
+                    ...bubble, 
+                    loading: false, 
+                    content: `📈 TOP GAINERS:\n${gainers.map(coin => 
+                      `${coin.symbol}: $${coin.price?.toFixed(4)} (+${coin.priceChange1d?.toFixed(1)}%)`
+                    ).join('\n') || 'Market data loaded'}`
+                  }
+                : bubble
+            ))
+            
+            setContextAwarenessData(prev => ({
+              ...prev,
+              coinstats_gainers: gainers,
+              last_updated: new Date().toISOString()
+            }));
+          })
+          .catch(error => {
+            console.error('Error fetching CoinStats gainers:', error)
+            setCoinstatsBubbles(prev => prev.map(bubble => 
+              bubble.id === coinStatsBubble.id 
+                ? { ...bubble, loading: false, content: 'Error loading market gainers' }
+                : bubble
+            ))
+          })
+      }
+      
+      // 3. CoinGecko for trending coins
+      if (isPluginEnabled('coingecko')) {
+        const coinGeckoBubble = {
+          id: Date.now() + Math.random() + 2,
+          title: 'CoinGecko - Trending',
+          content: 'Loading CoinGecko trending...',
+          loading: true
+        }
+        setCoinGeckoBubbles(prev => [...prev, coinGeckoBubble])
+        
+        fetch('https://api.coingecko.com/api/v3/search/trending')
+          .then(response => response.json())
+          .then(data => {
+            const trending = data.coins?.slice(0, 10) || [];
+            
+            setCoinGeckoBubbles(prev => prev.map(bubble => 
+              bubble.id === coinGeckoBubble.id 
+                ? { 
+                    ...bubble, 
+                    loading: false, 
+                    content: `🦎 TRENDING (CoinGecko):\n${trending.map(coin => 
+                      `${coin.item?.symbol?.toUpperCase()}: ${coin.item?.name} (Rank #${coin.item?.market_cap_rank || 'N/A'})`
+                    ).join('\n') || 'CoinGecko trending loaded'}`
+                  }
+                : bubble
+            ))
+            
+            setContextAwarenessData(prev => ({
+              ...prev,
+              coingecko_trending: trending,
+              last_updated: new Date().toISOString()
+            }));
+          })
+          .catch(error => {
+            console.error('Error fetching CoinGecko trending:', error)
+            setCoinGeckoBubbles(prev => prev.map(bubble => 
+              bubble.id === coinGeckoBubble.id 
+                ? { ...bubble, loading: false, content: 'Error loading CoinGecko trending' }
+                : bubble
+            ))
+          })
+      }
+    }
+    
+    // Create Lurky bubble with real API data (fallback for non-trending questions)
+    else if (mentionsLurky) {
+      console.log('🎯 Creating Lurky bubble for:', message)
+      const newBubble = {
+        id: Date.now() + Math.random(),
+        title: 'Lurky - Analytics',
+        content: 'Loading trending data...',
+        loading: true
+      }
+      
+      setLurkyBubbles(prev => [...prev, newBubble])
+      
+      // Fetch TRENDING data from Lurky API (social buzz)
+      fetch('/api/lurky/trending?limit=20')
+        .then(response => response.json())
+        .then(data => {
+          const coins = data.data?.coins || data.coins || [];
+          setLurkyBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { 
+                  ...bubble, 
+                  loading: false, 
+                  content: `Trending Coins:\n${coins.slice(0, 10).map(coin => 
+                    `${coin.symbol?.toUpperCase()}: ${coin.sentiment} (${coin.mentions} mentions)`
+                  ).join('\n') || 'Trending data loaded'}`
+                }
+              : bubble
+          ))
+        })
+        .catch(error => {
+          console.error('Error fetching Lurky data:', error)
+          setLurkyBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, loading: false, content: 'Error loading trending data' }
+              : bubble
+          ))
+        })
+    }
 
     // CoinGecko bubble creation temporarily disabled - needs backend tool call support
     // TODO: Add CoinGecko to PLUGIN_API_MAP with backend routes and tool calls
@@ -674,17 +981,423 @@ export default function Home() {
     }
     // Keep CoinGecko bubble visible - building conversation bubble map
 
-    // CoinStats bubble creation is now handled by AI backend through tool calls
-    // AI will automatically detect token mentions and create CoinStats bubbles via getCoinData/searchCoins/getMarketData tool calls
-    log('🤖 CoinStats bubble creation now handled by AI backend through tool calls');
-    // Keep CoinStats bubble visible - building conversation bubble map
-
-    // Hedera bubble creation temporarily disabled - needs backend tool call support
-    // TODO: Add Hedera to PLUGIN_API_MAP with backend routes and tool calls
-    if (mentionsHedera && isPluginEnabled('hedera')) {
-      log('🚧 Hedera plugin enabled but no backend tool call support yet - needs backend implementation');
+    // Debug logging for bubble detection
+    console.log('🔍 Bubble Detection Debug:', {
+      message,
+      mentionsPrice,
+      mentionsCoinstats,
+      isCoinstatsEnabled: isPluginEnabled('coinstats'),
+      allPluginStates: Object.keys(AVAILABLE_PLUGINS || {}).reduce((acc, key) => {
+        acc[key] = isPluginEnabled(key);
+        return acc;
+      }, {})
+    })
+    
+    // Create multiple bubbles for comprehensive AI data - USER INPUT TRIGGERED
+    
+    // For specific token price queries - trigger price-related bubbles
+    if (mentionedCoin && (mentionsPrice || wantsPriceInfo)) {
+      console.log('🎯 Creating price bubbles for token:', mentionedCoin)
+      
+      // CoinGecko bubble for specific token price
+      const coinGeckoBubble = {
+        id: Date.now() + Math.random(),
+        title: 'CoinGecko - Token Price',
+        content: `Loading ${mentionedCoin} price data...`,
+        loading: true
+      }
+      setCoinGeckoBubbles(prev => [...prev, coinGeckoBubble])
+      
+      // Fetch CoinGecko TRENDING data (social buzz + price data)
+      fetch(`https://api.coingecko.com/api/v3/search/trending`)
+        .then(response => response.json())
+        .then(data => {
+          const tokenData = data[mentionedCoin.toLowerCase()];
+          const priceData = {
+            token: mentionedCoin.toUpperCase(),
+            price: tokenData?.usd?.toFixed(4) || 'N/A',
+            change24h: tokenData?.usd_24h_change?.toFixed(2) || 'N/A',
+            marketCap: (tokenData?.usd_market_cap / 1000000000)?.toFixed(2) || 'N/A'
+          };
+          
+          setCoinGeckoBubbles(prev => prev.map(bubble => 
+            bubble.id === coinGeckoBubble.id 
+              ? { 
+                  ...bubble, 
+                  loading: false, 
+                  content: `${priceData.token} Price:\n$${priceData.price}\n24h Change: ${priceData.change24h > 0 ? '+' : ''}${priceData.change24h}%\nMarket Cap: $${priceData.marketCap}B`
+                }
+              : bubble
+          ))
+          
+          // Send price data to AI for context
+          setContextAwarenessData(prev => ({
+            ...prev,
+            coingecko_data: priceData,
+            last_updated: new Date().toISOString()
+          }));
+          console.log('📊 Sent CoinGecko data to AI:', priceData);
+        })
+        .catch(error => {
+          console.error('Error fetching CoinGecko data:', error)
+          setCoinGeckoBubbles(prev => prev.map(bubble => 
+            bubble.id === coinGeckoBubble.id 
+              ? { ...bubble, loading: false, content: `Error loading ${mentionedCoin} price data` }
+              : bubble
+          ))
+        })
+      
+      // CoinStats bubble for market context
+      const coinStatsBubble = {
+        id: Date.now() + Math.random() + 1,
+        title: 'CoinStats - Market Context',
+        content: 'Loading market context...',
+        loading: true
+      }
+      setCoinstatsBubbles(prev => [...prev, coinStatsBubble])
+      
+      // Fetch MARKET OVERVIEW with gainers/losers from CoinStats
+      fetch('/api/coinstats/markets?limit=50&currency=USD&sortBy=rank')
+        .then(response => response.json())
+        .then(data => {
+          const coins = data.data?.coins || data.coins || [];
+          const marketData = coins.slice(0, 5).map(coin => ({
+            symbol: coin.symbol?.toUpperCase(),
+            price: coin.price?.toFixed(2),
+            change24h: coin.change24h?.toFixed(2)
+          }));
+          
+          setCoinstatsBubbles(prev => prev.map(bubble => 
+            bubble.id === coinStatsBubble.id 
+              ? { 
+                  ...bubble, 
+                  loading: false, 
+                  content: `Market Context:\n${marketData.map(coin => 
+                    `${coin.symbol}: $${coin.price} (${coin.change24h > 0 ? '+' : ''}${coin.change24h}%)`
+                  ).join('\n')}`
+                }
+              : bubble
+          ))
+          
+          // Send market data to AI for context
+          setContextAwarenessData(prev => ({
+            ...prev,
+            coinstats_data: marketData,
+            last_updated: new Date().toISOString()
+          }));
+          console.log('📊 Sent CoinStats data to AI:', marketData);
+        })
+        .catch(error => {
+          console.error('Error fetching CoinStats data:', error)
+          setCoinstatsBubbles(prev => prev.map(bubble => 
+            bubble.id === coinStatsBubble.id 
+              ? { ...bubble, loading: false, content: 'Error loading market context' }
+              : bubble
+          ))
+        })
+      
+      // Lurky bubble for trending/sentiment data
+      const lurkyBubble = {
+        id: Date.now() + Math.random() + 2,
+        title: 'Lurky - Sentiment Data',
+        content: 'Loading sentiment data...',
+        loading: true
+      }
+      setLurkyBubbles(prev => [...prev, lurkyBubble])
+      
+      // Fetch Lurky sentiment data
+      fetch('/api/lurky/coins?limit=10&page=0&sort_by=mentions&sort_dir=desc')
+        .then(response => response.json())
+        .then(data => {
+          const coins = data.data?.coins || data.coins || [];
+          const sentimentData = coins.slice(0, 5).map(coin => ({
+            symbol: coin.symbol?.toUpperCase(),
+            sentiment: coin.sentiment,
+            mentions: coin.mentions
+          }));
+          
+          setLurkyBubbles(prev => prev.map(bubble => 
+            bubble.id === lurkyBubble.id 
+              ? { 
+                  ...bubble, 
+                  loading: false, 
+                  content: `Sentiment Data:\n${sentimentData.map(coin => 
+                    `${coin.symbol}: ${coin.sentiment} (${coin.mentions} mentions)`
+                  ).join('\n')}`
+                }
+              : bubble
+          ))
+          
+          // Send sentiment data to AI for context
+          setContextAwarenessData(prev => ({
+            ...prev,
+            lurky_data: sentimentData,
+            last_updated: new Date().toISOString()
+          }));
+          console.log('📊 Sent Lurky data to AI:', sentimentData);
+        })
+        .catch(error => {
+          console.error('Error fetching Lurky data:', error)
+          setLurkyBubbles(prev => prev.map(bubble => 
+            bubble.id === lurkyBubble.id 
+              ? { ...bubble, loading: false, content: 'Error loading sentiment data' }
+              : bubble
+          ))
+        })
     }
-    // Keep Hedera bubble visible - building conversation bubble map
+    
+    // For general market queries - trigger market bubbles
+    else if (mentionsPrice || mentionsCoinstats) {
+      console.log('🎯 Creating market bubbles for:', message)
+      
+      // CoinStats bubble for market overview
+      const coinStatsBubble = {
+        id: Date.now() + Math.random(),
+        title: 'CoinStats - Market Data',
+        content: 'Loading market data...',
+        loading: true
+      }
+      setCoinstatsBubbles(prev => [...prev, coinStatsBubble])
+      
+      // Fetch MARKET OVERVIEW with gainers/losers from CoinStats
+      fetch('/api/coinstats/markets?limit=50&currency=USD&sortBy=rank')
+        .then(response => response.json())
+        .then(data => {
+          const coins = data.data?.coins || data.coins || [];
+          const marketData = coins.slice(0, 10).map(coin => ({
+            symbol: coin.symbol?.toUpperCase(),
+            price: coin.price?.toFixed(2),
+            change24h: coin.change24h?.toFixed(2)
+          }));
+          
+          setCoinstatsBubbles(prev => prev.map(bubble => 
+            bubble.id === coinStatsBubble.id 
+              ? { 
+                  ...bubble, 
+                  loading: false, 
+                  content: `Top 10 Cryptocurrencies:\n${marketData.map(coin => 
+                    `${coin.symbol}: $${coin.price} (${coin.change24h > 0 ? '+' : ''}${coin.change24h}%)`
+                  ).join('\n') || 'Market data loaded'}`
+                }
+              : bubble
+          ))
+          
+          // Send market data to AI for context
+          setContextAwarenessData(prev => ({
+            ...prev,
+            coinstats_data: marketData,
+            last_updated: new Date().toISOString()
+          }));
+          console.log('📊 Sent CoinStats market data to AI:', marketData);
+        })
+        .catch(error => {
+          console.error('Error fetching CoinStats data:', error)
+          setCoinstatsBubbles(prev => prev.map(bubble => 
+            bubble.id === coinStatsBubble.id 
+              ? { ...bubble, loading: false, content: 'Error loading market data' }
+              : bubble
+          ))
+        })
+      
+      // Lurky bubble for trending data
+      const lurkyBubble = {
+        id: Date.now() + Math.random() + 1,
+        title: 'Lurky - Trending Data',
+        content: 'Loading trending data...',
+        loading: true
+      }
+      setLurkyBubbles(prev => [...prev, lurkyBubble])
+      
+      // Fetch Lurky trending data
+      fetch('/api/lurky/coins?limit=10&page=0&sort_by=mentions&sort_dir=desc')
+        .then(response => response.json())
+        .then(data => {
+          const coins = data.data?.coins || data.coins || [];
+          const trendingData = coins.slice(0, 10).map(coin => ({
+            symbol: coin.symbol?.toUpperCase(),
+            sentiment: coin.sentiment,
+            mentions: coin.mentions
+          }));
+          
+          setLurkyBubbles(prev => prev.map(bubble => 
+            bubble.id === lurkyBubble.id 
+              ? { 
+                  ...bubble, 
+                  loading: false, 
+                  content: `Trending Coins:\n${trendingData.map(coin => 
+                    `${coin.symbol}: ${coin.sentiment} (${coin.mentions} mentions)`
+                  ).join('\n') || 'Trending data loaded'}`
+                }
+              : bubble
+          ))
+          
+          // Send trending data to AI for context
+          setContextAwarenessData(prev => ({
+            ...prev,
+            lurky_data: trendingData,
+            last_updated: new Date().toISOString()
+          }));
+          console.log('📊 Sent Lurky trending data to AI:', trendingData);
+        })
+        .catch(error => {
+          console.error('Error fetching Lurky data:', error)
+          setLurkyBubbles(prev => prev.map(bubble => 
+            bubble.id === lurkyBubble.id 
+              ? { ...bubble, loading: false, content: 'Error loading trending data' }
+              : bubble
+          ))
+        })
+    }
+
+    // Trigger AI to create CoinGecko bubble with real data
+    if (mentionsCoinGecko) {
+      console.log('🎯 Triggering AI to create CoinGecko bubble for:', message)
+      // The AI will automatically call getCoinGeckoData() tool and create a bubble
+    }
+
+    // Trigger AI to create ICP bubble with real data
+    if (mentionsICP) {
+      console.log('🎯 Triggering AI to create ICP bubble for:', message)
+      // The AI will automatically call getICPStatus() tool and create a bubble
+    }
+
+    // Create Hedera bubble for hashgraph queries - ALWAYS CREATE BUBBLE
+    if (mentionsHedera) {
+      console.log('🎯 Creating Hedera bubble for:', message)
+      const newBubble = {
+        id: Date.now() + Math.random(),
+        title: 'Hedera - Blockchain',
+        content: 'Loading Hedera network data...',
+        loading: true
+      }
+      
+      setHederaBubbles(prev => [...prev, newBubble])
+      
+      // Update context awareness
+      updateContextAwareness('blockchain_data', 'hedera', {
+        source: 'Hedera',
+        connected: true,
+        message: 'Hedera bubble opened - blockchain data available'
+      })
+      
+      // Fetch HBAR price from CoinGecko API
+      fetch('https://api.coingecko.com/api/v3/simple/price?ids=hedera-hashgraph&vs_currencies=usd&include_24hr_change=true&include_market_cap=true')
+        .then(response => response.json())
+        .then(data => {
+          const hbar = data['hedera-hashgraph'];
+          const hederaData = {
+            token: 'HBAR',
+            price: hbar?.usd?.toFixed(4) || 'N/A',
+            change24h: hbar?.usd_24h_change?.toFixed(2) || 'N/A',
+            marketCap: (hbar?.usd_market_cap / 1000000000)?.toFixed(2) || 'N/A',
+            consensus: 'hashgraph'
+          };
+          
+          let content = 'Hedera Hashgraph (HBAR):\n\n'
+          if (hbar) {
+            content += `Price: $${hederaData.price}\n`
+            content += `24h Change: ${hederaData.change24h > 0 ? '+' : ''}${hederaData.change24h}%\n`
+            content += `Market Cap: $${hederaData.marketCap}B\n\n`
+            content += `Hedera is a distributed ledger technology\nusing hashgraph consensus algorithm.\nFast, fair, and secure transactions.`
+          } else {
+            content = 'Hedera Hashgraph data not available'
+          }
+          
+          setHederaBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, loading: false, content: content }
+              : bubble
+          ))
+          
+          // Send Hedera data to AI for context
+          setContextAwarenessData(prev => ({
+            ...prev,
+            hedera_data: hederaData,
+            last_updated: new Date().toISOString()
+          }));
+          console.log('📊 Sent Hedera data to AI:', hederaData);
+        })
+        .catch(error => {
+          console.error('Error fetching Hedera data:', error)
+          setHederaBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, loading: false, content: 'Hedera Hashgraph (HBAR)\n\nPrice data unavailable\n\nHedera uses hashgraph consensus\nfor fast, secure transactions.' }
+              : bubble
+          ))
+        })
+    }
+
+    // Create ChangeNOW bubble for exchange queries - ALWAYS CREATE BUBBLE
+    if (mentionsChangeNow) {
+      console.log('🎯 Creating ChangeNOW bubble for:', message)
+      const newBubble = {
+        id: Date.now() + Math.random(),
+        title: 'ChangeNOW - Exchange',
+        content: 'Loading exchange data...',
+        loading: true
+      }
+      
+      setChangenowBubbles(prev => [...prev, newBubble])
+      
+      // Update context awareness
+      updateContextAwareness('exchange_data', 'changenow', {
+        source: 'ChangeNOW',
+        connected: true,
+        message: 'ChangeNOW bubble opened - exchange data available'
+      })
+      
+      // Fetch real ChangeNOW data
+      fetch('/api/changenow/currencies')
+        .then(response => response.json())
+        .then(data => {
+          const currencies = data.data?.currencies || data.currencies || [];
+          const exchangeData = currencies.slice(0, 10).map(currency => ({
+            ticker: currency.ticker?.toUpperCase(),
+            name: currency.name
+          }));
+          
+          setChangenowBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { 
+                  ...bubble, 
+                  loading: false, 
+                  content: `Available Currencies:\n${exchangeData.map(currency => 
+                    `${currency.ticker}: ${currency.name}`
+                  ).join('\n') || 'Exchange data loaded'}`
+                }
+              : bubble
+          ))
+          
+          // Send exchange data to AI for context
+          setContextAwarenessData(prev => ({
+            ...prev,
+            changenow_data: exchangeData,
+            last_updated: new Date().toISOString()
+          }));
+          console.log('📊 Sent ChangeNOW data to AI:', exchangeData);
+        })
+        .catch(error => {
+          console.error('Error fetching ChangeNOW data:', error)
+          setChangenowBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, loading: false, content: 'Error loading exchange data' }
+              : bubble
+          ))
+        })
+    }
+
+    // Create Transaction Success bubble - USER INPUT TRIGGERED
+    if (mentionsTransactionSuccess) {
+      console.log('🎯 Creating Transaction Success bubble for:', message)
+      const newBubble = {
+        id: Date.now() + Math.random(),
+        title: '✅ Transaction Success',
+        content: message,
+        loading: false
+      }
+      
+      setTransactionBubbles(prev => [...prev, newBubble])
+    }
 
     // ChangeNOW bubble creation is now handled by AI backend through tool calls
     // AI will automatically detect exchange mentions and create ChangeNOW bubbles via getExchangeRate/createTransaction tool calls
@@ -897,36 +1610,6 @@ export default function Home() {
     }
     // Keep 0x Protocol bubble visible - building conversation bubble map
 
-    // Handle Portfolio bubble logic (wallet/balance mentions)
-    if (mentionsPortfolio && isPluginEnabled('portfolio')) {
-      // Create new Portfolio bubble instance
-      const newBubble = {
-        id: Date.now() + Math.random(), // Unique ID
-        title: 'Portfolio',
-        content: 'Loading wallet data...',
-        loading: true
-      }
-      
-      setPortfolioBubbles(prev => [...prev, newBubble])
-      
-      // The bubble component itself handles fetching wallet data via wagmi hooks
-      // Update context awareness with wallet connection status
-      updateContextAwareness('portfolio_data', 'wallet', {
-        source: 'Portfolio',
-        connected: true, // The bubble will update this with actual data
-        message: 'Portfolio bubble opened - wallet data available in bubble'
-      })
-      
-      // After a short delay, mark as loaded (the bubble component handles actual data)
-      setTimeout(() => {
-        setPortfolioBubbles(prev => prev.map(bubble => 
-          bubble.id === newBubble.id 
-            ? { ...bubble, loading: false }
-            : bubble
-        ))
-      }, 500)
-    }
-    // Keep Portfolio bubble visible - building conversation bubble map
     
     // Create Alchemy bubble if mentioned and plugin is enabled
     if (mentionsAlchemy && isPluginEnabled('alchemy')) {
@@ -955,6 +1638,19 @@ export default function Home() {
             : bubble
         ))
       }, 500)
+    }
+
+    // Create Portfolio bubble if mentioned and plugin is enabled - NEW Alchemy Portfolio System
+    if (mentionsPortfolio && isPluginEnabled('zerox')) {
+      // Don't create bubble immediately - wait for AI response with actual data
+      console.log('💰 Portfolio mentioned, AI will handle bubble creation with data')
+      
+      // Update context awareness with wallet connection status
+      updateContextAwareness('wallet_data', 'portfolio', {
+        source: 'Alchemy Portfolio',
+        connected: true,
+        message: 'Alchemy Portfolio will be fetched via AI tool'
+      })
     }
 
     // Send message to Olivia - SMART CONTEXT OPTIMIZATION
@@ -1329,18 +2025,6 @@ export default function Home() {
         />
       ))}
       
-      {/* Render all Portfolio bubble instances - only if plugin enabled */}
-      {isPluginEnabled('portfolio') && portfolioBubbles.map(bubble => (
-        <FloatingPortfolioBubble
-          key={bubble.id}
-          isOpen={true}
-          onClose={() => setPortfolioBubbles(prev => prev.filter(b => b.id !== bubble.id))}
-          title={bubble.title}
-          content={bubble.content}
-          loading={bubble.loading}
-          addParticlesToSwarm={addParticlesToSwarm}
-        />
-      ))}
       
       {/* Render all Alchemy bubble instances - only if plugin enabled */}
       {isPluginEnabled('alchemy') && alchemyBubbles.map(bubble => (
@@ -1352,6 +2036,31 @@ export default function Home() {
           content={bubble.content}
           loading={bubble.loading}
           addParticlesToSwarm={addParticlesToSwarm}
+        />
+      ))}
+      
+      {/* Render all 0x Portfolio bubble instances - only if plugin enabled */}
+      {isPluginEnabled('zerox') && portfolioBubbles0x.map(bubble => (
+        <FloatingPortfolioBubble0x
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setPortfolioBubbles0x(prev => prev.filter(b => b.id !== bubble.id))}
+          title={bubble.title}
+          content={bubble.content}
+          loading={bubble.loading}
+          portfolioData={bubble.portfolioData}
+        />
+      ))}
+
+      {/* Transaction Success Bubbles */}
+      {transactionBubbles.map(bubble => (
+        <FloatingTransactionBubble
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setTransactionBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          title={bubble.title}
+          content={bubble.content}
+          loading={bubble.loading}
         />
       ))}
       

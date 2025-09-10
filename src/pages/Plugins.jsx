@@ -202,6 +202,12 @@ const Plugins = () => {
                     enabled ? 'text-gray-300' : 'text-gray-500'
                   }`} style={{fontSize: '11px', lineHeight: '14px'}}>
                     {plugin.detailedDescription || plugin.description}
+                    {plugin.aiCapabilities && (
+                      <div className="mt-2 p-2 bg-purple-900/20 border border-purple-700/30 rounded text-purple-200" style={{fontSize: '10px', lineHeight: '13px'}}>
+                        <div className="font-semibold text-purple-300 mb-1">AI Capabilities:</div>
+                        <div className="whitespace-pre-line">{plugin.aiCapabilities}</div>
+                      </div>
+                    )}
                   </div>
                   {/* Mobile Category Badge */}
                   <div className={`md:hidden text-xs mt-1 truncate ${
@@ -209,6 +215,8 @@ const Plugins = () => {
                     plugin.category === 'Market Data' ? 'text-blue-400' :
                     plugin.category === 'Blockchain' ? 'text-green-400' :
                     plugin.category === 'Exchange' ? 'text-orange-400' :
+                    plugin.category === 'Tools' ? 'text-red-400' :
+                    plugin.category === 'Wallet' ? 'text-cyan-400' :
                     'text-gray-400'
                   }`} style={{fontSize: '10px'}}>
                     {plugin.category}

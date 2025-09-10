@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import { Coins, Database, Loader } from 'lucide-react';
 import { useAccount } from 'wagmi';
 import alchemyLogo from '../../assets/alchemy-logo.jpg';
+import { getTokensForChain } from '../../utils/chainDetection';
 
 const FloatingAlchemyBubble = ({ 
   isOpen, 
@@ -24,24 +25,36 @@ const FloatingAlchemyBubble = ({
   const bubbleId = useRef(`alchemy-${Date.now()}`).current;
   
   // Wallet connection
-  const { address, isConnected, chain } = useAccount();
+  const { address, isConnected, chain, connector, chainId } = useAccount();
   
-  // Fetch token balances from Alchemy
+  // Fetch token balances using simple Alchemy call
   const fetchTokenBalances = useCallback(async () => {
-    if (!address || !isConnected) return;
+    if (!address || !isConnected || !chain?.id) return;
     
     setIsLoadingTokens(true);
     try {
-      // Call Alchemy directly like the Portfolio bubble
-      const alchemyApiKey = '_pGB49JjZobNT7IahUuqg'; // Your API key
+      console.log(`🔮 Fetching tokens for wallet ${address} on ${chain.name}`);
+      
+      // Simple Alchemy call for current chain only
+      const alchemyApiKey = '_pGB49JjZobNT7IahUuqg';
+      console.log(`🔮 Current chain:`, chain);
+      console.log(`🔮 Chain ID:`, chain?.id || chainId);
+      
+      const currentChainId = chain?.id || chainId;
+      const network = currentChainId === 1 ? 'eth-mainnet' : 
+                      currentChainId === 8453 ? 'base-mainnet' : 
+                      currentChainId === 137 ? 'polygon-mainnet' : 
+                      currentChainId === 10 ? 'opt-mainnet' : 
+                      currentChainId === 42161 ? 'arb-mainnet' : 
+                      'eth-mainnet';
+      
+      console.log(`🔮 Using Alchemy network:`, network);
       
       const response = await fetch(
-        `https://eth-mainnet.g.alchemy.com/v2/${alchemyApiKey}`,
+        `https://${network}.g.alchemy.com/v2/${alchemyApiKey}`,
         {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             id: 1,
             jsonrpc: '2.0',
@@ -53,10 +66,7 @@ const FloatingAlchemyBubble = ({
       
       if (response.ok) {
         const data = await response.json();
-        console.log('🔮 Alchemy bubble response:', data);
-        
         if (data.result?.tokenBalances) {
-          // Process tokens like the Portfolio bubble
           const nonZeroTokens = data.result.tokenBalances.filter(
             token => token.tokenBalance !== '0x0' && 
                     token.tokenBalance !== '0x00' && 
@@ -67,7 +77,7 @@ const FloatingAlchemyBubble = ({
           const tokenPromises = nonZeroTokens.slice(0, 10).map(async (token) => {
             try {
               const metadataResponse = await fetch(
-                `https://eth-mainnet.g.alchemy.com/v2/${alchemyApiKey}`,
+                `https://${network}.g.alchemy.com/v2/${alchemyApiKey}`,
                 {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -102,12 +112,10 @@ const FloatingAlchemyBubble = ({
             return null;
           });
           
-          const formattedTokens = (await Promise.all(tokenPromises)).filter(t => t !== null);
-          console.log('🔮 Alchemy bubble tokens:', formattedTokens);
-          setTokenBalances(formattedTokens);
-          
-          // Update AI context with token data
-          updateAIContext(formattedTokens);
+          const tokens = (await Promise.all(tokenPromises)).filter(t => t !== null);
+          console.log(`🔮 Found ${tokens.length} tokens:`, tokens);
+          setTokenBalances(tokens);
+          updateAIContext(tokens);
         }
       }
     } catch (error) {

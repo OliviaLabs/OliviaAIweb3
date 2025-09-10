@@ -1,6 +1,6 @@
 // 0x Protocol Routes
 import express from 'express';
-import { getSwapPrice, getSwapQuote } from '../controllers/zeroXController.js';
+import { getSwapPrice, getSwapQuote, getWalletBalance } from '../controllers/zeroXController.js';
 
 const router = express.Router();
 
@@ -9,5 +9,8 @@ router.get('/price', getSwapPrice);
 
 // Get swap quote - following 0x documentation  
 router.get('/quote', getSwapQuote);
+
+// Get wallet balance - new portfolio functionality
+router.get('/balance', getWalletBalance);
 
 export default router;

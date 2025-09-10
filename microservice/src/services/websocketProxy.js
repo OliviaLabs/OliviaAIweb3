@@ -205,26 +205,21 @@ export class WebSocketProxyService {
                 });
               }
               
-              // Process portfolio data
-              if (context.portfolio_data) {
-                contextString += '\n\n[Portfolio Data]:';
-                Object.entries(context.portfolio_data).forEach(([key, portfolioData]) => {
-                  if (portfolioData && typeof portfolioData === 'object') {
-                    const data = portfolioData.data || portfolioData;
-                    if (data && typeof data === 'object') {
-                      if (data.connected) {
-                        contextString += '\nWallet: Connected';
-                        if (data.message) contextString += ` - ${data.message}`;
-                      } else {
-                        contextString += '\nWallet: Not Connected';
-                      }
-                      // Additional portfolio details can be added here when the bubble provides them
-                      if (data.address) contextString += ` | Address: ${data.address}`;
-                      if (data.balance) contextString += ` | Balance: ${data.balance}`;
-                      if (data.chain) contextString += ` | Chain: ${data.chain}`;
-                    }
+              // Process wallet data
+              if (context.wallet_data) {
+                contextString += '\n\n[Wallet Data]:';
+                const walletData = context.wallet_data;
+                if (walletData && typeof walletData === 'object') {
+                  if (walletData.connected) {
+                    contextString += '\nWallet: Connected';
+                    if (walletData.address) contextString += ` | Address: ${walletData.address}`;
+                    if (walletData.connector) contextString += ` | Connector: ${walletData.connector}`;
+                    if (walletData.message) contextString += ` - ${walletData.message}`;
+                  } else {
+                    contextString += '\nWallet: Not Connected';
+                    if (walletData.message) contextString += ` - ${walletData.message}`;
                   }
-                });
+                }
               }
               
               // Add context to the message

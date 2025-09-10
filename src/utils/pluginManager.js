@@ -5,7 +5,6 @@ import hederaLogo from '../assets/hedera-logo.png';
 import coingeckoIcon from '../assets/coingecko-icon.png';
 import changeNowLogo from '../components/ui/change now .png';
 import coinstatsLogo from '../api/services/coinstats-2.png';
-import walletConnectLogo from '../assets/wallet-connect.png';
 import alchemyLogo from '../assets/alchemy-logo.jpg';
 import zeroXLogo from '../assets/0x-logo.png';
 
@@ -68,19 +67,11 @@ export const AVAILABLE_PLUGINS = {
   zerox: {
     id: 'zerox',
     name: '0x Protocol',
-    description: 'DEX aggregator for best swap rates',
+    description: 'AI-powered token swapping and trading',
     detailedDescription: '0x Protocol is the leading DEX aggregation infrastructure that powers decentralized trading across Ethereum and other chains. It sources liquidity from 100+ DEXs to provide the best prices with minimal slippage for token swaps.',
+    aiCapabilities: 'This tool enables Olivia AI to execute real cryptocurrency trades and swaps on your behalf. When enabled, Olivia can: • Execute token swaps across 100+ DEXs • Find the best exchange rates automatically • Handle complex multi-hop trades • Process transactions with minimal slippage • Provide real-time swap quotes and execute trades instantly',
     logo: zeroXLogo,
-    category: 'Exchange',
-    color: 'purple'
-  },
-  portfolio: {
-    id: 'portfolio',
-    name: 'WalletConnect',
-    description: 'View connected wallet balance',
-    detailedDescription: 'WalletConnect is the leading Web3 communications protocol that connects decentralized applications to mobile wallets. It enables secure wallet connections across 170+ wallets and 400+ apps, powering the multi-chain Web3 ecosystem.',
-    logo: walletConnectLogo,
-    category: 'Wallet',
+    category: 'Tools',
     color: 'purple'
   },
   alchemy: {
@@ -105,8 +96,8 @@ export const getPluginStates = () => {
     console.warn('Failed to parse saved plugin preferences:', error);
   }
   
-  // Default: enable core trading and portfolio plugins
-  const defaultEnabledPlugins = ['zerox', 'portfolio', 'coinstats', 'changenow'];
+  // Default: enable all plugins so bubbles can trigger
+  const defaultEnabledPlugins = ['lurky', 'coingecko', 'coinstats', 'icp', 'hedera', 'changenow', 'zerox', 'alchemy'];
   return Object.keys(AVAILABLE_PLUGINS).reduce((acc, pluginId) => {
     acc[pluginId] = defaultEnabledPlugins.includes(pluginId);
     return acc;

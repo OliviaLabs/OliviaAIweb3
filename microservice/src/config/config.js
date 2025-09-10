@@ -18,7 +18,7 @@ export const config = {
   adminAccessSecret: process.env.ADMIN_ACCESS_SECRET,
   openaiApiKey: process.env.OPENAI_API_KEY,
   changeNowApiKey: process.env.CHANGENOW_API_KEY,
-  coinStatsApiKey: process.env.COINSTATS_API_KEY,
+  coinStatsApiKey: process.env.COINSTATS_API_KEY || '9Klzg9z+3MF79XvCZ9lql5yqPKC9G2q16OOyXuwEjn0=',
   lurkyApiKey: process.env.LURKY_API_KEY,
   lurkyApiBaseUrl: process.env.LURKY_API_BASE_URL || 'https://api.lurky.app',
   okxApiKey: process.env.OKX_API_KEY,

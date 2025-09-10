@@ -1,0 +1,55 @@
+---
+description: Multi-chain wallet detection and token fetching rules
+globs: ["src/components/ui/FloatingPortfolioBubble.jsx", "src/utils/chainDetection.js"]
+alwaysApply: false
+---
+
+# Multi-Chain Wallet Detection Rules
+
+## Core Principles
+- **Wallet-Specific Chain Support**: Always detect what chains each wallet actually supports, don't assume
+- **Respect Wallet Capabilities**: Use Reown/WalletConnect capabilities to determine supported chains
+- **No Network Addition Prompts**: Never trigger wallet network addition dialogs
+- **Fallback Strategy**: If capabilities detection fails, use conservative fallbacks
+
+## Implementation Rules
+
+### 1. Wallet Chain Detection
+```javascript
+// ✅ CORRECT: Detect actual wallet capabilities
+const capabilities = await connector.getCapabilities?.();
+if (capabilities?.supportedChains) {
+  return capabilities.supportedChains;
+}
+
+// ❌ WRONG: Assume all wallets support all chains
+return [1, 8453, 137, 10, 42161]; // Don't do this
+```
+
+### 2. Chain-Specific Token Fetching
+- Use Alchemy APIs for each supported chain individually
+- Include chain metadata (name, symbol) with each token
+- Handle different native token symbols per chain (ETH, MATIC, BNB, etc.)
+
+### 3. Error Handling
+- If a chain fails, continue with other chains
+- Log errors but don't break the entire detection process
+- Provide meaningful fallbacks
+
+### 4. UI Display
+- Group tokens by chain in the portfolio view
+- Show chain names clearly (Base, Ethereum, Polygon, etc.)
+- Display native tokens with correct symbols
+
+## Chain Mapping
+- Base (8453): ETH (native), USDC, other ERC-20s
+- Ethereum (1): ETH (native), WETH, USDC, USDT, etc.
+- Polygon (137): MATIC (native), WMATIC, USDC, etc.
+- Arbitrum (42161): ETH (native), ARB, USDC, etc.
+- Optimism (10): ETH (native), OP, USDC, etc.
+
+## API Usage
+- Use `alchemy_getTokenBalances` for ERC-20 tokens
+- Use `eth_getBalance` for native token balances
+- Use `alchemy_getTokenMetadata` for token information
+- Always include proper error handling and timeouts
