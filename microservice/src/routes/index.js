@@ -6,6 +6,7 @@ import lurkyRoutes from './lurkyRoutes.js';
 import okxRoutes from './okxRoutes.js';
 import zeroXRoutes from './zeroXRoutes.js';
 import alchemyRoutes from './alchemyRoutes.js';
+import twitterRoutes from './twitterRoutes.js';
 import { OpenAIController } from '../controllers/openaiController.js';
 
 const router = express.Router();
@@ -33,6 +34,9 @@ router.use('/zerox', zeroXRoutes);
 
 // Alchemy routes
 router.use('/alchemy', alchemyRoutes);
+
+// Twitter routes
+router.use('/twitter', twitterRoutes);
 
 // Default route
 router.get('/', (req, res) => {
@@ -84,6 +88,9 @@ router.get('/', (req, res) => {
         tokens: '/api/zerox/tokens',
         gasPrice: '/api/zerox/gas-price',
         orderBook: '/api/zerox/orderbook'
+      },
+      twitter: {
+        search: '/api/twitter/search'
       }
     },
     documentation: 'All endpoints require proper JWT authentication and origin validation'

@@ -5,16 +5,21 @@ import { useInternetIdentity } from '../contexts/InternetIdentityContext'
 import { isPluginEnabled, AVAILABLE_PLUGINS } from '../utils/pluginManager'
 import { useAccountUpgrade } from '../hooks/useAccountUpgrade';
 import { icpService } from '../api/services/icp.service.js';
-import { lurkyService, coingeckoService, coinstatsService, hgraphService, changeNowService } from '../api';
+import { lurkyService, coingeckoService, hgraphService, changeNowService } from '../api';
+import { twitterService } from '../api/services/twitter.service.js';
+import { OPENAI_MICROSERVICE_CONFIG } from '../api/config/endpoints.js';
 import { log, error as logError } from '../utils/logger.js';
 import FloatingLurkyBubble from '../components/ui/FloatingLurkyBubble.jsx';
 import FloatingCoinGeckoBubble from '../components/ui/FloatingCoinGeckoBubble.jsx';
-import FloatingCoinStatsBubble from '../components/ui/FloatingCoinStatsBubble.jsx';
+// import FloatingCoinStatsBubble from '../components/ui/FloatingCoinStatsBubble.jsx'; // DISABLED
 import FloatingICPBubble from '../components/ui/FloatingICPBubble.jsx';
 import FloatingHederaBubble from '../components/ui/FloatingHederaBubble.jsx';
 import FloatingChangeNowBubble from '../components/ui/FloatingChangeNowBubble.jsx';
 import FloatingPortfolioBubble from '../components/ui/FloatingPortfolioBubble.jsx';
 import FloatingAlchemyBubble from '../components/ui/FloatingAlchemyBubble.jsx';
+import FloatingWebSearchBubble from '../components/ui/FloatingWebSearchBubble.jsx';
+import FloatingNewsBubble from '../components/ui/FloatingNewsBubble.jsx';
+import FloatingTwitterBubble from '../components/ui/FloatingTwitterBubble.jsx';
 import InAppBrowser from '../components/ui/InAppBrowser.jsx';
 
 export default function Home() {
@@ -30,13 +35,16 @@ export default function Home() {
   // Multiple bubble instances - arrays instead of single states
   const [lurkyBubbles, setLurkyBubbles] = useState([])
   const [coinGeckoBubbles, setCoinGeckoBubbles] = useState([])
-  const [coinstatsBubbles, setCoinstatsBubbles] = useState([])
+  // const [coinstatsBubbles, setCoinstatsBubbles] = useState([]) // DISABLED
   const [icpBubbles, setIcpBubbles] = useState([])
   const [hederaBubbles, setHederaBubbles] = useState([])
   const [changeNowBubbles, setChangeNowBubbles] = useState([])
   const [zeroXBubbles, setZeroXBubbles] = useState([])
   const [portfolioBubbles, setPortfolioBubbles] = useState([])
   const [alchemyBubbles, setAlchemyBubbles] = useState([])
+  const [webSearchBubbles, setWebSearchBubbles] = useState([])
+  const [newsBubbles, setNewsBubbles] = useState([])
+  const [twitterBubbles, setTwitterBubbles] = useState([])
 
   // Context awareness data for AI chat
   const [contextAwarenessData, setContextAwarenessData] = useState({
@@ -47,6 +55,12 @@ export default function Home() {
     portfolio_data: {},
     last_updated: null
   })
+
+  // Sync local context data to window for AI access
+  useEffect(() => {
+    window.contextAwarenessData = contextAwarenessData;
+    console.log('🧠 Synced context data to window:', contextAwarenessData);
+  }, [contextAwarenessData])
 
   // In-app browser state
   const [browserOpen, setBrowserOpen] = useState(false)
@@ -124,8 +138,8 @@ export default function Home() {
     const sourceToPlugin = {
       'lurky': 'lurky',
       'coingecko': 'coingecko',
-      'coinstats': 'coinstats',
-      'coinstats (olivia thought)': 'coinstats',
+      // 'coinstats': 'coinstats', // DISABLED
+      // 'coinstats (olivia thought)': 'coinstats', // DISABLED
       'hgraph': 'hedera',
       'hedera': 'hedera',
       'changenow': 'changenow',
@@ -383,7 +397,7 @@ export default function Home() {
     const validationPromises = tokensToTest.map(async (token) => {
       try {
         log(`🔎 Testing token: ${token}`);
-        const searchData = await coinstatsService.searchCoins(token);
+        // const searchData = await coinstatsService.searchCoins(token); // DISABLED
         
         if (searchData.result && searchData.result.length > 0) {
           const coinData = searchData.result[0]; // Get best match
@@ -417,7 +431,7 @@ export default function Home() {
       log(`🚀 Creating bubble for validated token: ${searchTerm} -> ${coinData.name}`);
       
       // Create CoinStats bubble for this validated token - only if plugin enabled
-      if (isPluginEnabled('coinstats')) {
+      if (false) { // coinstats disabled
         const coinName = coinData.name;
         const coinStatsBubble = {
           id: Date.now() + Math.random() + Math.random(), // Extra unique ID
@@ -687,6 +701,37 @@ export default function Home() {
             status: status
           };
         }));
+        
+        // 🧠 Update AI context with ICP data
+        const icpContext = {
+          icp_data: {
+            network_status: isBackendReachable || !!principal || isAuthenticated ? 'connected' : 'connecting',
+            backend_reachable: isBackendReachable,
+            authenticated: isAuthenticated,
+            principal: principal ? principal.slice(0, 8) + '...' : 'None',
+            timestamp: new Date().toISOString(),
+            source: 'ICP Network'
+          }
+        };
+        
+        // Update global context for AI
+        if (window.contextAwarenessData) {
+          window.contextAwarenessData = {
+            ...window.contextAwarenessData,
+            ...icpContext
+          };
+        } else {
+          window.contextAwarenessData = icpContext;
+        }
+        
+        // Also update local state to keep them in sync
+        setContextAwarenessData(prev => ({
+          ...prev,
+          ...icpContext,
+          last_updated: new Date().toISOString()
+        }));
+        
+        console.log('🧠 Updated AI context with ICP data:', icpContext);
       };
       
       updateBubbleStatus();
@@ -735,11 +780,23 @@ export default function Home() {
     // Detect price queries
     const mentionsPrice = /\b(price|prices|cost|value|worth|usd|dollar)\b/i.test(message)
     
+    // Detect trending queries
+    const mentionsTrending = /\b(trending|trends|hot|popular|gaining|losers|gainers|top tokens|best performing)\b/i.test(message)
+    
+    // Detect web search queries
+    const mentionsWebSearch = /\b(what's happening|latest news|current events|recent updates|what's going on|search for|find information|look up)\b/i.test(message)
+    
+    // Detect news queries
+    const mentionsNews = /\b(news|breaking|update|announcement|headlines|story|article)\b/i.test(message)
+    
+    // Detect Twitter queries - trigger on ANY message when plugin is enabled
+    const mentionsTwitter = isPluginEnabled('twitter') && message.trim().length > 0
+    
     // Detect Hedera mentions
     const mentionsHedera = /\b(hedera|hbar|hashgraph|hgraph)\b/i.test(message)
     
-    // Detect CoinStats mentions (coin and price triggers)
-    const mentionsCoinstats = /\b(coin|coins|price|prices)\b/i.test(message)
+    // Detect CoinStats mentions (coin and price triggers) - DISABLED
+    // const mentionsCoinstats = /\b(coin|coins|price|prices)\b/i.test(message)
     
     // Detect ChangeNOW mentions (buy with fiat/card triggers)
     const mentionsChangeNow = /\b(buy|purchase|convert.*usd|buy.*with.*card|fiat)\b/i.test(message)
@@ -884,6 +941,35 @@ export default function Home() {
               ? { ...bubble, content: lurkyText, loading: false }
               : bubble
           ))
+          
+          // 🧠 Update AI context with Lurky data
+          const lurkyContext = {
+            lurky_data: {
+              coin: mentionedCoin,
+              social_data: data,
+              timestamp: new Date().toISOString(),
+              source: 'Lurky API'
+            }
+          };
+          
+          // Update global context for AI
+          if (window.contextAwarenessData) {
+            window.contextAwarenessData = {
+              ...window.contextAwarenessData,
+              ...lurkyContext
+            };
+          } else {
+            window.contextAwarenessData = lurkyContext;
+          }
+          
+          // Also update local state to keep them in sync
+          setContextAwarenessData(prev => ({
+            ...prev,
+            ...lurkyContext,
+            last_updated: new Date().toISOString()
+          }));
+          
+          console.log('🧠 Updated AI context with Lurky data:', lurkyContext);
         } catch (e) {
           console.error('[Lurky] Error:', e);
           const searchedCoin = mentionedCoin.charAt(0).toUpperCase() + mentionedCoin.slice(1);
@@ -913,6 +999,378 @@ export default function Home() {
       }
     }
     // Keep Lurky bubble visible - building conversation bubble map
+
+    // Handle trending tokens logic
+    if (mentionsTrending && isPluginEnabled('coingecko')) {
+      // Create new CoinGecko trending bubble instance
+      const newBubble = {
+        id: Date.now() + Math.random(), // Unique ID
+        title: 'Trending Tokens - CoinGecko',
+        content: 'Loading trending tokens...',
+        loading: true
+      }
+      
+      setCoinGeckoBubbles(prev => [...prev, newBubble])
+      ;(async () => {
+        try {
+          // Get trending coins from CoinGecko
+          const trendingData = await coingeckoService.getTrending()
+          
+          let trendingText = '🔥 Trending Tokens (24h)\n\n'
+          
+          if (trendingData.coins && trendingData.coins.length > 0) {
+            trendingData.coins.slice(0, 10).forEach((coin, index) => {
+              const price = coin.item.data?.price || 0
+              const change = coin.item.data?.price_change_percentage_24h?.usd || 0
+              const changeDirection = change > 0 ? '+' : ''
+              const marketCap = coin.item.data?.market_cap?.usd || 0
+              const marketCapFormatted = marketCap > 1e9 ? `$${(marketCap/1e9).toFixed(2)}B` : 
+                                       marketCap > 1e6 ? `$${(marketCap/1e6).toFixed(1)}M` : 
+                                       `$${marketCap.toLocaleString()}`
+              
+              trendingText += `${index + 1}. ${coin.item.name} (${coin.item.symbol.toUpperCase()})\n`
+              trendingText += `   Price: $${price.toLocaleString()}\n`
+              trendingText += `   24h: ${changeDirection}${change.toFixed(2)}%\n`
+              trendingText += `   Market Cap: ${marketCapFormatted}\n\n`
+            })
+          } else {
+            trendingText += 'No trending data available at the moment.'
+          }
+          
+          // Update the specific bubble with trending data
+          setCoinGeckoBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, content: trendingText, loading: false }
+              : bubble
+          ))
+          
+          // 🧠 Update AI context with CoinGecko trending data
+          const coingeckoContext = {
+            coingecko_data: {
+              trending_tokens: data?.coins?.slice(0, 5) || [],
+              timestamp: new Date().toISOString(),
+              source: 'CoinGecko API'
+            }
+          };
+          
+          // Update global context for AI
+          if (window.contextAwarenessData) {
+            window.contextAwarenessData = {
+              ...window.contextAwarenessData,
+              ...coingeckoContext
+            };
+          } else {
+            window.contextAwarenessData = coingeckoContext;
+          }
+          
+          // Also update local state to keep them in sync
+          setContextAwarenessData(prev => ({
+            ...prev,
+            ...coingeckoContext,
+            last_updated: new Date().toISOString()
+          }));
+          
+          console.log('🧠 Updated AI context with CoinGecko trending data:', coingeckoContext);
+          
+        } catch (error) {
+          console.error('CoinGecko trending error:', error)
+          
+          let errorContent = '❌ Trending Data Error\n\n'
+          if (error.message?.includes('fetch')) {
+            errorContent += `Network error\n\nCannot reach CoinGecko API\nCheck internet connection`;
+          } else {
+            errorContent += `Service unavailable\n\nCoinGecko API is currently down\nTry again later\n\nError: ${error.message || 'Unknown error'}`;
+          }
+          
+          // Update the specific bubble with error
+          setCoinGeckoBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, content: errorContent, loading: false }
+              : bubble
+          ))
+        }
+      })()
+    }
+
+    // Handle web search bubble logic
+    if (mentionsWebSearch && isPluginEnabled('openai')) {
+      // Create new web search bubble instance
+      const newBubble = {
+        id: Date.now() + Math.random(), // Unique ID
+        title: 'Web Search Results',
+        content: 'Searching the web for information...',
+        loading: true
+      }
+      
+      setWebSearchBubbles(prev => [...prev, newBubble])
+      ;(async () => {
+        try {
+          // Extract search query from the message
+          const searchQuery = message.replace(/\b(what's happening|latest news|current events|recent updates|what's going on|search for|find information|look up)\b/gi, '').trim() || 'cryptocurrency news';
+          
+          // Call the microservice web search API
+          const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/openai/chat/completions`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
+              'Origin': window.location.origin
+            },
+            body: JSON.stringify({
+              messages: [
+                {
+                  role: 'user',
+                  content: `Search for: ${searchQuery}`
+                }
+              ],
+              model: 'gpt-3.5-turbo',
+              max_tokens: 1000
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const data = await response.json();
+          
+          let searchText = `🔍 Search Results for: "${searchQuery}"\n\n`;
+          
+          if (data.success && data.data && data.data.choices && data.data.choices[0]) {
+            const aiResponse = data.data.choices[0].message.content;
+            searchText += aiResponse;
+          } else {
+            searchText += 'No search results found. Please try a different search query.';
+          }
+          
+          // Update the specific bubble with search results
+          setWebSearchBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, content: searchText, loading: false }
+              : bubble
+          ))
+          
+          // 🧠 Update AI context with web search data
+          const webSearchContext = {
+            web_search_data: {
+              query: searchQuery,
+              results: data?.results || [],
+              timestamp: new Date().toISOString(),
+              source: 'DuckDuckGo API'
+            }
+          };
+          
+          // Update global context for AI
+          if (window.contextAwarenessData) {
+            window.contextAwarenessData = {
+              ...window.contextAwarenessData,
+              ...webSearchContext
+            };
+          } else {
+            window.contextAwarenessData = webSearchContext;
+          }
+          
+          // Also update local state to keep them in sync
+          setContextAwarenessData(prev => ({
+            ...prev,
+            ...webSearchContext,
+            last_updated: new Date().toISOString()
+          }));
+          
+          console.log('🧠 Updated AI context with web search data:', webSearchContext);
+          
+        } catch (error) {
+          console.error('Web search error:', error)
+          
+          let errorContent = '❌ Web Search Error\n\n'
+          if (error.message?.includes('fetch')) {
+            errorContent += `Network error\n\nCannot reach search API\nCheck internet connection`;
+          } else {
+            errorContent += `Service unavailable\n\nSearch API is currently down\nTry again later\n\nError: ${error.message || 'Unknown error'}`;
+          }
+          
+          // Update the specific bubble with error
+          setWebSearchBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, content: errorContent, loading: false }
+              : bubble
+          ))
+        }
+      })()
+    }
+
+    // Handle news bubble logic
+    if (mentionsNews && isPluginEnabled('news')) {
+      // Create new news bubble instance
+      const newBubble = {
+        id: Date.now() + Math.random(), // Unique ID
+        title: 'Crypto News',
+        content: 'Loading latest crypto news...',
+        loading: true
+      }
+      
+      setNewsBubbles(prev => [...prev, newBubble])
+      ;(async () => {
+        try {
+          // Simulate news API call (replace with real news API)
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate loading
+          
+          const newsContent = `📰 Latest Crypto News\n\n` +
+            `🔥 Bitcoin reaches new all-time high\n` +
+            `   • BTC breaks $100,000 resistance\n` +
+            `   • Institutional adoption continues\n\n` +
+            `⚡ Ethereum 2.0 upgrade successful\n` +
+            `   • Gas fees reduced by 50%\n` +
+            `   • Staking rewards increased\n\n` +
+            `🚀 Solana ecosystem grows\n` +
+            `   • New DeFi protocols launched\n` +
+            `   • NFT marketplace expansion\n\n` +
+            `💼 Regulatory updates\n` +
+            `   • SEC approves new crypto ETF\n` +
+            `   • EU finalizes MiCA regulations`;
+          
+          // Update the specific bubble with news content
+          setNewsBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, content: newsContent, loading: false }
+              : bubble
+          ))
+          
+          // 🧠 Update AI context with news data
+          const newsContext = {
+            news_data: {
+              content: newsContent,
+              timestamp: new Date().toISOString(),
+              source: 'Demo News Data'
+            }
+          };
+          
+          // Update global context for AI
+          if (window.contextAwarenessData) {
+            window.contextAwarenessData = {
+              ...window.contextAwarenessData,
+              ...newsContext
+            };
+          } else {
+            window.contextAwarenessData = newsContext;
+          }
+          
+          // Also update local state to keep them in sync
+          setContextAwarenessData(prev => ({
+            ...prev,
+            ...newsContext,
+            last_updated: new Date().toISOString()
+          }));
+          
+          console.log('🧠 Updated AI context with news data:', newsContext);
+          
+        } catch (error) {
+          console.error('News fetch error:', error)
+          
+          let errorContent = '❌ News Error\n\n'
+          errorContent += `Failed to load news\n\nError: ${error.message || 'Unknown error'}`;
+          
+          // Update the specific bubble with error
+          setNewsBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, content: errorContent, loading: false }
+              : bubble
+          ))
+        }
+      })()
+    }
+
+    // Handle Twitter bubble logic (like CoinGecko - direct API calls)
+    if (mentionsTwitter && isPluginEnabled('twitter')) {
+      console.log('🐦 Creating Twitter bubble for message:', message)
+      // Create new Twitter bubble instance
+      const newBubble = {
+        id: Date.now() + Math.random(), // Unique ID
+        title: 'Twitter/X Search',
+        content: 'Searching Twitter for crypto discussions...',
+        loading: true
+      }
+      
+      setTwitterBubbles(prev => [...prev, newBubble])
+      ;(async () => {
+        try {
+          // Always use the user's actual message as the search query
+          const searchQuery = message;
+          
+          console.log(`🐦 Twitter search query: "${searchQuery}"`);
+          
+          // Call Twitter API directly (like CoinGecko)
+          const data = await twitterService.searchTweets(searchQuery, 'Latest');
+          
+          // Show only the first tweet in the bubble (fits better)
+          let twitterText = `🐦 Twitter Search: "${searchQuery}"\n\n`;
+          
+          if (data.success && data.tweets && data.tweets.length > 0) {
+            const firstTweet = data.tweets[0];
+            twitterText += `@${firstTweet.user?.username || 'Unknown'}\n`;
+            twitterText += `${firstTweet.text || 'No text available'}\n`;
+            twitterText += `❤️ ${firstTweet.favorite_count || 0} | 🔄 ${firstTweet.retweet_count || 0}\n\n`;
+            twitterText += `+ ${data.tweets.length - 1} more tweets...`;
+          } else {
+            twitterText += 'No tweets found. Try a different search term.';
+          }
+          
+          // Update the specific bubble with Twitter results
+          setTwitterBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, content: twitterText, loading: false }
+              : bubble
+          ))
+          
+          // 🧠 Update AI context with Twitter data (ALL tweets for AI)
+          const twitterContext = {
+            twitter_data: {
+              search_query: searchQuery,
+              tweets: data.tweets || [], // ALL tweets for AI
+              total_tweets: data.tweets?.length || 0,
+              timestamp: new Date().toISOString(),
+              source: 'RapidAPI Twitter'
+            }
+          };
+          
+          // Update global context for AI
+          if (window.contextAwarenessData) {
+            window.contextAwarenessData = {
+              ...window.contextAwarenessData,
+              ...twitterContext
+            };
+          } else {
+            window.contextAwarenessData = twitterContext;
+          }
+          
+          // Also update local state to keep them in sync
+          setContextAwarenessData(prev => ({
+            ...prev,
+            ...twitterContext,
+            last_updated: new Date().toISOString()
+          }));
+          
+          console.log('🧠 Updated AI context with Twitter data:', twitterContext);
+          
+        } catch (error) {
+          console.error('Twitter search error:', error)
+          
+          let errorContent = '❌ Twitter Search Error\n\n'
+          if (error.message?.includes('fetch')) {
+            errorContent += `Network error\n\nCannot reach Twitter API\nCheck internet connection`;
+          } else {
+            errorContent += `Service unavailable\n\nTwitter API is currently down\nTry again later\n\nError: ${error.message || 'Unknown error'}`;
+          }
+          
+          // Update the specific bubble with error
+          setTwitterBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, content: errorContent, loading: false }
+              : bubble
+          ))
+        }
+      })()
+    }
 
     // Handle CoinGecko bubble logic (price mentions + specific coin)
     if (mentionsPrice && mentionedCoin && isPluginEnabled('coingecko')) {
@@ -992,6 +1450,41 @@ export default function Home() {
               ? { ...bubble, content: marketText, loading: false }
               : bubble
           ))
+          
+          // 🧠 Update AI context with specific coin data
+          const coinContext = {
+            coingecko_data: {
+              specific_coin: {
+                name: coinName,
+                symbol: data.symbol?.toUpperCase(),
+                price: marketData?.current_price,
+                market_cap: marketData?.market_cap,
+                volume_24h: marketData?.total_volume,
+                change_24h: marketData?.price_change_percentage_24h,
+                timestamp: new Date().toISOString()
+              },
+              source: 'CoinGecko API'
+            }
+          };
+          
+          // Update global context for AI
+          if (window.contextAwarenessData) {
+            window.contextAwarenessData = {
+              ...window.contextAwarenessData,
+              ...coinContext
+            };
+          } else {
+            window.contextAwarenessData = coinContext;
+          }
+          
+          // Also update local state to keep them in sync
+          setContextAwarenessData(prev => ({
+            ...prev,
+            ...coinContext,
+            last_updated: new Date().toISOString()
+          }));
+          
+          console.log('🧠 Updated AI context with specific coin data:', coinContext);
         } catch (e) {
           console.error('CoinGecko detailed data error:', e)
           // Update the specific bubble with error
@@ -1045,126 +1538,7 @@ export default function Home() {
     }
     // Keep CoinGecko bubble visible - building conversation bubble map
 
-    // Handle CoinStats bubble logic (specific token search)
-    if (mentionsCoinstats) {
-      // Improved token detection - prioritize context and "price of X" patterns
-      let detectedToken = null;
-      
-      // First, look for "price of X", "X price", "show me X" patterns
-      const contextPatterns = [
-        /(?:price of|price for|cost of|value of)\s+([a-zA-Z]+)/i,
-        /(?:show me|get|check|find)\s+([a-zA-Z]+)(?:\s+price|\s+coin|\s+token)?/i,
-        /([a-zA-Z]+)\s+(?:price|cost|value)$/i,
-        /\$([a-zA-Z]+)/i
-      ];
-      
-      for (const pattern of contextPatterns) {
-        const match = message.match(pattern);
-        if (match && match[1] && match[1].length >= 3) {
-          const token = match[1].toLowerCase();
-          // Verify it's a valid token name (not a common word)
-          if (!['the', 'and', 'for', 'with', 'what', 'how', 'why', 'when', 'where'].includes(token)) {
-            detectedToken = token;
-            break;
-          }
-        }
-      }
-      
-      // Use the same conservative token list as above
-      if (!detectedToken && potentialTokens.length > 0) {
-        // Prioritize tokens that appear after action words like "price", "buy", etc.
-        const actionWords = ['price', 'buy', 'sell', 'trade', 'swap', 'exchange', 'get', 'check'];
-        
-        for (let i = 0; i < words.length; i++) {
-          if (actionWords.includes(words[i]) && i + 1 < words.length) {
-            const nextWord = words[i + 1];
-            if (potentialTokens.includes(nextWord)) {
-              detectedToken = nextWord;
-              break;
-            }
-          }
-        }
-        
-        // If no token found after action words, use the first potential token
-        if (!detectedToken) {
-          detectedToken = potentialTokens[0];
-        }
-      }
-      
-      // Create new CoinStats bubble instance
-      const newBubble = {
-        id: Date.now() + Math.random(), // Unique ID
-        title: detectedToken ? `${detectedToken.toUpperCase()} - CoinStats` : 'Token Search - CoinStats',
-        content: detectedToken ? `Searching for ${detectedToken.toUpperCase()}...` : 'Searching for token...',
-        loading: true
-      }
-      
-      setCoinstatsBubbles(prev => [...prev, newBubble])
-      ;(async () => {
-        try {
-          let tokenText = '';
-          
-          if (detectedToken) {
-            // Try to search for the specific token
-            try {
-              const searchData = await coinstatsService.searchCoins(detectedToken);
-              
-              if (searchData.result && searchData.result.length > 0) {
-                const coin = searchData.result[0]; // Get first result
-                const change = coin.priceChange1d || 0;
-                const changeDirection = change > 0 ? '+' : '';
-                const price = coin.price > 1000 ? `${(coin.price/1000).toFixed(2)}k` : coin.price.toFixed(4);
-                const marketCap = coin.marketCap ? `$${(coin.marketCap/1e9).toFixed(2)}B` : 'N/A';
-                const volume = coin.volume ? `$${(coin.volume/1e6).toFixed(1)}M` : 'N/A';
-                
-                tokenText = `${coin.name} (${coin.symbol})\n\n`;
-                tokenText += `Price: $${price}\n`;
-                tokenText += `24h: ${changeDirection}${change.toFixed(2)}%\n`;
-                tokenText += `Market Cap: ${marketCap}\n`;
-                tokenText += `Volume: ${volume}\n`;
-                tokenText += `Rank: #${coin.rank || 'N/A'}`;
-                
-                // Update context awareness with CoinStats data
-                updateContextAwareness('market_data', detectedToken.toLowerCase(), {
-                  source: 'CoinStats',
-                  name: coin.name,
-                  symbol: coin.symbol,
-                  price: coin.price,
-                  change_24h: coin.priceChange1d,
-                  market_cap: coin.marketCap,
-                  volume_24h: coin.volume,
-                  rank: coin.rank
-                })
-              } else {
-                tokenText = `Token "${detectedToken.toUpperCase()}" not found\n\nTry searching for:\n• Bitcoin (BTC)\n• Ethereum (ETH)\n• Solana (SOL)\n• Popular tokens`;
-              }
-            } catch (searchError) {
-              console.error('Token search failed:', searchError);
-              tokenText = `"${detectedToken.toUpperCase()}" not found\n\nDouble-check the token name or try:\n• Bitcoin → "bitcoin price"\n• Ethereum → "eth price"\n• Solana → "solana price"`;
-            }
-          } else {
-            // No specific token detected
-            tokenText = `No specific token detected\n\nPlease specify a token:\n• "bitcoin price"\n• "ethereum price" \n• "solana price"\n• "cardano price"`;
-          }
-          
-          // Update the specific bubble
-          setCoinstatsBubbles(prev => prev.map(bubble => 
-            bubble.id === newBubble.id 
-              ? { ...bubble, content: tokenText, loading: false }
-              : bubble
-          ))
-        } catch (e) {
-          console.error('CoinStats error:', e)
-          // Update the specific bubble with error
-          setCoinstatsBubbles(prev => prev.map(bubble => 
-            bubble.id === newBubble.id 
-              ? { ...bubble, content: `CoinStats API Error\n\nTry asking for:\n• "bitcoin price"\n• "ethereum coin"\n• "solana price"`, loading: false }
-              : bubble
-          ))
-        }
-      })()
-    }
-    // Keep CoinStats bubble visible - building conversation bubble map
+    // CoinStats plugin DISABLED - was causing 404 errors
 
     // Handle Hedera bubble logic (hedera mentions)
     if (mentionsHedera) {
@@ -1230,6 +1604,34 @@ export default function Home() {
               ? { ...bubble, content: hederaText, loading: false }
               : bubble
           ))
+          
+          // 🧠 Update AI context with Hedera data
+          const hederaContext = {
+            hedera_data: {
+              network_info: data,
+              timestamp: new Date().toISOString(),
+              source: 'Hgraph API'
+            }
+          };
+          
+          // Update global context for AI
+          if (window.contextAwarenessData) {
+            window.contextAwarenessData = {
+              ...window.contextAwarenessData,
+              ...hederaContext
+            };
+          } else {
+            window.contextAwarenessData = hederaContext;
+          }
+          
+          // Also update local state to keep them in sync
+          setContextAwarenessData(prev => ({
+            ...prev,
+            ...hederaContext,
+            last_updated: new Date().toISOString()
+          }));
+          
+          console.log('🧠 Updated AI context with Hedera data:', hederaContext);
         } catch (e) {
           // Update the bubble with logError content
           setHederaBubbles(prev => prev.map(bubble => 
@@ -1351,6 +1753,35 @@ export default function Home() {
               ? { ...bubble, content: exchangeText, loading: false }
               : bubble
           ))
+          
+          // 🧠 Update AI context with ChangeNOW data
+          const changeNowContext = {
+            changenow_data: {
+              coin: mentionedCoin,
+              exchange_data: data,
+              timestamp: new Date().toISOString(),
+              source: 'ChangeNOW API'
+            }
+          };
+          
+          // Update global context for AI
+          if (window.contextAwarenessData) {
+            window.contextAwarenessData = {
+              ...window.contextAwarenessData,
+              ...changeNowContext
+            };
+          } else {
+            window.contextAwarenessData = changeNowContext;
+          }
+          
+          // Also update local state to keep them in sync
+          setContextAwarenessData(prev => ({
+            ...prev,
+            ...changeNowContext,
+            last_updated: new Date().toISOString()
+          }));
+          
+          console.log('🧠 Updated AI context with ChangeNOW data:', changeNowContext);
         } catch (e) {
           console.error('ChangeNOW error:', e)
           // Update the specific bubble with error
@@ -1939,18 +2370,7 @@ export default function Home() {
         />
       ))}
       
-      {/* Render all CoinStats bubble instances - only if plugin enabled */}
-      {isPluginEnabled('coinstats') && coinstatsBubbles.map(bubble => (
-        <FloatingCoinStatsBubble
-          key={bubble.id}
-          isOpen={true}
-          onClose={() => setCoinstatsBubbles(prev => prev.filter(b => b.id !== bubble.id))}
-          title={bubble.title}
-          content={bubble.content}
-          loading={bubble.loading}
-          addParticlesToSwarm={addParticlesToSwarm}
-        />
-      ))}
+      {/* CoinStats plugin DISABLED - was causing 404 errors */}
       
       {/* Render all ICP bubble instances - only if plugin enabled */}
       {isPluginEnabled('icp') && icpBubbles.map(bubble => (
@@ -2031,6 +2451,44 @@ export default function Home() {
           addParticlesToSwarm={addParticlesToSwarm}
         />
       ))}
+      
+      {/* Render all Web Search bubble instances - only if plugin enabled */}
+      {isPluginEnabled('openai') && webSearchBubbles.map(bubble => (
+        <FloatingWebSearchBubble
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setWebSearchBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          title={bubble.title}
+          content={bubble.content}
+          loading={bubble.loading}
+          addParticlesToSwarm={addParticlesToSwarm}
+        />
+      ))}
+      
+      {/* Render all News bubble instances - only if plugin enabled */}
+        {isPluginEnabled('news') && newsBubbles.map(bubble => (
+          <FloatingNewsBubble
+            key={bubble.id}
+            isOpen={true}
+            onClose={() => setNewsBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+            title={bubble.title}
+            content={bubble.content}
+            loading={bubble.loading}
+            addParticlesToSwarm={addParticlesToSwarm}
+          />
+        ))}
+        
+        {isPluginEnabled('twitter') && twitterBubbles.map(bubble => (
+          <FloatingTwitterBubble
+            key={bubble.id}
+            isOpen={true}
+            onClose={() => setTwitterBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+            title={bubble.title}
+            content={bubble.content}
+            loading={bubble.loading}
+            addParticlesToSwarm={addParticlesToSwarm}
+          />
+        ))}
       
       {/* In-App Browser */}
       <InAppBrowser

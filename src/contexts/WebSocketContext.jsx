@@ -880,8 +880,15 @@ You have direct access to 0x Protocol through function calling tools:
 1. **getSwapPrice()**: Get price estimates for any token pair
 2. **getSwapQuote()**: Get detailed quotes with gas estimates and transaction data  
 3. **executeSwap()**: Execute token swaps directly (prepares transaction for wallet confirmation)
-4. **Check balances**: Verify available funds before trading
-5. **Explain trades**: Break down slippage, gas costs, and price impact
+4. **webSearch()**: Search the web for real-time cryptocurrency information, prices, trends, and news
+5. **Check balances**: Verify available funds before trading
+6. **Explain trades**: Break down slippage, gas costs, and price impact
+
+WEB SEARCH CAPABILITIES:
+- Use webSearch() for trending tokens, current market analysis, and real-time crypto news
+- Search for specific token prices, market caps, and trading volumes
+- Get latest cryptocurrency trends and market movements
+- Find current information about new tokens or projects
 
 IMPORTANT: You can execute swaps autonomously! When a user wants to swap tokens:
 - Call getSwapPrice() first to show them the rate
@@ -942,6 +949,8 @@ ${isWalletConnected ? '✅ Wallet Connected' : '❌ No Wallet Connected'}
 User Address: ${address || 'Not Available'}
 Wallet Type: ${connector?.name || 'None'}
 Connection Status: ${isWalletConnected ? 'Active' : 'Disconnected'}
+
+IMPORTANT: You have access to live market data in the CURRENT CONTEXT DATA above. ALWAYS check this data first before saying you cannot find information. The context data contains real-time prices, market caps, and trading information that you should use to answer user questions.
 
 Remember: You have access to live market data, sentiment analysis, exchange rates, and portfolio information through the bubbles system. Use this data to provide accurate, up-to-date responses!`
         }

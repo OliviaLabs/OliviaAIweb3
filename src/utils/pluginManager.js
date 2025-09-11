@@ -29,15 +29,16 @@ export const AVAILABLE_PLUGINS = {
     category: 'Market Data',
     color: 'green'
   },
-  coinstats: {
-    id: 'coinstats',
-    name: 'CoinStats',
-    description: 'Portfolio tracking and market analytics',
-    detailedDescription: 'CoinStats is a leading cryptocurrency portfolio management platform trusted by over 1 million users worldwide. It offers real-time portfolio tracking, profit/loss analytics, and market insights across 300+ exchanges and 8000+ cryptocurrencies.',
-    logo: coinstatsLogo,
-    category: 'Market Data',
-    color: 'blue'
-  },
+  // coinstats: DISABLED - causing 404 errors
+  // {
+  //   id: 'coinstats',
+  //   name: 'CoinStats',
+  //   description: 'Portfolio tracking and market analytics',
+  //   detailedDescription: 'CoinStats is a leading cryptocurrency portfolio management platform trusted by over 1 million users worldwide. It offers real-time portfolio tracking, profit/loss analytics, and market insights across 300+ exchanges and 8000+ cryptocurrencies.',
+  //   logo: coinstatsLogo,
+  //   category: 'Market Data',
+  //   color: 'blue'
+  // },
   icp: {
     id: 'icp',
     name: 'ICP',
@@ -91,6 +92,24 @@ export const AVAILABLE_PLUGINS = {
     logo: alchemyLogo,
     category: 'Analytics',
     color: 'blue'
+  },
+  news: {
+    id: 'news',
+    name: 'Crypto News',
+    description: 'Latest cryptocurrency news and market updates',
+    detailedDescription: 'Stay informed with the latest cryptocurrency news, market analysis, and breaking updates from the crypto world. Get real-time news from top sources like CoinDesk, Cointelegraph, and CryptoSlate.',
+    logo: coingeckoIcon, // We'll use coingecko icon for now
+    category: 'News',
+    color: 'red'
+  },
+  twitter: {
+    id: 'twitter',
+    name: 'Twitter/X',
+    description: 'Search Twitter for real-time crypto discussions and trends',
+    detailedDescription: 'Search Twitter (now X) for real-time cryptocurrency discussions, trending topics, and community sentiment. Get the latest tweets about crypto projects, market movements, and community reactions.',
+    logo: '/x-icon.avif',
+    category: 'Social',
+    color: 'black'
   }
 };
 
@@ -106,7 +125,7 @@ export const getPluginStates = () => {
   }
   
   // Default: enable core trading and portfolio plugins
-  const defaultEnabledPlugins = ['zerox', 'portfolio', 'coinstats', 'changenow'];
+  const defaultEnabledPlugins = ['zerox', 'portfolio', 'changenow', 'twitter', 'coingecko', 'lurky'];
   return Object.keys(AVAILABLE_PLUGINS).reduce((acc, pluginId) => {
     acc[pluginId] = defaultEnabledPlugins.includes(pluginId);
     return acc;

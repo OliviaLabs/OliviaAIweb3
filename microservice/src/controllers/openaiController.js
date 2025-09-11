@@ -4,13 +4,14 @@ import { getSwapPrice, getSwapQuote } from './zeroXController.js';
 import { TOKENS, resolveTokenStrict } from '../lib/tokens.js';
 import { formatSwapFrom0x } from '../lib/quoteFormatter.js';
 
-export const ALLOWED_TOOLS = new Set(["getSwapPrice", "getSwapQuote", "executeSwap"]);
+export const ALLOWED_TOOLS = new Set(["getSwapPrice", "getSwapQuote", "executeSwap", "webSearch"]);
 export const TOOL_POLICY_SYSTEM = `
-You may only call: getSwapPrice, getSwapQuote, executeSwap.
-Do NOT call CoinStats/Coingecko/etc.
-Never invent prices or fees; only display values from 0x responses.
+You may call: getSwapPrice, getSwapQuote, executeSwap, webSearch.
+For crypto prices and market data, use webSearch to get real-time information.
+Never invent prices or fees; only display values from API responses.
 Always treat buyAmount/sellAmount as base units and convert with token decimals.
 When user confirms a swap, call executeSwap to prepare the transaction data.
+Use webSearch for trending tokens, market analysis, and current crypto news.
 `;
 
 // Helper to call Express‑style controllers in‑process and capture JSON
@@ -36,10 +37,56 @@ export async function handleToolCall({ functionName, functionArgs, session }) {
     return { status: 400, success: false, error: `Tool ${functionName} not allowed` };
   }
 
+  // For webSearch, we don't need token resolution
+  if (functionName === "webSearch") {
+    console.log('🔍 webSearch called with args:', functionArgs);
+    
+    try {
+      const searchQuery = functionArgs.query || functionArgs.searchQuery;
+      if (!searchQuery) {
+        return {
+          success: false,
+          error: 'Search query is required',
+          message: 'Please provide a search query'
+        };
+      }
+
+      const searchUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(searchQuery)}&format=json&no_html=1&skip_disambig=1`;
+      const response = await fetch(searchUrl);
+      const data = await response.json();
+      
+      let searchResults = {
+        query: searchQuery,
+        results: []
+      };
+
+      if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+        searchResults.results = data.RelatedTopics.slice(0, 5).map((topic, index) => ({
+          title: topic.Text || `Result ${index + 1}`,
+          snippet: topic.Text || 'No description available',
+          url: topic.FirstURL || '#'
+        }));
+      }
+
+      return {
+        success: true,
+        data: searchResults,
+        message: `I found information about "${searchQuery}". ${searchResults.results[0]?.snippet || 'No results found.'}`
+      };
+    } catch (error) {
+      console.error('Web search error:', error);
+      return {
+        success: false,
+        error: error.message,
+        message: 'Failed to search the web. Please try again.'
+      };
+    }
+  }
+
   const { chainId, userAddress } = injectWalletContext(functionArgs, session);
   const cid = Number(chainId);
 
-  // Resolve token infos for correct decimals
+  // Resolve token infos for correct decimals (only for trading functions)
   const sellInfo = resolveTokenStrict(cid, functionArgs.sellToken);
   const buyInfo  = resolveTokenStrict(cid, functionArgs.buyToken);
   const chainLabel = cid === 1 ? "Ethereum" : cid === 8453 ? "Base (8453)" : `Chain ${cid}`;
@@ -141,6 +188,7 @@ export async function handleToolCall({ functionName, functionArgs, session }) {
     console.log('🎯 executeSwap returning:', result);
     return result;
   }
+
 }
 
 // Initialize OpenAI client
@@ -192,6 +240,23 @@ export class OpenAIController {
 
       // Define trading function tools for OpenAI
       const tradingTools = [
+        {
+          type: "function",
+          function: {
+            name: "webSearch",
+            description: "Search the web for real-time cryptocurrency information, prices, trends, and news",
+            parameters: {
+              type: "object",
+              properties: {
+                query: {
+                  type: "string",
+                  description: "Search query for cryptocurrency information, prices, trends, or news"
+                }
+              },
+              required: ["query"]
+            }
+          }
+        },
         {
           type: "function",
           function: {

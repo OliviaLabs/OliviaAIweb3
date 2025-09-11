@@ -36,7 +36,7 @@ export * as authService from './services/auth.service.js';
 export { aiService } from './services/ai.service.js';
 export { lurkyService } from './services/lurky.service.js';
 export { coingeckoService } from './services/coingecko.service.js';
-export { coinstatsService } from './services/coinstats.service.js';
+// export { coinstatsService } from './services/coinstats.service.js'; // DISABLED
 export { changeNowService } from './services/changenow.service.js';
 export { hgraphService } from './services/hgraph.service.js';
 export { icpService } from './services/icp.service.js';
