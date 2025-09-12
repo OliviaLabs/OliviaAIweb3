@@ -3,6 +3,11 @@ export const API_GATEWAY_JWT = import.meta.env.VITE_API_GATEWAY_JWT;
 
 // Secure OpenAI Microservice Configuration
 const OPENAI_MICROSERVICE_URL = import.meta.env.VITE_OPENAI_MICROSERVICE_URL || (window.location.hostname === 'oliviaaiweb3-1.onrender.com' ? 'https://oliviaaiweb3-1.onrender.com' : 'http://localhost:3001');
+
+// Debug log to see what URL is being used
+console.log('🔍 OpenAI Microservice URL:', OPENAI_MICROSERVICE_URL);
+console.log('🔍 Environment variable:', import.meta.env.VITE_OPENAI_MICROSERVICE_URL);
+console.log('🔍 Hostname:', window.location.hostname);
 const OPENAI_MICROSERVICE_TOKEN = import.meta.env.VITE_APP_ACCESS_TOKEN;
 const SECURE_WEBSOCKET_URL = OPENAI_MICROSERVICE_URL.replace('http', 'ws') + '/ws/secure-proxy';
 
