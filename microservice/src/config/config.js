@@ -26,7 +26,7 @@ export const config = {
   okxPassphrase: process.env.OKX_PASSPHRASE,
   okxDexBaseUrl: process.env.OKX_DEX_BASE_URL || 'https://www.okx.com/api/v5/dex/aggregator',
   zeroXApiKey: process.env.ZERO_EX_API_KEY,
-  allowedOrigin: process.env.ALLOWED_ORIGIN || 'http://localhost:3000',
+  allowedOrigin: process.env.ALLOWED_ORIGIN || 'http://localhost:3001',
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000, // 15 minutes
   rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
   

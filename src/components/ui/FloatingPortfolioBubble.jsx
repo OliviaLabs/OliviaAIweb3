@@ -200,7 +200,7 @@ const FloatingPortfolioBubble = ({
       console.log('🚀 Auto-fetching tokens for connected wallet');
       fetchTokenBalances();
     }
-  }, [isConnected, address, fetchTokenBalances, tokenBalances.length, isFetchingTokens]);
+  }, [isConnected, address, tokenBalances.length, isFetchingTokens]);
   
   useEffect(() => {
     if (nativeBalance && !balanceLoading) {
@@ -241,7 +241,7 @@ const FloatingPortfolioBubble = ({
         });
       }
     }
-  }, [nativeBalance, balanceLoading, address, chain, isExpanded, isConnected, updateAIContext, fetchTokenBalances, tokenBalances]);
+  }, [nativeBalance, balanceLoading, address, chain, isExpanded, isConnected, updateAIContext, tokenBalances]);
 
   // Initialize position
   useEffect(() => {

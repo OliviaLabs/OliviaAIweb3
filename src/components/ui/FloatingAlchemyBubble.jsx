@@ -80,7 +80,7 @@ const FloatingAlchemyBubble = ({
     if (isExpanded && isConnected && !tokenBalances && !isLoadingTokens) {
       fetchTokenBalances();
     }
-  }, [isExpanded, isConnected, fetchTokenBalances, tokenBalances, isLoadingTokens]);
+  }, [isExpanded, isConnected, tokenBalances, isLoadingTokens]);
 
   // Initialize position
   useEffect(() => {

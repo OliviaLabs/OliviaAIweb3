@@ -7,6 +7,7 @@ import { useAccountUpgrade } from '../hooks/useAccountUpgrade';
 import { icpService } from '../api/services/icp.service.js';
 import { lurkyService, coingeckoService, hgraphService, changeNowService } from '../api';
 import { twitterService } from '../api/services/twitter.service.js';
+import protokolsService from '../api/services/protokols.service.js';
 import { OPENAI_MICROSERVICE_CONFIG } from '../api/config/endpoints.js';
 import { log, error as logError } from '../utils/logger.js';
 import FloatingLurkyBubble from '../components/ui/FloatingLurkyBubble.jsx';
@@ -20,6 +21,7 @@ import FloatingAlchemyBubble from '../components/ui/FloatingAlchemyBubble.jsx';
 import FloatingWebSearchBubble from '../components/ui/FloatingWebSearchBubble.jsx';
 import FloatingNewsBubble from '../components/ui/FloatingNewsBubble.jsx';
 import FloatingTwitterBubble from '../components/ui/FloatingTwitterBubble.jsx';
+import FloatingProtokolsBubble from '../components/ui/FloatingProtokolsBubble.jsx';
 import InAppBrowser from '../components/ui/InAppBrowser.jsx';
 
 export default function Home() {
@@ -45,6 +47,7 @@ export default function Home() {
   const [webSearchBubbles, setWebSearchBubbles] = useState([])
   const [newsBubbles, setNewsBubbles] = useState([])
   const [twitterBubbles, setTwitterBubbles] = useState([])
+  const [protokolsBubbles, setProtokolsBubbles] = useState([])
 
   // Context awareness data for AI chat
   const [contextAwarenessData, setContextAwarenessData] = useState({
@@ -825,6 +828,10 @@ export default function Home() {
     const mentionsAlchemy = /\b(all tokens|token list|detailed balance|all my tokens|every token|alchemy)\b/i.test(message)
     console.log('🔮 Alchemy trigger check:', { message, mentionsAlchemy, isPluginEnabled: isPluginEnabled('alchemy') })
     
+    // Detect Protokols mentions (KOLs, influencers, social analytics)
+    const mentionsProtokols = /\b(kols|kol|influencers|influencer|social analytics|trending kols|narratives|mindshare)\b/i.test(message)
+    console.log('🔮 Protokols trigger check:', { message, mentionsProtokols, isPluginEnabled: isPluginEnabled('protokols') })
+    
     // Add user message to conversation
     setMessages(prev => [...prev, { type: 'user', content: message }])
     setUserInput('')
@@ -1366,6 +1373,138 @@ export default function Home() {
           
           // Update the specific bubble with error
           setTwitterBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, content: errorContent, loading: false }
+              : bubble
+          ))
+        }
+      })()
+    }
+
+    // Handle Protokols bubble logic (KOLs, influencers, social analytics)
+    if (mentionsProtokols && isPluginEnabled('protokols')) {
+      console.log('🔮 Creating Protokols bubble for message:', message)
+      // Create new Protokols bubble instance
+      const newBubble = {
+        id: Date.now() + Math.random(), // Unique ID
+        title: 'Protokols KOL Analytics',
+        content: 'Loading KOL insights and social analytics...',
+        loading: true
+      }
+      
+      setProtokolsBubbles(prev => [...prev, newBubble])
+      ;(async () => {
+        try {
+          // Use the user's message as the search query
+          const searchQuery = message;
+          
+          console.log(`🔮 Protokols search query: "${searchQuery}"`);
+          
+          // Call Protokols API for comprehensive social analysis
+          const data = await protokolsService.getCryptoSocialAnalysis({ query: searchQuery });
+          
+          let protokolsText = `🔮 Protokols Analysis: "${searchQuery}"\n\n`;
+          
+          if (data.success && data.data) {
+            const analysis = data.data;
+            
+            // Add trending KOLs
+            if (analysis.trendingKOLs?.success && analysis.trendingKOLs.data?.kols?.length > 0) {
+              protokolsText += `**Top Trending KOLs:**\n`;
+              analysis.trendingKOLs.data.kols.slice(0, 3).forEach((kol, index) => {
+                protokolsText += `${index + 1}. ${kol.username || kol.name || 'Unknown'}\n`;
+                if (kol.followers_count) protokolsText += `   👥 ${kol.followers_count.toLocaleString()} followers\n`;
+                if (kol.engagement_rate) protokolsText += `   📈 ${kol.engagement_rate}% engagement\n`;
+                protokolsText += `\n`;
+              });
+            }
+            
+            // Add trending projects
+            if (analysis.trendingProjects?.success && analysis.trendingProjects.data?.projects?.length > 0) {
+              protokolsText += `**Trending Projects:**\n`;
+              analysis.trendingProjects.data.projects.slice(0, 3).forEach((project, index) => {
+                protokolsText += `${index + 1}. ${project.name || project.symbol || 'Unknown'}\n`;
+                if (project.market_cap) protokolsText += `   💰 $${project.market_cap.toLocaleString()}\n`;
+                if (project.views) protokolsText += `   👀 ${project.views.toLocaleString()} views\n`;
+                protokolsText += `\n`;
+              });
+            }
+            
+            // Add narratives
+            if (analysis.narratives?.success && analysis.narratives.data?.narratives?.length > 0) {
+              protokolsText += `**Top Narratives:**\n`;
+              analysis.narratives.data.narratives.slice(0, 3).forEach((narrative, index) => {
+                protokolsText += `${index + 1}. ${narrative.name || narrative.title || 'Unknown'}\n`;
+                if (narrative.market_cap) protokolsText += `   💰 $${narrative.market_cap.toLocaleString()}\n`;
+                protokolsText += `\n`;
+              });
+            }
+            
+            // Add posts if available
+            if (analysis.posts?.success && analysis.posts.data?.posts?.length > 0) {
+              protokolsText += `**Recent Posts:**\n`;
+              analysis.posts.data.posts.slice(0, 2).forEach((post, index) => {
+                protokolsText += `${index + 1}. ${post.text?.substring(0, 100) || 'No text'}...\n`;
+                if (post.likes) protokolsText += `   ❤️ ${post.likes} likes\n`;
+                protokolsText += `\n`;
+              });
+            }
+            
+            if (!analysis.trendingKOLs?.success && !analysis.trendingProjects?.success && !analysis.narratives?.success) {
+              protokolsText += 'No KOL data found. Try different keywords like "trending kols" or "crypto narratives".';
+            }
+          } else {
+            protokolsText += 'No KOL insights found. Try different keywords.';
+          }
+          
+          // Update the specific bubble with Protokols results
+          setProtokolsBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, content: protokolsText, loading: false }
+              : bubble
+          ))
+          
+          // 🧠 Update AI context with Protokols data
+          const protokolsContext = {
+            protokols_data: {
+              search_query: searchQuery,
+              analysis: data.data || {},
+              timestamp: new Date().toISOString(),
+              source: 'Protokols API'
+            }
+          };
+          
+          // Update global context for AI
+          if (window.contextAwarenessData) {
+            window.contextAwarenessData = {
+              ...window.contextAwarenessData,
+              ...protokolsContext
+            };
+          } else {
+            window.contextAwarenessData = protokolsContext;
+          }
+          
+          // Also update local state to keep them in sync
+          setContextAwarenessData(prev => ({
+            ...prev,
+            ...protokolsContext,
+            last_updated: new Date().toISOString()
+          }));
+          
+          console.log('🧠 Updated AI context with Protokols data:', protokolsContext);
+          
+        } catch (error) {
+          console.error('Protokols search error:', error)
+          
+          let errorContent = '❌ Protokols Error\n\n'
+          if (error.message?.includes('fetch')) {
+            errorContent += `Network error\n\nCannot reach Protokols API\nCheck internet connection`;
+          } else {
+            errorContent += `Service unavailable\n\nProtokols API is currently down\nTry again later\n\nError: ${error.message || 'Unknown error'}`;
+          }
+          
+          // Update the specific bubble with error
+          setProtokolsBubbles(prev => prev.map(bubble => 
             bubble.id === newBubble.id 
               ? { ...bubble, content: errorContent, loading: false }
               : bubble
@@ -2484,6 +2623,18 @@ export default function Home() {
             key={bubble.id}
             isOpen={true}
             onClose={() => setTwitterBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+            title={bubble.title}
+            content={bubble.content}
+            loading={bubble.loading}
+            addParticlesToSwarm={addParticlesToSwarm}
+          />
+        ))}
+        
+        {isPluginEnabled('protokols') && protokolsBubbles.map(bubble => (
+          <FloatingProtokolsBubble
+            key={bubble.id}
+            isOpen={true}
+            onClose={() => setProtokolsBubbles(prev => prev.filter(b => b.id !== bubble.id))}
             title={bubble.title}
             content={bubble.content}
             loading={bubble.loading}

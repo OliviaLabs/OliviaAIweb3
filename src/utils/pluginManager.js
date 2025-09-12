@@ -8,6 +8,7 @@ import coinstatsLogo from '../api/services/coinstats-2.png';
 import walletConnectLogo from '../assets/wallet-connect.png';
 import alchemyLogo from '../assets/alchemy-logo.jpg';
 import zeroXLogo from '../assets/0x-logo.png';
+import kolsIcon from '../assets/KOLS.png';
 
 // Define available plugins with metadata
 export const AVAILABLE_PLUGINS = {
@@ -110,6 +111,15 @@ export const AVAILABLE_PLUGINS = {
     logo: '/x-icon.avif',
     category: 'Social',
     color: 'black'
+  },
+  protokols: {
+    id: 'protokols',
+    name: 'Protokols',
+    description: 'KOL insights and crypto social analytics',
+    detailedDescription: 'Protokols provides comprehensive data and analytics on crypto Key Opinion Leaders (KOLs), projects, narratives, and market trends. Track trending KOLs, analyze narratives, and get real-time social sentiment.',
+    logo: kolsIcon,
+    category: 'Analytics',
+    color: 'purple'
   }
 };
 
