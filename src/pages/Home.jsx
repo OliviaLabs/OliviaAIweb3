@@ -2013,7 +2013,7 @@ export default function Home() {
             const formattedSwap = finalSwapInfo;
             
             // Get swap price from 0x API
-            const swapData = await fetch(`http://localhost:3001/api/zerox/price?chainId=1&sellToken=${formattedSwap.sellToken}&buyToken=${formattedSwap.buyToken}&sellAmount=${formattedSwap.sellAmount}`, {
+            const swapData = await fetch(`${import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3001'}/api/zerox/price?chainId=1&sellToken=${formattedSwap.sellToken}&buyToken=${formattedSwap.buyToken}&sellAmount=${formattedSwap.sellAmount}`, {
               method: 'GET',
               headers: {
                 'Content-Type': 'application/json',

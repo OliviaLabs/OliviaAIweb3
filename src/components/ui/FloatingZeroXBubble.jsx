@@ -8,7 +8,7 @@ import zeroXLogo from '../../assets/0x-logo.png';
 // 0x Protocol Trading Parameter Extraction Service
 const extractTradingParameters = async (input) => {
   try {
-    const response = await fetch('http://localhost:3001/api/openai/extract-trading', {
+    const response = await fetch(`${import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3001'}/api/openai/extract-trading`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

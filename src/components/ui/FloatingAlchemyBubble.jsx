@@ -33,7 +33,7 @@ const FloatingAlchemyBubble = ({
     setIsLoadingTokens(true);
     try {
       // Call the portfolio API for multi-chain data
-      const response = await fetch(`http://localhost:3001/api/portfolio/${address}`);
+      const response = await fetch(`${import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3001'}/api/portfolio/${address}`);
       const data = await response.json();
       
       if (data.success && data.data) {
