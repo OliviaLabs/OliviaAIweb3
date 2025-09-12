@@ -2,6 +2,8 @@ import express from 'express';
 import helmet from 'helmet';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { config } from './config/config.js';
 import { corsMiddleware } from './middleware/cors.js';
 import { createRateLimiter } from './middleware/rateLimiter.js';
@@ -52,6 +54,18 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api', routes);
+
+// Get __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Serve static files from the frontend build
+app.use(express.static(path.join(__dirname, '../../dist')));
+
+// Catch-all handler: send back React's index.html file for any non-API routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../../dist/index.html'));
+});
 
 // Global error handler
 app.use((error, req, res, next) => {
