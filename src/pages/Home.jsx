@@ -506,8 +506,10 @@ export default function Home() {
   useEffect(() => {
     const handleMessage = (data) => {
       log('📨 Received message:', data)
+      console.log('📨 Home.jsx received message:', data)
       
       if (data.type === 'stream_chunk') {
+        log('📨 Processing stream_chunk:', data.data?.text)
         setCurrentResponse(prev => prev + (data.data?.text || data.content || ''))
         setIsLoading(false)
       } else if (data.type === 'stream_complete') {
@@ -2001,29 +2003,28 @@ export default function Home() {
     }
     // Keep 0x Protocol bubble visible - building conversation bubble map
 
-    // Handle Portfolio bubble logic (wallet/balance mentions)
-    if (mentionsPortfolio && isPluginEnabled('portfolio')) {
-      // Create new Portfolio bubble instance
+    // Handle Portfolio bubble logic (wallet/balance mentions) - NOW USING ALCHEMY
+    if (mentionsPortfolio && isPluginEnabled('alchemy')) {
+      // Create new Alchemy bubble instance for portfolio data
       const newBubble = {
         id: Date.now() + Math.random(), // Unique ID
-        title: 'Portfolio',
+        title: 'Alchemy Portfolio',
         content: 'Loading wallet data...',
         loading: true
       }
       
-      setPortfolioBubbles(prev => [...prev, newBubble])
+      setAlchemyBubbles(prev => [...prev, newBubble])
       
-      // The bubble component itself handles fetching wallet data via wagmi hooks
-      // Update context awareness with wallet connection status
-      updateContextAwareness('portfolio_data', 'wallet', {
-        source: 'Portfolio',
+      // Update context awareness with alchemy portfolio data
+      updateContextAwareness('wallet_data', 'alchemy', {
+        source: 'Alchemy Portfolio',
         connected: true, // The bubble will update this with actual data
-        message: 'Portfolio bubble opened - wallet data available in bubble'
+        message: 'Alchemy Portfolio bubble opened - multi-chain wallet data available'
       })
       
       // After a short delay, mark as loaded (the bubble component handles actual data)
       setTimeout(() => {
-        setPortfolioBubbles(prev => prev.map(bubble => 
+        setAlchemyBubbles(prev => prev.map(bubble => 
           bubble.id === newBubble.id 
             ? { ...bubble, loading: false }
             : bubble

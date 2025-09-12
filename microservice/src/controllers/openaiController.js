@@ -28,8 +28,8 @@ async function callController(controller, query) {
 
 function injectWalletContext(functionArgs, session) {
   const chainId = functionArgs.chainId || session?.walletChainId || 1;
-  const userAddress = functionArgs.userAddress || session?.walletAddress || undefined;
-  return { chainId, userAddress };
+  const taker = functionArgs.taker || session?.walletAddress || undefined;
+  return { chainId, taker };
 }
 
 export async function handleToolCall({ functionName, functionArgs, session }) {
@@ -83,7 +83,7 @@ export async function handleToolCall({ functionName, functionArgs, session }) {
     }
   }
 
-  const { chainId, userAddress } = injectWalletContext(functionArgs, session);
+  const { chainId, taker } = injectWalletContext(functionArgs, session);
   const cid = Number(chainId);
 
   // Resolve token infos for correct decimals (only for trading functions)
@@ -96,7 +96,7 @@ export async function handleToolCall({ functionName, functionArgs, session }) {
       sellToken: functionArgs.sellToken,
       buyToken: functionArgs.buyToken,
       sellAmount: functionArgs.sellAmountHuman || functionArgs.sellAmount,
-      taker: userAddress,
+      taker: taker,
       chainId: cid
     });
 
@@ -115,12 +115,21 @@ export async function handleToolCall({ functionName, functionArgs, session }) {
   }
 
   if (functionName === "getSwapQuote") {
+    console.log('🔄 Calling getSwapQuote with params:', {
+      sellToken: functionArgs.sellToken,
+      buyToken: functionArgs.buyToken,
+      sellAmount: functionArgs.sellAmountHuman || functionArgs.sellAmount,
+      slippageBps: functionArgs.slippageBps ?? 50,
+      taker: taker,
+      chainId: cid
+    });
+    
     const raw = await callController(getSwapQuote, {
       sellToken: functionArgs.sellToken,
       buyToken: functionArgs.buyToken,
       sellAmount: functionArgs.sellAmountHuman || functionArgs.sellAmount,
       slippageBps: functionArgs.slippageBps ?? 50,
-      taker: userAddress,
+      taker: taker,
       chainId: cid
     });
 
@@ -140,7 +149,7 @@ export async function handleToolCall({ functionName, functionArgs, session }) {
 
   if (functionName === "executeSwap") {
     console.log('🎯 executeSwap called with args:', functionArgs);
-    console.log('🎯 userAddress:', userAddress, 'chainId:', cid);
+    console.log('🎯 taker:', taker, 'chainId:', cid);
     
     // For executeSwap, we need to get the quote with transaction data
     const raw = await callController(getSwapQuote, {
@@ -148,7 +157,7 @@ export async function handleToolCall({ functionName, functionArgs, session }) {
       buyToken: functionArgs.buyToken,
       sellAmount: functionArgs.sellAmountHuman || functionArgs.sellAmount,
       slippageBps: functionArgs.slippageBps ?? 50,
-      taker: userAddress,
+      taker: taker,
       chainId: cid
     });
     
@@ -206,7 +215,7 @@ export class OpenAIController {
    */
   static async generateChatCompletion(req, res) {
     try {
-      const { messages, model = 'gpt-3.5-turbo', max_tokens = 1000, temperature = 0.7 } = req.body;
+      const { messages, model = 'gpt-3.5-turbo', max_tokens = 1000, temperature = 0.7, taker, chainId } = req.body;
 
       console.log('📧 Messages Content --> ', messages); 
 
@@ -277,7 +286,7 @@ export class OpenAIController {
                   type: "string",
                   description: "Amount to sell (in token units)"
                 },
-                userAddress: {
+                taker: {
                   type: "string",
                   description: "User wallet address"
                 }
@@ -331,12 +340,12 @@ export class OpenAIController {
                   type: "string",
                   description: "Amount to sell (in token units)"
                 },
-                userAddress: {
+                taker: {
                   type: "string",
                   description: "User wallet address"
                 }
               },
-              required: ["sellToken", "buyToken", "sellAmount", "userAddress"]
+              required: ["sellToken", "buyToken", "sellAmount", "taker"]
             }
           }
         }
@@ -371,8 +380,16 @@ export class OpenAIController {
             // Use the new handleToolCall function with proper formatting
             const result = await handleToolCall({
               functionName,
-              functionArgs,
-              session: req.session // Pass session for wallet context
+              functionArgs: {
+                ...functionArgs,
+                taker: taker || functionArgs.taker,
+                chainId: chainId || functionArgs.chainId
+              },
+              session: {
+                ...req.session,
+                walletAddress: taker || req.session?.walletAddress,
+                walletChainId: chainId || req.session?.walletChainId
+              }
             });
             
             // Special handling for executeSwap - trigger wallet transaction

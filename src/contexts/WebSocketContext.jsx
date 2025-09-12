@@ -816,6 +816,7 @@ export const WebSocketProvider = ({ children }) => {
 
 
   const sendMessage = useCallback(async (message, conversationHistory = [], searchEnabled = false, imageEnabled = false) => {
+    log('🤖 sendMessage called with:', { message, conversationHistory: conversationHistory.length, searchEnabled, imageEnabled });
     const requestId = generateRequestId();
     const userOptions = extractUserOptions();
     
@@ -969,17 +970,29 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
       openaiMessages.push({ role: 'user', content: message });
       
       // Call OpenAI API through your microservice (non-streaming for now)
-      const response = await fetch('http://localhost:3001/api/openai/chat/completions', {
+      const apiUrl = `${OPENAI_MICROSERVICE_CONFIG.URL}/api/openai/chat/completions`;
+      log('🔗 Making API call to:', apiUrl);
+      log('📝 Request body:', JSON.stringify({
+        messages: openaiMessages,
+        max_tokens: 200,
+        temperature: 0.7,
+        taker: address,
+        chainId: 1
+      }, null, 2));
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer dev-token'
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`
         },
         body: JSON.stringify({
           messages: openaiMessages,
-          model: 'gpt-4',
-          max_tokens: 1000,
-          temperature: 0.7
+          model: 'gpt-4o-mini',          // tools-capable model
+          max_tokens: 200,
+          temperature: 0.7,
+          taker: address,
+          chainId: 1  // Use Ethereum as default
         })
       });
       
@@ -989,7 +1002,23 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
       }
       
       const result = await response.json();
-      const fullResponse = result.data?.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.';
+      
+      // Handle function call results
+      let fullResponse = 'Sorry, I could not generate a response.';
+      
+      if (result.data?.choices?.[0]?.message?.content) {
+        fullResponse = result.data.choices[0].message.content;
+      } else if (result.data?.choices?.[0]?.message?.tool_calls) {
+        // Handle function call results
+        const toolCalls = result.data.choices[0].message.tool_calls;
+        if (toolCalls && toolCalls.length > 0) {
+          // Get the function call results from the response
+          const functionResults = result.data.functionResults || [];
+          if (functionResults.length > 0) {
+            fullResponse = functionResults.map(r => r.message || r.ui || 'Function executed').join('\n\n');
+          }
+        }
+      }
       
       // Check for wallet transactions that need approval
       if (result.data?.walletTransactions && result.data.walletTransactions.length > 0) {
@@ -1034,9 +1063,11 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
       
       // Simulate streaming by sending the response in chunks
       const words = fullResponse.split(' ');
+      log('🤖 Simulating streaming with', words.length, 'words');
       
       for (let i = 0; i < words.length; i++) {
         // Simulate WebSocket stream_chunk message
+        log('🤖 Sending stream_chunk:', words[i]);
         messageHandlersRef.current.forEach(handler => {
           handler({
             type: 'stream_chunk',
@@ -1050,6 +1081,7 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
       }
       
       // Simulate stream_complete message
+      log('🤖 Sending stream_complete with full response:', fullResponse);
       messageHandlersRef.current.forEach(handler => {
         handler({
           type: 'stream_complete',
@@ -1064,13 +1096,33 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
     } catch (err) {
       error('❌ OpenAI API call failed:', err);
       
+      // Determine error message based on error type
+      let errorMessage = 'Sorry, I\'m having trouble connecting to my AI service right now. Please try again in a moment!';
+      
+      if (err.message.includes('Failed to fetch')) {
+        errorMessage = `🔌 Connection Error: Cannot reach AI service at ${OPENAI_MICROSERVICE_CONFIG.URL}. Check HTTPS/mixed-content and that the server is up.`;
+      } else if (err.message.includes('CORS')) {
+        errorMessage = '🚫 CORS Error: Backend must allow your frontend origin and include proper CORS headers.';
+      } else if (err.message.includes('401') || err.message.includes('403')) {
+        errorMessage = '🔐 Authentication Error: Invalid or missing API token.';
+      } else if (err.message.startsWith('HTTP_')) {
+        errorMessage = `🌐 HTTP Error: ${err.message}`;
+      }
+      
+      log('🔍 Detailed error for debugging:', {
+        message: err.message,
+        stack: err.stack,
+        microserviceUrl: OPENAI_MICROSERVICE_CONFIG.URL,
+        hasToken: !!OPENAI_MICROSERVICE_CONFIG.TOKEN
+      });
+      
       // Send error message to handlers
       messageHandlersRef.current.forEach(handler => {
         handler({
           type: 'stream_complete',
           data: { 
-            fullResponse: 'Sorry, I\'m having trouble connecting to my AI service right now. Please try again in a moment!',
-            text: 'Sorry, I\'m having trouble connecting to my AI service right now. Please try again in a moment!'
+            fullResponse: errorMessage,
+            text: errorMessage
           },
           requestId
         });

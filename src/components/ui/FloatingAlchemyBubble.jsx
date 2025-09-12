@@ -26,96 +26,38 @@ const FloatingAlchemyBubble = ({
   // Wallet connection
   const { address, isConnected, chain } = useAccount();
   
-  // Fetch token balances from Alchemy
+  // Fetch token balances from Portfolio API (multi-chain)
   const fetchTokenBalances = useCallback(async () => {
     if (!address || !isConnected) return;
     
     setIsLoadingTokens(true);
     try {
-      // Call Alchemy directly like the Portfolio bubble
-      const alchemyApiKey = '_pGB49JjZobNT7IahUuqg'; // Your API key
+      // Call the portfolio API for multi-chain data
+      const response = await fetch(`http://localhost:3001/api/portfolio/${address}`);
+      const data = await response.json();
       
-      const response = await fetch(
-        `https://eth-mainnet.g.alchemy.com/v2/${alchemyApiKey}`,
-        {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            id: 1,
-            jsonrpc: '2.0',
-            method: 'alchemy_getTokenBalances',
-            params: [address]
-          })
-        }
-      );
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('🔮 Alchemy bubble response:', data);
+      if (data.success && data.data) {
+        console.log('🔮 Alchemy Portfolio response:', data);
         
-        if (data.result?.tokenBalances) {
-          // Process tokens like the Portfolio bubble
-          const nonZeroTokens = data.result.tokenBalances.filter(
-            token => token.tokenBalance !== '0x0' && 
-                    token.tokenBalance !== '0x00' && 
-                    token.tokenBalance !== '0x0000000000000000000000000000000000000000000000000000000000000000'
-          );
-          
-          // Get metadata for each token
-          const tokenPromises = nonZeroTokens.slice(0, 10).map(async (token) => {
-            try {
-              const metadataResponse = await fetch(
-                `https://eth-mainnet.g.alchemy.com/v2/${alchemyApiKey}`,
-                {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    id: 1,
-                    jsonrpc: '2.0',
-                    method: 'alchemy_getTokenMetadata',
-                    params: [token.contractAddress]
-                  })
-                }
-              );
-              
-              if (metadataResponse.ok) {
-                const metadataData = await metadataResponse.json();
-                const metadata = metadataData.result;
-                const balance = parseInt(token.tokenBalance, 16);
-                const decimals = metadata?.decimals || 18;
-                const formattedBalance = (balance / Math.pow(10, decimals)).toFixed(6);
-                
-                return {
-                  symbol: metadata?.symbol || 'Unknown',
-                  name: metadata?.name || 'Unknown Token',
-                  balance: formattedBalance,
-                  decimals: decimals,
-                  contractAddress: token.contractAddress,
-                  logo: metadata?.logo
-                };
-              }
-            } catch (err) {
-              console.error('Error fetching token metadata:', err);
-            }
-            return null;
-          });
-          
-          const formattedTokens = (await Promise.all(tokenPromises)).filter(t => t !== null);
-          console.log('🔮 Alchemy bubble tokens:', formattedTokens);
-          setTokenBalances(formattedTokens);
-          
-          // Update AI context with token data
-          updateAIContext(formattedTokens);
-        }
+        // Transform portfolio data to match expected format
+        const portfolioData = {
+          address: address,
+          chainId: chain?.id || 1,
+          balances: data.data,
+          totalTokens: data.totalTokens
+        };
+        
+        setTokenBalances(portfolioData);
+        
+        // Update AI context with portfolio data
+        updateAIContext(portfolioData);
       }
     } catch (error) {
-      console.error('Failed to fetch token balances:', error);
+      console.error('Failed to fetch portfolio data:', error);
     } finally {
       setIsLoadingTokens(false);
     }
-  }, [address, isConnected, chain]);
+  }, [address, isConnected, chain?.id]);
   
   // Update global context for AI
   const updateAIContext = useCallback((data) => {
@@ -318,7 +260,7 @@ const FloatingAlchemyBubble = ({
                   </div>
                   
                   <div className="text-center">
-                    <div className="text-xs font-bold text-blue-300 drop-shadow-xl">Alchemy</div>
+                    <div className="text-xs font-bold text-blue-300 drop-shadow-xl">Portfolio</div>
                   </div>
                 </div>
               ) : (
@@ -334,7 +276,7 @@ const FloatingAlchemyBubble = ({
                       />
                       <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-blue-400/10 to-blue-300/20"></div>
                     </div>
-                    <div className="text-sm font-bold text-blue-300 drop-shadow-lg">Token Balances</div>
+                    <div className="text-sm font-bold text-blue-300 drop-shadow-lg">Multi-Chain Portfolio</div>
                     <div className="text-xs text-white/70 font-medium">Powered by Alchemy</div>
                   </div>
                   
@@ -352,22 +294,34 @@ const FloatingAlchemyBubble = ({
                             {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ''}
                           </div>
                           
-                          {tokenBalances.tokenBalances && tokenBalances.tokenBalances.length > 0 ? (
+                          {tokenBalances.balances && tokenBalances.balances.length > 0 ? (
                             <div className="space-y-2 max-h-48 overflow-y-auto">
-                              {tokenBalances.tokenBalances.filter(token => 
-                                token.tokenBalance && token.tokenBalance !== '0x0'
-                              ).map((token, index) => (
+                              {tokenBalances.balances.slice(0, 5).map((token, index) => (
                                 <div key={index} className="bg-black/30 rounded-lg p-2 border border-blue-400/30">
                                   <div className="flex items-center justify-between">
                                     <span className="text-white/70 text-xs truncate">
-                                      {token.symbol || `${token.contractAddress.slice(0, 6)}...`}
+                                      {token.symbol || 'Token'}
                                     </span>
                                     <span className="text-white font-bold text-xs">
-                                      {formatTokenBalance(token.tokenBalance, token.decimals)}
+                                      {token.balance}
                                     </span>
+                                  </div>
+                                  {token.valueUSD && (
+                                    <div className="flex justify-between items-center text-xs mt-1">
+                                      <span className="text-white/50">${token.priceUSD}</span>
+                                      <span className="text-green-400 font-medium">${token.valueUSD}</span>
+                                    </div>
+                                  )}
+                                  <div className="text-xs text-blue-300/70 mt-1">
+                                    {token.chain} • {token.type}
                                   </div>
                                 </div>
                               ))}
+                              {tokenBalances.balances.length > 5 && (
+                                <div className="text-center text-xs text-white/50">
+                                  +{tokenBalances.balances.length - 5} more tokens
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <div className="text-xs text-white/50">
