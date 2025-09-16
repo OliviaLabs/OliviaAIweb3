@@ -14,17 +14,34 @@ export default defineConfig({
   build: {
     // Use esbuild for better compatibility and faster builds
     minify: 'esbuild',
-    // Increase memory limit for build process
-    // Optimize chunk splitting to reduce memory usage
+    // Aggressive memory optimization for 512MB limit
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          dfinity: ['@dfinity/agent', '@dfinity/candid', '@dfinity/principal', '@dfinity/identity'],
-          ui: ['@heroui/react', 'framer-motion'],
-          charts: ['chart.js', 'react-chartjs-2', 'd3'],
-          crypto: ['crypto-js', 'viem', 'wagmi'],
-          utils: ['axios', 'uuid', 'sonner'],
+        // More aggressive chunk splitting
+        manualChunks: (id) => {
+          // Split large libraries into separate chunks
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'react';
+            }
+            if (id.includes('@dfinity')) {
+              return 'dfinity';
+            }
+            if (id.includes('@heroui') || id.includes('framer-motion')) {
+              return 'ui';
+            }
+            if (id.includes('chart.js') || id.includes('d3')) {
+              return 'charts';
+            }
+            if (id.includes('viem') || id.includes('wagmi') || id.includes('crypto-js')) {
+              return 'crypto';
+            }
+            if (id.includes('axios') || id.includes('uuid') || id.includes('sonner')) {
+              return 'utils';
+            }
+            // Group other large node_modules
+            return 'vendor';
+          }
         },
         // Optimize asset handling
         assetFileNames: (assetInfo) => {
@@ -40,12 +57,14 @@ export default defineConfig({
         },
       },
     },
-    // Increase chunk size warning limit
-    chunkSizeWarningLimit: 1000,
-    // Reduce memory usage during build
+    // Reduce memory usage
+    chunkSizeWarningLimit: 500,
     target: 'esnext',
     cssCodeSplit: true,
     sourcemap: false,
+    // Reduce memory usage during build
+    minify: 'esbuild',
+    reportCompressedSize: false,
   },
   // Exclude large assets from processing during build
   assetsInclude: ['**/*.mp4', '**/*.gif'],
