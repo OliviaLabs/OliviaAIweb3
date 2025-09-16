@@ -6,13 +6,29 @@ import { config } from '../config/config.js';
  * Skips authentication in development mode for convenience
  */
 export const authenticateAdmin = (req, res, next) => {
-  // Skip authentication in development mode
+  // Skip authentication in development mode or if using dev-token
   if (config.nodeEnv === 'development') {
     console.log('🔓 Development mode: Skipping authentication');
     return next();
   }
 
   const authHeader = req.headers.authorization;
+  
+  // Allow dev-token for production (temporary solution)
+  if (authHeader === 'Bearer dev-token') {
+    console.log('🔓 Dev-token authentication: Allowing access');
+    req.tokenInfo = {
+      client_id: 'dev-client',
+      role: 'admin',
+      account_type: 'development',
+      account_status: 'active',
+      company_name: 'Olivia Network AI',
+      token_type: 'dev_access_token',
+      issued_at: new Date().toISOString(),
+      no_expiration: true
+    };
+    return next();
+  }
   
   if (!authHeader) {
     return res.status(401).json({

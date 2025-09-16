@@ -16,9 +16,18 @@ export const corsMiddleware = cors({
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    if (origin === config.allowedOrigin) {
+    // Allow the production origin and localhost for development
+    const allowedOrigins = [
+      config.allowedOrigin,
+      'https://oliviaaiweb3-1.onrender.com',
+      'http://localhost:3000',
+      'http://localhost:3001'
+    ];
+    
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.log(`❌ CORS: Origin ${origin} not allowed. Allowed origins:`, allowedOrigins);
       callback(new Error(`Origin ${origin} not allowed by CORS policy`));
     }
   },
@@ -40,7 +49,16 @@ export const validateOrigin = (req, res, next) => {
 
   const origin = req.get('Origin') || req.get('Referer');
   
-  if (origin && !origin.startsWith(config.allowedOrigin)) {
+  // Allow the production origin and localhost for development
+  const allowedOrigins = [
+    config.allowedOrigin,
+    'https://oliviaaiweb3-1.onrender.com',
+    'http://localhost:3000',
+    'http://localhost:3001'
+  ];
+  
+  if (origin && !allowedOrigins.some(allowedOrigin => origin.startsWith(allowedOrigin))) {
+    console.log(`❌ Origin validation failed: ${origin}. Allowed origins:`, allowedOrigins);
     return res.status(403).json({
       error: 'Origin not allowed',
       code: 'FORBIDDEN_ORIGIN'

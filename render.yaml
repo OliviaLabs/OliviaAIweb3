@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: olivia-ai-web3
+    env: node
+    plan: starter
+    buildCommand: npm install && NODE_OPTIONS="--max-old-space-size=4096" npm run build:production && cd microservice && npm install
+    startCommand: cd microservice && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=4096
+    healthCheckPath: /health
+    disk:
+      name: olivia-ai-disk
+      mountPath: /opt/render/project/src
+      sizeGB: 1

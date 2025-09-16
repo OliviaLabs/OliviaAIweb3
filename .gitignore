@@ -72,3 +72,6 @@ Thumbs.db
 # Each developer should deploy their own canisters and get unique IDs
 icp_backend/canister_ids.json
 icp_backend/.dfx/
+
+# Temporary assets during build
+temp-assets/

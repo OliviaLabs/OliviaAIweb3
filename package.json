@@ -6,8 +6,11 @@
   "scripts": {
     "dev": "vite --port 3000",
     "dev:frontend-only": "vite --port 3000",
-    "build": "vite build",
-    "start": "npm run build && cd microservice && npm install && npm start",
+    "prebuild": "node optimize-assets.js",
+    "postbuild": "node restore-assets.js",
+    "build": "NODE_OPTIONS=\"--max-old-space-size=4096\" vite build",
+    "build:production": "npm run prebuild && npm run build && npm run postbuild",
+    "start": "npm run build:production && cd microservice && npm install && npm start",
     "start:microservice": "cd microservice && npm install && npm start",
     "start:frontend": "vite preview --port 3000",
     "lint": "eslint .",

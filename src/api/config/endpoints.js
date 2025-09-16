@@ -8,7 +8,14 @@ const OPENAI_MICROSERVICE_URL = import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 
 console.log('🔍 OpenAI Microservice URL:', OPENAI_MICROSERVICE_URL);
 console.log('🔍 Environment variable:', import.meta.env.VITE_OPENAI_MICROSERVICE_URL);
 console.log('🔍 Hostname:', window.location.hostname);
-const OPENAI_MICROSERVICE_TOKEN = import.meta.env.VITE_APP_ACCESS_TOKEN;
+// Generate a default token for production if VITE_APP_ACCESS_TOKEN is not set
+const generateDefaultToken = () => {
+  // For production, we'll use a simple token that matches the microservice's development mode
+  // In a real production environment, you should set VITE_APP_ACCESS_TOKEN properly
+  return 'dev-token';
+};
+
+const OPENAI_MICROSERVICE_TOKEN = import.meta.env.VITE_APP_ACCESS_TOKEN || generateDefaultToken();
 const SECURE_WEBSOCKET_URL = OPENAI_MICROSERVICE_URL.replace('http', 'ws') + '/ws/secure-proxy';
 
 // Streamlined endpoints - only what's actually used

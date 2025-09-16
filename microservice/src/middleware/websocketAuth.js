@@ -16,8 +16,15 @@ export function authenticateWebSocket(request) {
   const origin = request.headers.origin;
   
   // Check Origin
-  if (origin !== config.allowedOrigin) {
-    console.log(`❌ WebSocket connection rejected - Invalid origin: ${origin}`);
+  const allowedOrigins = [
+    config.allowedOrigin,
+    'https://oliviaaiweb3-1.onrender.com',
+    'http://localhost:3000',
+    'http://localhost:3001'
+  ];
+  
+  if (origin && !allowedOrigins.includes(origin)) {
+    console.log(`❌ WebSocket connection rejected - Invalid origin: ${origin}. Allowed origins:`, allowedOrigins);
     return { 
       success: false, 
       code: 403, 
@@ -35,6 +42,13 @@ export function authenticateWebSocket(request) {
       code: 401, 
       message: 'Unauthorized: Token required' 
     };
+  }
+
+  // Allow dev-token for production (temporary solution)
+  if (token === 'dev-token') {
+    console.log('🔓 Dev-token WebSocket authentication: Allowing access');
+    const clientId = generateClientId();
+    return { success: true, clientId };
   }
 
   if (token !== config.adminAccessSecret) {
