@@ -12,15 +12,9 @@ export default defineConfig({
     include: ['@dfinity/agent', '@dfinity/candid', '@dfinity/principal', '@dfinity/identity']
   },
   build: {
+    // Use esbuild for better compatibility and faster builds
+    minify: 'esbuild',
     // Increase memory limit for build process
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-        pure_funcs: ['console.log', 'console.info', 'console.debug'],
-      },
-    },
     // Optimize chunk splitting to reduce memory usage
     rollupOptions: {
       output: {
