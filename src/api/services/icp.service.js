@@ -5,8 +5,10 @@ import { log, error } from '../../utils/logger.js';
 // Canister ID from your deployment
 const CANISTER_ID = import.meta.env.VITE_ICP_CANISTER_ID || 'umunu-kh777-77774-qaaca-cai';
 
-// Local development host
-const HOST = 'http://localhost:4943';
+// ICP Host - use local for development, mainnet for production
+const HOST = process.env.NODE_ENV === 'production' 
+  ? 'https://ic0.app' 
+  : 'http://localhost:4943';
 
 // IDL factory for the canister interface
 const idlFactory = ({ IDL }) => {

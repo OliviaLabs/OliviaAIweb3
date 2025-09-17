@@ -10,7 +10,15 @@ NODE_ENV=production
 PORT=10000
 ADMIN_ACCESS_SECRET=your_admin_secret_here
 OPENAI_API_KEY=your_openai_api_key_here
-ALLOWED_ORIGIN=https://olivia-ai-web3.onrender.com
+ALLOWED_ORIGIN=https://oliviaaiweb3-1.onrender.com
+```
+
+### Frontend Environment Variables (Optional but Recommended)
+```
+VITE_OPENAI_MICROSERVICE_URL=https://oliviaaiweb3-1.onrender.com
+VITE_API_GATEWAY_URL=https://oliviaaiweb3-1.onrender.com
+VITE_WEBSOCKET_URL=wss://oliviaaiweb3-1.onrender.com
+VITE_AI_WEBSOCKET_URL=wss://oliviaaiweb3-1.onrender.com/ws/secure-proxy
 ```
 
 ### Optional Variables
@@ -58,23 +66,23 @@ After deployment, test these endpoints:
 
 1. **Health Check** (no auth required):
    ```
-   GET https://olivia-ai-web3.onrender.com/api/health
+   GET https://oliviaaiweb3-1.onrender.com/api/health
    ```
 
 2. **Frontend Application**:
    ```
-   https://olivia-ai-web3.onrender.com
+   https://oliviaaiweb3-1.onrender.com
    ```
 
 3. **Token Info** (auth required):
    ```
-   GET https://olivia-ai-web3.onrender.com/api/openai/token-info
+   GET https://oliviaaiweb3-1.onrender.com/api/openai/token-info
    Authorization: Bearer dev-token
    ```
 
 4. **Chat Completions** (auth required):
    ```
-   POST https://olivia-ai-web3.onrender.com/api/openai/chat/completions
+   POST https://oliviaaiweb3-1.onrender.com/api/openai/chat/completions
    Authorization: Bearer dev-token
    Content-Type: application/json
    

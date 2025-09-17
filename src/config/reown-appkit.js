@@ -13,7 +13,7 @@ const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || 'a59546cb3a62
 const metadata = {
   name: 'Olivia AI',
   description: 'AI-Powered Web3 Assistant Platform',
-  url: 'http://localhost:3000',
+  url: typeof window !== 'undefined' ? window.location.origin : 'https://oliviaaiweb3-1.onrender.com',
   icons: ['https://avatars.githubusercontent.com/u/179229932']
 }
 
