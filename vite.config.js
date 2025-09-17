@@ -9,7 +9,16 @@ export default defineConfig({
     'process.env': {},
   },
   optimizeDeps: {
-    include: ['@dfinity/agent', '@dfinity/candid', '@dfinity/principal', '@dfinity/identity']
+    include: [
+      '@dfinity/agent', 
+      '@dfinity/candid', 
+      '@dfinity/principal', 
+      '@dfinity/identity',
+      'crypto-js'
+    ],
+    esbuildOptions: {
+      target: 'es2020'
+    }
   },
   build: {
     // Use esbuild for better compatibility and faster builds
@@ -33,8 +42,11 @@ export default defineConfig({
             if (id.includes('chart.js') || id.includes('d3')) {
               return 'charts';
             }
-            if (id.includes('viem') || id.includes('wagmi') || id.includes('crypto-js')) {
-              return 'crypto';
+            if (id.includes('crypto-js')) {
+              return 'crypto-js';
+            }
+            if (id.includes('viem') || id.includes('wagmi')) {
+              return 'web3';
             }
             if (id.includes('axios') || id.includes('uuid') || id.includes('sonner')) {
               return 'utils';
