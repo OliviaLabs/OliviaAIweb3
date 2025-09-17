@@ -3,7 +3,7 @@ services:
     name: olivia-ai-web3
     env: node
     plan: starter
-    buildCommand: npm install && NODE_OPTIONS="--max-old-space-size=400" npm run build && npm run postbuild && cd microservice && npm install
+    buildCommand: rm -rf node_modules package-lock.json && npm install && NODE_OPTIONS="--max-old-space-size=400" npm run build && npm run postbuild && cd microservice && npm install
     startCommand: npm start
     envVars:
       - key: NODE_ENV
