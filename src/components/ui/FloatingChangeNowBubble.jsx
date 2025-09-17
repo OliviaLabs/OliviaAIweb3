@@ -54,7 +54,7 @@ const FloatingChangeNowBubble = ({ isOpen, onClose, title = 'ChangeNOW', content
         const margin = 20;
         
         // Simple upward floating 
-        let newY = prev.y - 2; // Faster upward movement (2x speed)
+        let newY = prev.y - 3; // Even faster upward movement (3x speed)
         let newX = prev.x;
         
         // Get all bubbles for collision detection

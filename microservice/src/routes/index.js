@@ -1,13 +1,15 @@
 import express from 'express';
 import openaiRoutes from './openaiRoutes.js';
 import changeNowRoutes from './changeNowRoutes.js';
-// import coinStatsRoutes from './coinStatsRoutes.js'; // DISABLED
+import coinStatsRoutes from './coinStatsRoutes.js';
 import lurkyRoutes from './lurkyRoutes.js';
 import okxRoutes from './okxRoutes.js';
 import zeroXRoutes from './zeroXRoutes.js';
 import alchemyRoutes from './alchemyRoutes.js';
 import twitterRoutes from './twitterRoutes.js';
 import protokolsRoutes from './protokolsRoutes.js';
+import tonCenterRoutes from './tonCenterRoutes.js';
+import chainbaseRoutes from './chainbaseRoutes.js';
 import { OpenAIController } from '../controllers/openaiController.js';
 import AlchemyController from '../controllers/alchemyController.js';
 
@@ -101,14 +103,20 @@ router.use('/openai', openaiRoutes);
 // ChangeNOW routes
 router.use('/changenow', changeNowRoutes);
 
-// CoinStats routes - DISABLED (plugin turned off)
-// router.use('/coinstats', coinStatsRoutes);
+// CoinStats routes
+router.use('/coinstats', coinStatsRoutes);
 
 // Lurky routes
 router.use('/lurky', lurkyRoutes);
 
 // OKX DEX routes
 router.use('/okx', okxRoutes);
+
+// TON Center routes
+router.use('/ton', tonCenterRoutes);
+
+// Chainbase routes
+router.use('/chainbase', chainbaseRoutes);
 
 // 0x Protocol routes
 router.use('/zerox', zeroXRoutes);
@@ -144,14 +152,13 @@ router.get('/', (req, res) => {
         transactions: '/api/changenow/transactions',
         transactionStatus: '/api/changenow/transactions/:id'
       },
-      // coinstats: DISABLED
-      // {
-      //   coins: '/api/coinstats/coins',
-      //   coin: '/api/coinstats/coins/:coinId',
-      //   markets: '/api/coinstats/markets',
-      //   search: '/api/coinstats/search',
-      //   portfolioInsights: '/api/coinstats/portfolio-insights'
-      // },
+      coinstats: {
+        coins: '/api/coinstats/coins',
+        coin: '/api/coinstats/coins/:coinId',
+        markets: '/api/coinstats/markets',
+        search: '/api/coinstats/search',
+        portfolioInsights: '/api/coinstats/portfolio-insights'
+      },
       lurky: {
         coins: '/api/lurky/coins',
         trending: '/api/lurky/trending',
@@ -166,6 +173,17 @@ router.get('/', (req, res) => {
         tokens: '/api/okx/tokens',
         popularPairs: '/api/okx/popular-pairs',
         oliviaQuote: '/api/okx/olivia-quote'
+      },
+      ton: {
+        account: '/api/ton/account/:address',
+        balance: '/api/ton/balance/:address',
+        transactions: '/api/ton/transactions/:address',
+        jettons: '/api/ton/jettons/:address',
+        jettonInfo: '/api/ton/jetton-info/:address',
+        masterchain: '/api/ton/masterchain',
+        popularJettons: '/api/ton/popular-jettons',
+        price: '/api/ton/price',
+        runMethod: '/api/ton/run-method'
       },
       zerox: {
         quote: '/api/zerox/quote',

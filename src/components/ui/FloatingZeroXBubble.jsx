@@ -55,11 +55,11 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
         
         // Only float if not dragging and not at top
         if (prev.y > 50) {
-          return { ...prev, y: prev.y - 0.3 }; // Slower, smoother float
+          return { ...prev, y: prev.y - 1 }; // Smooth continuous float
         }
         return prev;
       });
-    }, 50);
+    }, 16);
 
     return () => clearInterval(interval);
   }, [isOpen, isDragging, isExpanded]);
@@ -163,7 +163,7 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
   
   const bubble = (
     <div 
-      className={`fixed pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isDragging ? '' : 'transition-all duration-150 ease-in-out'}`}
+      className={`fixed pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
       style={{ 
         left: `${position.x}px`, 
         top: `${position.y}px`,

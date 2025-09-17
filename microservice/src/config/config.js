@@ -35,6 +35,7 @@ if (existsSync(envPath)) {
 console.log('🔍 Environment variables loaded:');
 console.log('  - PORT:', process.env.PORT);
 console.log('  - ZERO_EX_API_KEY:', process.env.ZERO_EX_API_KEY ? 'SET' : 'MISSING');
+console.log('  - TON_CENTER_API_KEY:', process.env.TON_CENTER_API_KEY ? 'SET' : 'MISSING');
 console.log('  - OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? 'SET' : 'MISSING');
 
 export const config = {
@@ -50,10 +51,12 @@ export const config = {
   okxSecretKey: process.env.OKX_SECRET_KEY,
   okxPassphrase: process.env.OKX_PASSPHRASE,
   okxDexBaseUrl: process.env.OKX_DEX_BASE_URL || 'https://www.okx.com/api/v5/dex/aggregator',
+  tonCenterApiKey: process.env.TON_CENTER_API_KEY,
   zeroXApiKey: process.env.ZERO_EX_API_KEY,
+  coinStatsApiKey: process.env.COINSTATS_API_KEY,
   allowedOrigin: process.env.ALLOWED_ORIGIN || 'http://localhost:3001',
-  rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000, // 15 minutes
-  rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+  rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 60000, // 1 minute
+  rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 50000, // Very high for dev - no real limits
   
   // WebSocket Proxy Configuration
   websocketPath: process.env.WEBSOCKET_PATH || '/ws/secure-proxy',

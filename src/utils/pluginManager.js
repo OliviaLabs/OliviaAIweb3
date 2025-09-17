@@ -8,6 +8,9 @@ import coinstatsLogo from '../api/services/coinstats-2.png';
 import walletConnectLogo from '../assets/wallet-connect.png';
 import alchemyLogo from '../assets/alchemy-logo.jpg';
 import zeroXLogo from '../assets/0x-logo.png';
+import okxLogo from '../../OKx.png';
+import tonLogo from '/toncoin-ton-logo.svg';
+import chainbaseLogo from '/download-1.png';
 import kolsIcon from '../assets/KOLS.png';
 
 // Define available plugins with metadata
@@ -30,16 +33,15 @@ export const AVAILABLE_PLUGINS = {
     category: 'Market Data',
     color: 'green'
   },
-  // coinstats: DISABLED - causing 404 errors
-  // {
-  //   id: 'coinstats',
-  //   name: 'CoinStats',
-  //   description: 'Portfolio tracking and market analytics',
-  //   detailedDescription: 'CoinStats is a leading cryptocurrency portfolio management platform trusted by over 1 million users worldwide. It offers real-time portfolio tracking, profit/loss analytics, and market insights across 300+ exchanges and 8000+ cryptocurrencies.',
-  //   logo: coinstatsLogo,
-  //   category: 'Market Data',
-  //   color: 'blue'
-  // },
+  coinstats: {
+    id: 'coinstats',
+    name: 'CoinStats',
+    description: 'Portfolio tracking and market analytics',
+    detailedDescription: 'CoinStats is a leading cryptocurrency portfolio management platform trusted by over 1 million users worldwide. It offers real-time portfolio tracking, profit/loss analytics, and market insights across 300+ exchanges and 8000+ cryptocurrencies.',
+    logo: coinstatsLogo,
+    category: 'Market Data',
+    color: 'blue'
+  },
   icp: {
     id: 'icp',
     name: 'ICP',
@@ -75,6 +77,33 @@ export const AVAILABLE_PLUGINS = {
     logo: zeroXLogo,
     category: 'Exchange',
     color: 'purple'
+  },
+  okx: {
+    id: 'okx',
+    name: 'OKX DEX',
+    description: 'Multi-chain DEX aggregator for optimal swap rates',
+    detailedDescription: 'OKX DEX is a comprehensive decentralized exchange aggregator that sources liquidity from multiple DEXs across various blockchains. It provides competitive swap rates, low slippage, and supports a wide range of tokens and trading pairs.',
+    logo: okxLogo,
+    category: 'Exchange',
+    color: 'blue'
+  },
+  toncenter: {
+    id: 'toncenter',
+    name: 'TON Center',
+    description: 'TON blockchain data and analytics',
+    detailedDescription: 'TON Center provides comprehensive access to The Open Network (TON) blockchain data including account information, transactions, jetton balances, and smart contract interactions. It\'s the official API for TON blockchain development.',
+    logo: tonLogo,
+    category: 'Blockchain',
+    color: 'blue'
+  },
+  chainbase: {
+    id: 'chainbase',
+    name: 'Chainbase',
+    description: 'Multi-chain blockchain data platform',
+    detailedDescription: 'Chainbase is a comprehensive blockchain data platform supporting 20+ networks including Ethereum, TON, Bitcoin, Sui, and more. It provides real-time raw data access with sub-10 second freshness, enabling developers to build powerful cross-chain applications and analytics.',
+    logo: chainbaseLogo,
+    category: 'Blockchain',
+    color: 'green'
   },
   portfolio: {
     id: 'portfolio',
@@ -135,7 +164,7 @@ export const getPluginStates = () => {
   }
   
   // Default: enable core trading and portfolio plugins
-  const defaultEnabledPlugins = ['zerox', 'portfolio', 'changenow', 'twitter', 'coingecko', 'lurky'];
+  const defaultEnabledPlugins = ['zerox', 'okx', 'toncenter', 'chainbase', 'portfolio', 'changenow', 'twitter', 'coingecko', 'coinstats', 'lurky'];
   return Object.keys(AVAILABLE_PLUGINS).reduce((acc, pluginId) => {
     acc[pluginId] = defaultEnabledPlugins.includes(pluginId);
     return acc;

@@ -25,11 +25,11 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
         if (isExpanded && typeof content === 'string') {
           const lines = content.split('\n').length;
           const avgLineLength = content.length / lines;
-          const estimatedWidth = Math.max(250, Math.min(450, avgLineLength * 8 + 100));
-          const estimatedHeight = Math.max(200, lines * 20 + 80);
+          const estimatedWidth = Math.max(280, Math.min(320, avgLineLength * 6 + 80));
+          const estimatedHeight = Math.max(280, Math.min(320, lines * 18 + 80));
           bubbleSize = Math.max(estimatedWidth, estimatedHeight);
         } else if (isExpanded) {
-          bubbleSize = 300;
+          bubbleSize = 320;
         }
         const margin = 20;
         
@@ -102,11 +102,11 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
     if (isExpanded && typeof content === 'string') {
       const lines = content.split('\n').length;
       const avgLineLength = content.length / lines;
-      const estimatedWidth = Math.max(250, Math.min(450, avgLineLength * 8 + 100));
-      const estimatedHeight = Math.max(200, lines * 20 + 80);
+      const estimatedWidth = Math.max(280, Math.min(320, avgLineLength * 6 + 80));
+      const estimatedHeight = Math.max(280, Math.min(320, lines * 18 + 80));
       bubbleSize = Math.max(estimatedWidth, estimatedHeight);
     } else if (isExpanded) {
-      bubbleSize = 300;
+      bubbleSize = 320;
     }
     const bubbleCenter = {
       x: position.x + bubbleSize / 2, // Actual bubble center
@@ -198,14 +198,14 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
   // Dynamic bubble size based on content length and expanded state
   let bubbleSize = 140; // Base collapsed size - slightly bigger for the new design
   if (isExpanded && typeof content === 'string') {
-    // Calculate size based on content length
+    // Calculate size based on content length - limited to match other bubbles
     const lines = content.split('\n').length;
     const avgLineLength = content.length / lines;
-    const estimatedWidth = Math.max(320, Math.min(480, avgLineLength * 8 + 140));
-    const estimatedHeight = Math.max(280, lines * 22 + 120);
+    const estimatedWidth = Math.max(280, Math.min(320, avgLineLength * 6 + 80));
+    const estimatedHeight = Math.max(280, Math.min(320, lines * 18 + 80));
     bubbleSize = Math.max(estimatedWidth, estimatedHeight);
   } else if (isExpanded) {
-    bubbleSize = 380; // Default expanded size - slightly bigger
+    bubbleSize = 320; // Standard expanded size to match other bubbles
   }
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
