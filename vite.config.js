@@ -62,8 +62,6 @@ export default defineConfig({
     target: 'esnext',
     cssCodeSplit: true,
     sourcemap: false,
-    // Reduce memory usage during build
-    minify: 'esbuild',
     reportCompressedSize: false,
   },
   // Exclude large assets from processing during build
