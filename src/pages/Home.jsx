@@ -185,6 +185,56 @@ export default function Home() {
   const { principal, isAuthenticated } = useInternetIdentity()
   const { forceShowUpgrade } = useAccountUpgrade(); // ICP upgrade
 
+  // Auto-fetch portfolio data when wallet connects
+  useEffect(() => {
+    const walletAddress = userData?.wallet_address;
+    if (walletAddress && walletAddress !== '0x0') {
+      console.log('💰 Wallet connected, auto-fetching portfolio data for:', walletAddress);
+      
+      // Fetch portfolio data immediately without showing bubble
+      (async () => {
+        try {
+          const response = await fetch(`${import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3001'}/api/portfolio/${walletAddress}`);
+          
+          if (response.ok) {
+            const data = await response.json();
+            
+            if (data.success && data.data) {
+              // Update context with portfolio data
+              const portfolioContext = {
+                portfolio_data: {
+                  wallet_address: walletAddress,
+                  total_tokens: data.totalTokens,
+                  tokens: data.data || [],
+                  timestamp: new Date().toISOString(),
+                  source: 'Auto-fetch on wallet connect',
+                  has_wallet_connected: true
+                }
+              };
+              
+              // Update global context
+              window.contextAwarenessData = {
+                ...window.contextAwarenessData,
+                ...portfolioContext
+              };
+              
+              // Update local state
+              setContextAwarenessData(prev => ({
+                ...prev,
+                ...portfolioContext
+              }));
+              
+              console.log('💰 Auto-loaded portfolio data:', portfolioContext);
+              console.log('💰 Tokens found:', data.data?.length || 0);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to auto-fetch portfolio:', error);
+        }
+      })();
+    }
+  }, [userData?.wallet_address]);
+
   // Track mouse position
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -791,11 +841,43 @@ export default function Home() {
     // Detect web search queries
     const mentionsWebSearch = /\b(what's happening|latest news|current events|recent updates|what's going on|search for|find information|look up)\b/i.test(message)
     
-    // Detect news queries
+    // Detect news queries 
     const mentionsNews = /\b(news|breaking|update|announcement|headlines|story|article)\b/i.test(message)
     
-    // Detect Twitter queries - trigger on ANY message when plugin is enabled
-    const mentionsTwitter = isPluginEnabled('twitter') && message.trim().length > 0
+    // Detect when user wants to discover trending/new tokens - more specific triggers
+    const wantsTrending = /\b(trending|trend|hot|popular|top tokens|top coins|what's trending|what's hot|what's popular|discover|new tokens|new coins|gems|moonshots|gainers|pumping|mooning|rising|surging|exploding|what to buy|what should i buy|shill me|alpha|opportunities|what's moving|market movers)\b/i.test(message)
+    
+    // Also trigger on general exploration queries
+    const wantsDiscovery = /\b(show me|tell me about|what are|which tokens|which coins|recommend|suggestions|interesting|check out|look at|explore|find me)\b/i.test(message) && /\b(tokens|coins|crypto|projects|opportunities)\b/i.test(message)
+    
+    // Detect Twitter queries - smart token detection
+    // 1. Cashtags like $POPCAT
+    const cashtagPattern = /\$([A-Za-z]{2,10})/gi;
+    // 2. Hashtags like #popcat
+    const hashtagPattern = /#([A-Za-z0-9]{2,10})/gi;
+    // 3. ALL CAPS words that look like tickers (2-10 chars)
+    const allCapsPattern = /\b([A-Z]{2,10})\b/g;
+    // 4. Words followed by token/coin/crypto context
+    const tokenContextPattern = /\b([A-Za-z]{2,10})(?:\s+(?:token|coin|crypto|price|chart|buy|sell|swap))/gi;
+    // 5. Common token names in any case
+    const commonTokens = /\b(bitcoin|ethereum|solana|popcat|pepe|bonk|wif|doge|shib)\b/gi;
+    
+    // Combine all matches
+    let tickerMatches = [
+      ...(message.match(cashtagPattern) || []),
+      ...(message.match(hashtagPattern) || []),
+      ...(message.match(allCapsPattern) || []),
+      ...(message.match(tokenContextPattern) || []).map(m => m.split(' ')[0]),
+      ...(message.match(commonTokens) || [])
+    ];
+    
+    // Remove duplicates and filter out common words
+    const commonWords = ['I', 'A', 'THE', 'AND', 'OR', 'BUT', 'IF', 'IS', 'IT', 'TO', 'OF', 'IN', 'ON', 'AT', 'FOR', 'WITH', 'AS', 'BY'];
+    tickerMatches = [...new Set(tickerMatches)].filter(ticker => 
+      ticker && !commonWords.includes(ticker.toUpperCase().replace(/[$#]/, ''))
+    );
+    
+    const mentionsTwitter = isPluginEnabled('twitter') && (tickerMatches.length > 0 || wantsTrending)
     
     // Detect Hedera mentions
     const mentionsHedera = /\b(hedera|hbar|hashgraph|hgraph)\b/i.test(message)
@@ -832,6 +914,39 @@ export default function Home() {
     const mentionsProtokols = /\b(kols|kol|influencers|influencer|social analytics|trending kols|narratives|mindshare)\b/i.test(message)
     console.log('🔮 Protokols trigger check:', { message, mentionsProtokols, isPluginEnabled: isPluginEnabled('protokols') })
     
+    // ====== CONSOLIDATED INTENT SYSTEM ======
+    // Create a unified intent object from all our detections
+    const userIntent = {
+      // Primary intents
+      wantsPrice: mentionsPrice,
+      wantsTrending: wantsTrending || mentionsTrending,
+      wantsSwap: mentions0x,
+      wantsPortfolio: mentionsPortfolio,
+      wantsNews: mentionsNews || mentionsWebSearch,
+      wantsBuy: mentionsChangeNow,
+      wantsTwitter: tickerMatches && tickerMatches.length > 0,
+      wantsDiscovery: wantsDiscovery,
+      wantsAlchemy: mentionsAlchemy,
+      
+      // Extracted entities
+      tokens: tickerMatches || [],
+      specificToken: tickerMatches && tickerMatches[0] ? tickerMatches[0].replace(/^[$#]/, '') : mentionedCoin,
+      
+      // Determine primary intent (most specific first)
+      primaryIntent: 
+        mentionsPortfolio ? 'PORTFOLIO' :
+        mentions0x ? 'SWAP' :
+        mentionsChangeNow ? 'BUY_FIAT' :
+        (mentionsPrice && (tickerMatches?.length > 0 || mentionedCoin)) ? 'PRICE_CHECK' :
+        wantsTrending ? 'TRENDING' :
+        wantsDiscovery ? 'DISCOVER' :
+        mentionsNews ? 'NEWS' :
+        (tickerMatches?.length > 0 || mentionedCoin) ? 'TOKEN_INFO' :
+        'GENERAL'
+    };
+    
+    console.log('🎯 User Intent:', userIntent);
+    
     // Add user message to conversation
     setMessages(prev => [...prev, { type: 'user', content: message }])
     setUserInput('')
@@ -839,15 +954,15 @@ export default function Home() {
     setIsLoading(true)
     setCurrentResponse('')
 
-    // Handle Lurky bubble logic (coin mentions) - only one at a time
-    if (mentionedCoin && isPluginEnabled('lurky')) {
+    // Handle Lurky bubble logic - now intent-based for social sentiment!
+    if (userIntent.specificToken && isPluginEnabled('lurky')) {
       // Only create Lurky bubble if none exists
       if (lurkyBubbles.length === 0) {
         // Create new Lurky bubble instance
         const newBubble = {
           id: Date.now() + Math.random(), // Unique ID
-          title: `${mentionedCoin.toUpperCase()} - Lurky`,
-          content: 'Loading coin data...',
+          title: `${userIntent.specificToken.toUpperCase()} - Lurky`,
+          content: 'Loading social sentiment...',
           loading: true
         }
         
@@ -856,14 +971,14 @@ export default function Home() {
       // Then try to fetch data
       ;(async () => {
         try {
-          const data = await lurkyService.getCoins(mentionedCoin)
+          const data = await lurkyService.getCoins(userIntent.specificToken)
           
           // Clean Lurky API response processing
           
           let lurkyText = '';
           
           // Always show what coin the user asked about
-          const searchedCoin = mentionedCoin.charAt(0).toUpperCase() + mentionedCoin.slice(1);
+          const searchedCoin = userIntent.specificToken.charAt(0).toUpperCase() + userIntent.specificToken.slice(1);
           
           if (!data || typeof data !== 'object') {
             lurkyText = `${searchedCoin} Social Data\n\nNo data available from Lurky API\n\nTry asking about popular coins like:\n• Bitcoin\n• Ethereum\n• Solana`;
@@ -872,7 +987,7 @@ export default function Home() {
             lurkyText = `${searchedCoin} Social Data\n\n${data.message}\n\n${data.suggestion || 'Try a different coin name'}`;
           } else if (data.coins && Array.isArray(data.coins) && data.coins.length > 0) {
             // Find the coin that matches what user asked for - be more flexible
-            const searchTerm = mentionedCoin.toLowerCase();
+            const searchTerm = userIntent.specificToken.toLowerCase();
             let targetCoin = data.coins.find(coin => {
               const name = coin.name?.toLowerCase() || '';
               const symbol = coin.symbol?.toLowerCase() || '';
@@ -930,10 +1045,10 @@ export default function Home() {
             lurkyText += `\n\nPowered by Lurky`;
             
             // Update context awareness with sentiment data
-            updateContextAwareness('sentiment_data', mentionedCoin.toLowerCase(), {
+            updateContextAwareness('sentiment_data', userIntent.specificToken.toLowerCase(), {
               source: 'Lurky',
-              name: targetCoin.name || mentionedCoin,
-              symbol: targetCoin.symbol || mentionedCoin.toUpperCase(),
+              name: targetCoin.name || userIntent.specificToken,
+              symbol: targetCoin.symbol || userIntent.specificToken.toUpperCase(),
               mentions: targetCoin.mentions || null
             })
             
@@ -954,7 +1069,7 @@ export default function Home() {
           // 🧠 Update AI context with Lurky data
           const lurkyContext = {
             lurky_data: {
-              coin: mentionedCoin,
+              coin: userIntent.specificToken,
               social_data: data,
               timestamp: new Date().toISOString(),
               source: 'Lurky API'
@@ -981,7 +1096,7 @@ export default function Home() {
           console.log('🧠 Updated AI context with Lurky data:', lurkyContext);
         } catch (e) {
           console.error('[Lurky] Error:', e);
-          const searchedCoin = mentionedCoin.charAt(0).toUpperCase() + mentionedCoin.slice(1);
+          const searchedCoin = userIntent.specificToken.charAt(0).toUpperCase() + userIntent.specificToken.slice(1);
           
           let errorContent = `${searchedCoin} Social Data\n\n`;
           
@@ -1208,35 +1323,59 @@ export default function Home() {
       })()
     }
 
-    // Handle news bubble logic
-    if (mentionsNews && isPluginEnabled('news')) {
+    // Handle CoinGecko trending bubble - triggers when user wants to discover trending/new tokens
+    if ((wantsTrending || wantsDiscovery) && isPluginEnabled('news')) {
       // Create new news bubble instance
       const newBubble = {
         id: Date.now() + Math.random(), // Unique ID
-        title: 'Crypto News',
-        content: 'Loading latest crypto news...',
+        title: 'Trending Tokens - CoinGecko',
+        content: 'Loading trending tokens...',
         loading: true
       }
       
       setNewsBubbles(prev => [...prev, newBubble])
       ;(async () => {
         try {
-          // Simulate news API call (replace with real news API)
-          await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate loading
+          // Use CoinGecko trending API
+          const response = await fetch('https://api.coingecko.com/api/v3/search/trending');
+
+          let newsContent = '🔥 Trending on CoinGecko\n\n';
           
-          const newsContent = `📰 Latest Crypto News\n\n` +
-            `🔥 Bitcoin reaches new all-time high\n` +
-            `   • BTC breaks $100,000 resistance\n` +
-            `   • Institutional adoption continues\n\n` +
-            `⚡ Ethereum 2.0 upgrade successful\n` +
-            `   • Gas fees reduced by 50%\n` +
-            `   • Staking rewards increased\n\n` +
-            `🚀 Solana ecosystem grows\n` +
-            `   • New DeFi protocols launched\n` +
-            `   • NFT marketplace expansion\n\n` +
-            `💼 Regulatory updates\n` +
-            `   • SEC approves new crypto ETF\n` +
-            `   • EU finalizes MiCA regulations`;
+          if (response.ok) {
+            const data = await response.json();
+            
+            // CoinGecko trending format
+            if (data.coins && data.coins.length > 0) {
+              // Show top trending coins with proper formatting
+              data.coins.slice(0, 8).forEach((coin, index) => {
+                const item = coin.item;
+                const price = item.data?.price || 0;
+                const change = item.data?.price_change_percentage_24h?.usd || 0;
+                const changeDirection = change > 0 ? '🟢 +' : '🔴 ';
+                const marketCap = item.data?.market_cap || 'N/A';
+                const marketCapRank = item.market_cap_rank || 'N/A';
+                
+                newsContent += `${index + 1}. ${item.name} (${item.symbol.toUpperCase()})\n`;
+                if (price > 0) {
+                  newsContent += `   Price: $${price.toLocaleString()}\n`;
+                }
+                if (change !== 0) {
+                  newsContent += `   24h: ${changeDirection}${Math.abs(change).toFixed(2)}%\n`;
+                }
+                newsContent += `   Rank: #${marketCapRank}\n`;
+                newsContent += '\n';
+              });
+              
+              // Keep it simple - just show coins
+              newsContent += `\n🦎 Powered by CoinGecko\n`;
+              newsContent += `📅 ${new Date().toLocaleTimeString()}`;
+            } else {
+              // Fallback if no trending data
+              throw new Error('No trending data available');
+            }
+          } else {
+            throw new Error(`CoinGecko API error: ${response.status}`);
+          }
           
           // Update the specific bubble with news content
           setNewsBubbles(prev => prev.map(bubble => 
@@ -1245,12 +1384,12 @@ export default function Home() {
               : bubble
           ))
           
-          // 🧠 Update AI context with news data
+          // 🧠 Update AI context with CoinGecko trending data
           const newsContext = {
-            news_data: {
+            coingecko_trending: {
               content: newsContent,
               timestamp: new Date().toISOString(),
-              source: 'Demo News Data'
+              source: 'CoinGecko Trending API'
             }
           };
           
@@ -1274,52 +1413,82 @@ export default function Home() {
           console.log('🧠 Updated AI context with news data:', newsContext);
           
         } catch (error) {
-          console.error('News fetch error:', error)
+          console.error('CoinGecko trending error:', error)
           
-          let errorContent = '❌ News Error\n\n'
-          errorContent += `Failed to load news\n\nError: ${error.message || 'Unknown error'}`;
+          // Provide helpful fallback content
+          const fallbackContent = `🦎 CoinGecko Trending\n\n` +
+            `⚠️ Unable to fetch trending data\n\n` +
+            `Possible issues:\n` +
+            `• CoinGecko API rate limit\n` +
+            `• Network connection issue\n` +
+            `• API temporarily down\n\n` +
+            `Try again in a few moments or\n` +
+            `mention specific tokens like:\n` +
+            `• "BTC" or "bitcoin"\n` +
+            `• "ETH" or "ethereum"\n` +
+            `• "SOL" or "solana"`;
           
-          // Update the specific bubble with error
+          // Update the specific bubble with fallback
           setNewsBubbles(prev => prev.map(bubble => 
             bubble.id === newBubble.id 
-              ? { ...bubble, content: errorContent, loading: false }
+              ? { ...bubble, content: fallbackContent, loading: false }
               : bubble
           ))
         }
       })()
     }
 
-    // Handle Twitter bubble logic (like CoinGecko - direct API calls)
-    if (mentionsTwitter && isPluginEnabled('twitter')) {
-      console.log('🐦 Creating Twitter bubble for message:', message)
+    // Handle Twitter bubble logic - now intent-based!
+    if ((userIntent.wantsTwitter || (userIntent.specificToken && userIntent.primaryIntent === 'TOKEN_INFO')) && isPluginEnabled('twitter')) {
+      console.log('🐦 Creating Twitter bubble for token:', userIntent.specificToken)
+      
+      // Extract search term based on intent
+      let searchQuery = '';
+      if (userIntent.specificToken) {
+        // Search for specific token
+        searchQuery = `${userIntent.specificToken} crypto`;
+      } else if (userIntent.wantsTrending) {
+        // Default to trending crypto search
+        searchQuery = 'trending crypto tokens';
+      } else {
+        searchQuery = 'crypto news';
+      }
+      
       // Create new Twitter bubble instance
       const newBubble = {
         id: Date.now() + Math.random(), // Unique ID
-        title: 'Twitter/X Search',
-        content: 'Searching Twitter for crypto discussions...',
+        title: 'Twitter/X',
+        content: 'Searching Twitter...',
         loading: true
       }
       
       setTwitterBubbles(prev => [...prev, newBubble])
       ;(async () => {
         try {
-          // Always use the user's actual message as the search query
-          const searchQuery = message;
-          
           console.log(`🐦 Twitter search query: "${searchQuery}"`);
           
-          // Call Twitter API directly (like CoinGecko)
+          // Call Twitter API
           const data = await twitterService.searchTweets(searchQuery, 'Latest');
           
-          // Show only the first tweet in the bubble (fits better)
-          let twitterText = `🐦 Twitter Search: "${searchQuery}"\n\n`;
+          // Format for bubble - compact view
+          let twitterText = `🐦 ${searchQuery}\n\n`;
           
           if (data.success && data.tweets && data.tweets.length > 0) {
-            const firstTweet = data.tweets[0];
-            twitterText += `@${firstTweet.user?.username || 'Unknown'}\n`;
-            twitterText += `${firstTweet.text || 'No text available'}\n`;
-            twitterText += `❤️ ${firstTweet.favorite_count || 0} | 🔄 ${firstTweet.retweet_count || 0}\n\n`;
-            twitterText += `+ ${data.tweets.length - 1} more tweets...`;
+            // Show top 3-4 tweets in compact format
+            data.tweets.slice(0, 4).forEach((tweet, index) => {
+              const username = tweet.user?.username || 'user';
+              const text = tweet.text || '';
+              // Truncate long tweets
+              const shortText = text.length > 100 ? text.substring(0, 97) + '...' : text;
+              
+              twitterText += `${index + 1}. @${username}\n`;
+              twitterText += `${shortText}\n`;
+              twitterText += `❤️ ${tweet.favorite_count || 0} 🔄 ${tweet.retweet_count || 0}\n\n`;
+            });
+            
+            if (data.tweets.length > 4) {
+              twitterText += `+${data.tweets.length - 4} more tweets`;
+            }
           } else {
             twitterText += 'No tweets found. Try a different search term.';
           }
@@ -1364,12 +1533,12 @@ export default function Home() {
         } catch (error) {
           console.error('Twitter search error:', error)
           
-          let errorContent = '❌ Twitter Search Error\n\n'
-          if (error.message?.includes('fetch')) {
-            errorContent += `Network error\n\nCannot reach Twitter API\nCheck internet connection`;
-          } else {
-            errorContent += `Service unavailable\n\nTwitter API is currently down\nTry again later\n\nError: ${error.message || 'Unknown error'}`;
-          }
+          let errorContent = '🐦 Twitter/X\n\n'
+          errorContent += `Unable to fetch tweets\n\n`;
+          errorContent += `Try searching for:\n`;
+          errorContent += `• $BTC or #bitcoin\n`;
+          errorContent += `• $ETH or #ethereum\n`;
+          errorContent += `• Any ticker with $ or #`;
           
           // Update the specific bubble with error
           setTwitterBubbles(prev => prev.map(bubble => 
@@ -1513,98 +1682,103 @@ export default function Home() {
       })()
     }
 
-    // Handle CoinGecko bubble logic (price mentions + specific coin)
-    if (mentionsPrice && mentionedCoin && isPluginEnabled('coingecko')) {
-      // Create new CoinGecko bubble instance for specific coin
-      const coinName = mentionedCoin.charAt(0).toUpperCase() + mentionedCoin.slice(1);
+    // Handle CoinGecko bubble logic - now intent-based!
+    if (userIntent.primaryIntent === 'PRICE_CHECK' && userIntent.specificToken && isPluginEnabled('coingecko')) {
+      // Create CoinGecko bubble for specific token price
+      const tokenName = userIntent.specificToken;
       const newBubble = {
-        id: Date.now() + Math.random(), // Unique ID
-        title: `${coinName} Market Data - CoinGecko`,
-        content: `Loading ${coinName} market data...`,
-        loading: true
+        id: Date.now() + Math.random(),
+        title: `${tokenName.toUpperCase()} Price`,
+        content: `Loading ${tokenName} price...`,
+        loading: true,
+        intent: 'PRICE', // Tell bubble what to fetch
+        token: tokenName.toLowerCase()
       }
       
       setCoinGeckoBubbles(prev => [...prev, newBubble])
       ;(async () => {
         try {
-          // Get detailed coin data for the specific coin
-          const data = await coingeckoService.getCoinDetails(mentionedCoin.toLowerCase())
+          // First try to get simple price (faster)
+          const priceData = await coingeckoService.getPrices([tokenName.toLowerCase()])
           
-          let marketText = `${data.name} (${data.symbol.toUpperCase()}) Market Stats\n\n`
+          let marketText = '';
           
-          const marketData = data.market_data
-          if (marketData) {
-            // Price and 24h change
-            const price = marketData.current_price?.usd || 0
-            const change24h = marketData.price_change_percentage_24h || 0
-            const changeDirection = change24h > 0 ? '+' : ''
-            
-            marketText += `Price: $${price.toLocaleString()}\n`
-            marketText += `24h Change: ${changeDirection}${change24h.toFixed(2)}%\n\n`
-            
-            // Market stats
-            const marketCap = marketData.market_cap?.usd
-            const volume = marketData.total_volume?.usd
-            const circulatingSupply = marketData.circulating_supply
-            const maxSupply = marketData.max_supply
-            
-            if (marketCap) {
-              marketText += `Market Cap: $${(marketCap/1e9).toFixed(2)}B\n`
+          if (priceData && priceData[tokenName.toLowerCase()]) {
+            const tokenData = priceData[tokenName.toLowerCase()];
+            marketText = `${tokenName.toUpperCase()} Price\n\n`;
+            marketText += `💰 Price: $${tokenData.usd?.toLocaleString() || 'N/A'}\n`;
+            if (tokenData.usd_24h_change) {
+              const change = tokenData.usd_24h_change;
+              const emoji = change > 0 ? '🟢' : '🔴';
+              marketText += `${emoji} 24h: ${change > 0 ? '+' : ''}${change.toFixed(2)}%\n`;
             }
-            if (volume) {
-              marketText += `24h Volume: $${(volume/1e9).toFixed(2)}B\n`
+            if (tokenData.usd_market_cap) {
+              marketText += `📊 Market Cap: $${(tokenData.usd_market_cap / 1e9).toFixed(2)}B\n`;
             }
-            if (circulatingSupply) {
-              marketText += `Circulating: ${(circulatingSupply/1e6).toFixed(1)}M\n`
+            if (tokenData.usd_24h_vol) {
+              marketText += `💹 24h Volume: $${(tokenData.usd_24h_vol / 1e6).toFixed(2)}M\n`;
             }
-            if (maxSupply) {
-              marketText += `Max Supply: ${(maxSupply/1e6).toFixed(1)}M\n`
-            } else {
-              marketText += `Max Supply: Unlimited\n`
-            }
-            
-            // Market rank
-            if (data.market_cap_rank) {
-              marketText += `\nRank: #${data.market_cap_rank}`
-            }
+            marketText += `\n🦎 Powered by CoinGecko`;
           } else {
-            marketText += 'Market data not available'
+            // Fallback: try detailed API
+            const data = await coingeckoService.getCoinDetails(tokenName.toLowerCase());
+            marketText = `${data.name} (${data.symbol?.toUpperCase() || tokenName.toUpperCase()})\n\n`;
+            
+            const marketData = data.market_data;
+            if (marketData) {
+              // Price and 24h change
+              const price = marketData.current_price?.usd || 0
+              const change24h = marketData.price_change_percentage_24h || 0
+              const changeDirection = change24h > 0 ? '+' : ''
+              
+              marketText += `💰 Price: $${price.toLocaleString()}\n`
+              marketText += `${change24h > 0 ? '🟢' : '🔴'} 24h: ${changeDirection}${change24h.toFixed(2)}%\n\n`
+              
+              // Market stats
+              const marketCap = marketData.market_cap?.usd
+              const volume = marketData.total_volume?.usd
+              const circulatingSupply = marketData.circulating_supply
+              const maxSupply = marketData.max_supply
+              
+              if (marketCap) {
+                marketText += `📊 Market Cap: $${(marketCap/1e9).toFixed(2)}B\n`
+              }
+              if (volume) {
+                marketText += `💹 24h Volume: $${(volume/1e6).toFixed(2)}M\n`
+              }
+              if (circulatingSupply) {
+                marketText += `🪙 Circulating: ${(circulatingSupply/1e6).toFixed(1)}M\n`
+              }
+              if (maxSupply) {
+                marketText += `📈 Max Supply: ${(maxSupply/1e6).toFixed(1)}M\n`
+              } else {
+                marketText += `📈 Max Supply: Unlimited\n`
+              }
+              
+              // Market rank
+              if (data.market_cap_rank) {
+                marketText += `\n🏆 Rank: #${data.market_cap_rank}`
+              }
+              marketText += `\n\n🦎 Powered by CoinGecko`;
+            } else {
+              marketText += 'Market data not available'
+            }
           }
           
-          // Update context awareness with market data
-          updateContextAwareness('market_data', mentionedCoin.toLowerCase(), {
-            source: 'CoinGecko',
-            name: data.name,
-            symbol: data.symbol.toUpperCase(),
-            price: marketData?.current_price?.usd,
-            change_24h: marketData?.price_change_percentage_24h,
-            market_cap: marketData?.market_cap?.usd,
-            volume_24h: marketData?.total_volume?.usd,
-            circulating_supply: marketData?.circulating_supply,
-            max_supply: marketData?.max_supply,
-            rank: data.market_cap_rank
-          })
-
-          // Update the specific bubble
+          // Update bubble with market data
           setCoinGeckoBubbles(prev => prev.map(bubble => 
             bubble.id === newBubble.id 
               ? { ...bubble, content: marketText, loading: false }
               : bubble
           ))
           
-          // 🧠 Update AI context with specific coin data
+          // 🧠 Update AI context with specific coin price data
           const coinContext = {
-            coingecko_data: {
-              specific_coin: {
-                name: coinName,
-                symbol: data.symbol?.toUpperCase(),
-                price: marketData?.current_price,
-                market_cap: marketData?.market_cap,
-                volume_24h: marketData?.total_volume,
-                change_24h: marketData?.price_change_percentage_24h,
-                timestamp: new Date().toISOString()
-              },
-              source: 'CoinGecko API'
+            coingecko_price_data: {
+              token: tokenName,
+              content: marketText,
+              timestamp: new Date().toISOString(),
+              source: 'CoinGecko Price API'
             }
           };
           
@@ -1631,7 +1805,7 @@ export default function Home() {
           // Update the specific bubble with error
           setCoinGeckoBubbles(prev => prev.map(bubble => 
             bubble.id === newBubble.id 
-              ? { ...bubble, content: `${coinName} not found on CoinGecko\n\nTry:\n• "bitcoin price"\n• "ethereum market cap"\n• "solana volume"`, loading: false }
+              ? { ...bubble, content: `${tokenName.toUpperCase()} not found\n\nTry:\n• "bitcoin price"\n• "ethereum price"\n• "solana price"`, loading: false }
               : bubble
           ))
         }
@@ -1785,13 +1959,13 @@ export default function Home() {
     }
     // Keep Hedera bubble visible - building conversation bubble map
 
-    // Handle ChangeNOW bubble logic (buy/swap mentions)
-    if (mentionsChangeNow && mentionedCoin && isPluginEnabled('changenow')) {
+    // Handle ChangeNOW bubble logic - now intent-based!
+    if (userIntent.wantsBuy && userIntent.specificToken && isPluginEnabled('changenow')) {
       // Create new ChangeNOW bubble instance
       const newBubble = {
         id: Date.now() + Math.random(), // Unique ID
-        title: `${mentionedCoin.toUpperCase()} Exchange - ChangeNOW`,
-        content: `Getting exchange data for ${mentionedCoin.toUpperCase()}...`,
+        title: `${userIntent.specificToken.toUpperCase()} Exchange - ChangeNOW`,
+        content: `Getting exchange data for ${userIntent.specificToken.toUpperCase()}...`,
         loading: true,
         originalQuery: message // Store the original user message for OpenAI extraction
       }
@@ -1802,7 +1976,7 @@ export default function Home() {
           // For "buy [token]" - user wants to buy the token with USD (USD -> Token)
           // Use 'usd' for fiat purchases instead of 'usdt' for crypto-to-crypto
           const sourceToken = message.toLowerCase().includes('buy') ? 'usd' : 'usdt';
-          const exchangeInfo = await changeNowService.getExchangeInfo(sourceToken, mentionedCoin, 1);
+          const exchangeInfo = await changeNowService.getExchangeInfo(sourceToken, userIntent.specificToken, 1);
           
           let exchangeText = '';
           
@@ -1865,7 +2039,7 @@ export default function Home() {
             exchangeText += `Ready to ${userIntent.toLowerCase()}?\nVisit: https://changenow.io\nSwap: ${fromSymbol} → ${toSymbol}`;
             
             // Update context awareness with exchange data
-            updateContextAwareness('exchange_data', mentionedCoin.toLowerCase(), {
+            updateContextAwareness('exchange_data', userIntent.specificToken.toLowerCase(), {
               source: 'ChangeNOW',
               from_currency: fromToken.ticker.toUpperCase(),
               to_currency: toToken.ticker.toUpperCase(),
@@ -1878,10 +2052,10 @@ export default function Home() {
             })
             
           } else {
-            exchangeText = `"${mentionedCoin.toUpperCase()}" not available for exchange\n\nTry popular tokens like:\n• Bitcoin (BTC)\n• Ethereum (ETH)\n• Solana (SOL)\n• Cardano (ADA)`;
+            exchangeText = `"${userIntent.specificToken.toUpperCase()}" not available for exchange\n\nTry popular tokens like:\n• Bitcoin (BTC)\n• Ethereum (ETH)\n• Solana (SOL)\n• Cardano (ADA)`;
             
             // Update context awareness even for unavailable tokens
-            updateContextAwareness('exchange_data', mentionedCoin.toLowerCase(), {
+            updateContextAwareness('exchange_data', userIntent.specificToken.toLowerCase(), {
               source: 'ChangeNOW',
               available: false,
               reason: 'Token not supported'
@@ -1898,7 +2072,7 @@ export default function Home() {
           // 🧠 Update AI context with ChangeNOW data
           const changeNowContext = {
             changenow_data: {
-              coin: mentionedCoin,
+              coin: userIntent.specificToken,
               exchange_data: data,
               timestamp: new Date().toISOString(),
               source: 'ChangeNOW API'
@@ -1928,7 +2102,7 @@ export default function Home() {
           // Update the specific bubble with error
           setChangeNowBubbles(prev => prev.map(bubble => 
             bubble.id === newBubble.id 
-              ? { ...bubble, content: `ChangeNOW API Error\n\nCouldn't fetch exchange data for ${mentionedCoin.toUpperCase()}\n\nTry asking for:\n• "buy bitcoin"\n• "swap ethereum"\n• "trade solana"`, loading: false }
+              ? { ...bubble, content: `ChangeNOW API Error\n\nCouldn't fetch exchange data for ${userIntent.specificToken.toUpperCase()}\n\nTry asking for:\n• "buy bitcoin"\n• "swap ethereum"\n• "trade solana"`, loading: false }
               : bubble
           ))
         }
@@ -2142,43 +2316,15 @@ export default function Home() {
     }
     // Keep 0x Protocol bubble visible - building conversation bubble map
 
-    // Handle Portfolio bubble logic (wallet/balance mentions) - NOW USING ALCHEMY
-    if (mentionsPortfolio && isPluginEnabled('alchemy')) {
-      // Create new Alchemy bubble instance for portfolio data
-      const newBubble = {
-        id: Date.now() + Math.random(), // Unique ID
-        title: 'Alchemy Portfolio',
-        content: 'Loading wallet data...',
-        loading: true
-      }
-      
-      setAlchemyBubbles(prev => [...prev, newBubble])
-      
-      // Update context awareness with alchemy portfolio data
-      updateContextAwareness('wallet_data', 'alchemy', {
-        source: 'Alchemy Portfolio',
-        connected: true, // The bubble will update this with actual data
-        message: 'Alchemy Portfolio bubble opened - multi-chain wallet data available'
-      })
-      
-      // After a short delay, mark as loaded (the bubble component handles actual data)
-      setTimeout(() => {
-        setAlchemyBubbles(prev => prev.map(bubble => 
-          bubble.id === newBubble.id 
-            ? { ...bubble, loading: false }
-            : bubble
-        ))
-      }, 500)
-    }
-    // Keep Portfolio bubble visible - building conversation bubble map
+    // Portfolio bubble handled below with intent system - removed duplicate
     
-    // Create Alchemy bubble if mentioned and plugin is enabled
-    if (mentionsAlchemy && isPluginEnabled('alchemy')) {
+    // Handle Alchemy bubble - now intent-based for portfolio viewing!
+    if ((userIntent.wantsPortfolio || userIntent.wantsAlchemy) && isPluginEnabled('alchemy')) {
       // Create new Alchemy bubble instance
       const newBubble = {
         id: Date.now() + Math.random(), // Unique ID
-        title: 'Alchemy',
-        content: 'Loading detailed token analytics...',
+        title: 'Portfolio',
+        content: 'Loading wallet tokens...',
         loading: true
       }
       
@@ -2651,3 +2797,4 @@ export default function Home() {
     </div>
   )
 }
+

@@ -852,6 +852,14 @@ export const WebSocketProvider = ({ children }) => {
         imageEnabled
       });
       
+      // Log the context being sent to AI
+      console.log('🧠 Context being sent to AI:', {
+        hasContext: !!window.contextAwarenessData,
+        contextKeys: window.contextAwarenessData ? Object.keys(window.contextAwarenessData) : [],
+        portfolioData: window.contextAwarenessData?.portfolio_data,
+        fullContext: window.contextAwarenessData
+      });
+      
       // Build OpenAI messages array
       const openaiMessages = [
         {
@@ -912,24 +920,22 @@ key b8nJ1wPtVCcPgTUdPhVqlaBNVCBoyFGY
 - Explain that they need a connected wallet to execute trades
 
 EXAMPLE RESPONSES:
-${isWalletConnected ? `
+
 User: "I want to sell some PEPE"
-Response: "Perfect! I can see your wallet is connected (${address?.slice(0, 6)}...${address?.slice(-4)}).
+Response: ${isWalletConnected ? 
+`"Perfect! I can see your wallet is connected (${address?.slice(0, 6)}...${address?.slice(-4)}).
 
 To get you the best price for selling PEPE:
 - How much PEPE do you want to sell?
 - What token do you want to receive? (ETH, USDC, USDT, etc.)
 
-I'll use 0x Protocol to find the best rates across all DEXs and get you a real-time quote with gas estimates!"
-` : `
-User: "I want to sell some PEPE"  
-Response: "I'd love to help you sell PEPE tokens! However, I need you to connect your wallet first so I can:
+I'll use 0x Protocol to find the best rates across all DEXs and get you a real-time quote with gas estimates!"` : 
+`"I'd love to help you sell PEPE tokens! However, I need you to connect your wallet first so I can:
 - Check your PEPE balance
 - Get accurate quotes with your address
 - Execute trades securely
 
-Please connect your wallet using the wallet button, then I can get you the best prices via 0x Protocol!"
-`}
+Please connect your wallet using the wallet button, then I can get you the best prices via 0x Protocol!"`}
 
 COMMUNICATION STYLE:
 - Keep responses concise but informative
@@ -939,8 +945,20 @@ COMMUNICATION STYLE:
 - Reference the real-time data you have access to
 - For trading: Be explicit about confirmations and next steps needed
 
-CURRENT CONTEXT DATA:
-${JSON.stringify(window.contextAwarenessData || {})}
+AVAILABLE CONTEXT DATA:
+${JSON.stringify(window.contextAwarenessData || {}, null, 2)}
+
+${window.contextAwarenessData?.portfolio_data ? `
+WALLET PORTFOLIO:
+The user has connected their wallet and you have access to their token balances:
+- Wallet Address: ${window.contextAwarenessData.portfolio_data.wallet_address}
+- Total Tokens: ${window.contextAwarenessData.portfolio_data.total_tokens}
+- Tokens: ${JSON.stringify(window.contextAwarenessData.portfolio_data.tokens, null, 2)}
+
+You MUST use this portfolio data to answer questions about the user's wallet, tokens, and balances.
+` : 'No wallet data available yet. If the user asks about their wallet, suggest they type "portfolio" or "wallet" to load their token data first.'}
+
+IMPORTANT: Always check and use the context data above to provide accurate information about the user's portfolio, market prices, and any data from the bubbles.
 
 USER PROFILE:
 ${JSON.stringify(userOptions)}

@@ -9,11 +9,91 @@ import alchemyRoutes from './alchemyRoutes.js';
 import twitterRoutes from './twitterRoutes.js';
 import protokolsRoutes from './protokolsRoutes.js';
 import { OpenAIController } from '../controllers/openaiController.js';
+import AlchemyController from '../controllers/alchemyController.js';
 
 const router = express.Router();
 
 // Health check endpoint (no authentication required)
 router.get('/health', OpenAIController.healthCheck);
+
+// Portfolio endpoint for frontend compatibility
+router.get('/portfolio/:address', async (req, res) => {
+  try {
+    const { address } = req.params;
+    const { network = 'eth-mainnet' } = req.query;
+    
+    if (!address) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Address is required' 
+      });
+    }
+
+    console.log(`📊 Portfolio request for ${address} on ${network}`);
+    
+    // Create a proper request object for the Alchemy controller
+    const mockReq = {
+      body: { address, network }
+    };
+    
+    // Create a response handler
+    let responseData = null;
+    let responseStatus = 200;
+    
+    const mockRes = {
+      status: (code) => {
+        responseStatus = code;
+        return mockRes;
+      },
+      json: (data) => {
+        responseData = data;
+        return mockRes;
+      }
+    };
+    
+    // Call the Alchemy controller
+    await AlchemyController.getTokenBalances(mockReq, mockRes);
+    
+    // Process the response
+    if (responseData) {
+      if (responseStatus === 200 && responseData.result) {
+        // Transform the Alchemy response to match frontend expectations
+        const transformedData = {
+          success: true,
+          data: responseData.result.tokenBalances?.map(token => ({
+            symbol: token.symbol || 'Unknown',
+            balance: token.tokenBalance,
+            contractAddress: token.contractAddress,
+            name: token.name || 'Unknown Token',
+            decimals: token.decimals || 18,
+            chain: network,
+            type: 'ERC-20'
+          })) || [],
+          totalTokens: responseData.result.tokenBalances?.length || 0,
+          address: address,
+          network: network
+        };
+        res.json(transformedData);
+      } else {
+        res.status(responseStatus).json({
+          success: false,
+          error: responseData.error || 'Failed to fetch portfolio data',
+          message: responseData.message
+        });
+      }
+    } else {
+      throw new Error('No response from Alchemy controller');
+    }
+    
+  } catch (error) {
+    console.error('Portfolio endpoint error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch token balances',
+      message: error.message
+    });
+  }
+});
 
 // OpenAI routes
 router.use('/openai', openaiRoutes);
@@ -49,6 +129,7 @@ router.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: {
       health: '/api/health',
+      portfolio: '/api/portfolio/:address',
       openai: {
         chatCompletions: '/api/openai/chat/completions',
         extractTrading: '/api/openai/extract-trading',

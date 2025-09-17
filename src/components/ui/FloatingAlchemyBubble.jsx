@@ -22,6 +22,7 @@ const FloatingAlchemyBubble = ({
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
   const bubbleRef = useRef(null);
   const bubbleId = useRef(`alchemy-${Date.now()}`).current;
+  const fetchInProgressRef = useRef(false);
   
   // Wallet connection
   const { address, isConnected, chain } = useAccount();
@@ -30,57 +31,181 @@ const FloatingAlchemyBubble = ({
   const fetchTokenBalances = useCallback(async () => {
     if (!address || !isConnected) return;
     
+    // Helper function to get raw balance value
+    const getRawBalance = (balance, decimals = 18) => {
+      if (!balance || balance === '0' || balance === '0x0') return 0;
+      
+      let value;
+      if (typeof balance === 'string' && balance.startsWith('0x')) {
+        value = parseInt(balance, 16) / Math.pow(10, decimals);
+      } else if (typeof balance === 'string' && balance.includes('.')) {
+        value = parseFloat(balance);
+      } else {
+        value = parseFloat(balance) / Math.pow(10, decimals);
+      }
+      
+      return value;
+    };
+    
+    // Prevent concurrent fetches
+    if (fetchInProgressRef.current) {
+      console.log('Portfolio fetch already in progress, skipping...');
+      return;
+    }
+    
+    fetchInProgressRef.current = true;
     setIsLoadingTokens(true);
     try {
       // Call the portfolio API for multi-chain data
       const response = await fetch(`${import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3001'}/api/portfolio/${address}`);
+      
+      // Check if the response is OK before parsing
+      if (!response.ok) {
+        if (response.status === 429) {
+          console.warn('Rate limit exceeded for portfolio API. Please try again later.');
+          // Don't retry immediately to avoid more rate limit issues
+          return;
+        }
+        throw new Error(`Portfolio API error: ${response.status}`);
+      }
+      
       const data = await response.json();
       
       if (data.success && data.data) {
         console.log('🔮 Alchemy Portfolio response:', data);
         
+        // Fetch prices for tokens with significant balances
+        const tokensWithBalance = data.data.filter(token => {
+          const balance = getRawBalance(token.balance, token.decimals || 18);
+          return balance > 0.0001; // Filter out dust
+        });
+        
+        // Try to fetch prices from CoinGecko for known tokens
+        const enrichedTokens = await Promise.all(tokensWithBalance.map(async (token) => {
+          try {
+            // Static prices for stablecoins
+            const stablecoins = ['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDP'];
+            if (stablecoins.includes(token.symbol?.toUpperCase())) {
+              const balance = getRawBalance(token.balance, token.decimals || 18);
+              return { ...token, priceUSD: 1.00, valueUSD: balance };
+            }
+            
+            // Try to fetch real prices from CoinGecko
+            const symbolToId = {
+              'ETH': 'ethereum',
+              'WETH': 'ethereum',
+              'BTC': 'bitcoin',
+              'WBTC': 'wrapped-bitcoin',
+              'LINK': 'chainlink',
+              'UNI': 'uniswap',
+              'MATIC': 'matic-network',
+              'SHIB': 'shiba-inu',
+              'PEPE': 'pepe',
+              'ARB': 'arbitrum',
+              'OP': 'optimism'
+            };
+            
+            const coinId = symbolToId[token.symbol?.toUpperCase()];
+            if (coinId) {
+              try {
+                const priceResponse = await fetch(
+                  `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`
+                );
+                if (priceResponse.ok) {
+                  const priceData = await priceResponse.json();
+                  const price = priceData[coinId]?.usd || 0;
+                  const balance = getRawBalance(token.balance, token.decimals || 18);
+                  const valueUSD = balance * price;
+                  return { ...token, priceUSD: price, valueUSD: valueUSD };
+                }
+              } catch (e) {
+                console.warn(`Could not fetch price for ${token.symbol}:`, e);
+              }
+            }
+            
+            // For unknown tokens, return without USD value
+            return token;
+          } catch (err) {
+            console.warn(`Error processing token ${token.symbol}:`, err);
+            return token;
+          }
+        }));
+        
         // Transform portfolio data to match expected format
         const portfolioData = {
           address: address,
           chainId: chain?.id || 1,
-          balances: data.data,
-          totalTokens: data.totalTokens
+          balances: enrichedTokens,
+          totalTokens: enrichedTokens.length
         };
         
         setTokenBalances(portfolioData);
         
         // Update AI context with portfolio data
         updateAIContext(portfolioData);
+      } else {
+        console.warn('Portfolio API returned unsuccessful response:', data);
       }
     } catch (error) {
       console.error('Failed to fetch portfolio data:', error);
+      // Set empty token balances to prevent infinite retries
+      setTokenBalances({
+        address: address,
+        chainId: chain?.id || 1,
+        balances: [],
+        totalTokens: 0,
+        error: true
+      });
     } finally {
       setIsLoadingTokens(false);
+      fetchInProgressRef.current = false;
     }
   }, [address, isConnected, chain?.id]);
   
   // Update global context for AI
   const updateAIContext = useCallback((data) => {
+    // Create the portfolio context with raw data (AI will understand)
+    const portfolioContext = {
+      portfolio_data: {
+        wallet_address: data.address,
+        total_tokens: data.totalTokens,
+        tokens: data.balances?.map(token => ({
+          symbol: token.symbol,
+          name: token.name,
+          balance: token.balance,
+          decimals: token.decimals,
+          price_usd: token.priceUSD || null,
+          value_usd: token.valueUSD || null,
+          chain: token.chain || 'ethereum',
+          contract_address: token.contractAddress
+        })) || [],
+        timestamp: new Date().toISOString(),
+        source: 'Alchemy API',
+        has_wallet_connected: true
+      }
+    };
+    
+    // Update window context for AI
     if (window.contextAwarenessData) {
       window.contextAwarenessData = {
         ...window.contextAwarenessData,
-        portfolio_data: {
-          ...window.contextAwarenessData.portfolio_data,
-          alchemy_tokens: {
-            data: data,
-            timestamp: new Date().toISOString()
-          }
-        }
+        ...portfolioContext
       };
+    } else {
+      window.contextAwarenessData = portfolioContext;
     }
+    
+    console.log('🧠 Updated AI context with portfolio data:', portfolioContext);
+    console.log('🧠 Full context available to AI:', window.contextAwarenessData);
   }, []);
   
-  // Fetch tokens when expanded
+  // Fetch tokens immediately when bubble opens (don't wait for expansion)
   useEffect(() => {
-    if (isExpanded && isConnected && !tokenBalances && !isLoadingTokens) {
+    if (isOpen && isConnected && !tokenBalances && !isLoadingTokens) {
+      console.log('🚀 Fetching portfolio data immediately on bubble open');
       fetchTokenBalances();
     }
-  }, [isExpanded, isConnected, tokenBalances, isLoadingTokens]);
+  }, [isOpen, isConnected, tokenBalances, isLoadingTokens, fetchTokenBalances]);
 
   // Initialize position
   useEffect(() => {
@@ -181,20 +306,52 @@ const FloatingAlchemyBubble = ({
   // Dynamic bubble size
   let bubbleSize = 140;
   if (isExpanded) {
-    bubbleSize = 350;
+    bubbleSize = 400; // Larger to accommodate all tokens
   }
   
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
   
-  // Format token display
+  // Get raw numeric balance value
+  const getRawBalance = (balance, decimals = 18) => {
+    if (!balance || balance === '0' || balance === '0x0') return 0;
+    
+    // Handle different balance formats
+    let value;
+    if (typeof balance === 'string' && balance.startsWith('0x')) {
+      // Hex format
+      value = parseInt(balance, 16) / Math.pow(10, decimals);
+    } else if (typeof balance === 'string' && balance.includes('.')) {
+      // Already decimal
+      value = parseFloat(balance);
+    } else {
+      // Raw number
+      value = parseFloat(balance) / Math.pow(10, decimals);
+    }
+    
+    return value;
+  };
+  
+  // Format token display properly
   const formatTokenBalance = (balance, decimals = 18) => {
-    if (!balance || balance === '0x0') return '0';
-    const value = parseInt(balance, 16) / Math.pow(10, decimals);
+    const value = getRawBalance(balance, decimals);
+    if (value === 0) return '0';
     if (value < 0.0001) return '<0.0001';
     if (value < 1) return value.toFixed(4);
     if (value < 1000) return value.toFixed(2);
-    return value.toFixed(0);
+    if (value < 1000000) return `${(value/1000).toFixed(1)}K`;
+    return `${(value/1000000).toFixed(1)}M`;
+  };
+  
+  // Format USD value
+  const formatUSDValue = (value) => {
+    if (!value) return '';
+    const num = parseFloat(value);
+    if (num < 0.01) return '<$0.01';
+    if (num < 1) return `$${num.toFixed(2)}`;
+    if (num < 1000) return `$${num.toFixed(0)}`;
+    if (num < 1000000) return `$${(num/1000).toFixed(1)}K`;
+    return `$${(num/1000000).toFixed(1)}M`;
   };
   
   const bubble = (
@@ -264,77 +421,58 @@ const FloatingAlchemyBubble = ({
                   </div>
                 </div>
               ) : (
-                // Expanded: Token balances
-                <div className="w-full h-full flex flex-col">
-                  {/* Header section with logo and title */}
-                  <div className="text-center mb-6">
-                    <div className="w-12 h-12 rounded-full overflow-hidden border-4 border-blue-400 shadow-2xl shadow-blue-500/60 bg-gradient-to-br from-blue-400/30 to-blue-600/40 mx-auto mb-2">
-                      <img 
-                        src={alchemyLogo} 
-                        alt="Alchemy" 
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-blue-400/10 to-blue-300/20"></div>
-                    </div>
-                    <div className="text-sm font-bold text-blue-300 drop-shadow-lg">Multi-Chain Portfolio</div>
-                    <div className="text-xs text-white/70 font-medium">Powered by Alchemy</div>
+                // Expanded: Simple token list
+                <div className="w-full h-full flex flex-col p-4">
+                  {/* Simple header */}
+                  <div className="text-center mb-3">
+                    <div className="text-sm font-bold text-blue-300">Wallet Portfolio</div>
+                    {address && (
+                      <div className="text-xs text-white/60 mt-1">
+                        {address.slice(0, 6)}...{address.slice(-4)}
+                      </div>
+                    )}
                   </div>
                   
-                  {/* Central content area */}
-                  <div className="flex-1 px-6 py-4 overflow-y-auto">
-                    <div className="text-center space-y-3">
-                      {!isConnected ? (
-                        <div className="text-sm text-white/90 leading-relaxed">
-                          <p className="text-blue-300 mb-2">No Wallet Connected</p>
-                          <p className="text-xs text-white/60">Connect your wallet to view tokens</p>
-                        </div>
-                      ) : tokenBalances ? (
-                        <div className="text-sm text-white/90 leading-relaxed space-y-2">
-                          <div className="text-xs text-blue-300 mb-3">
-                            {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ''}
+                  {/* Token list - no scrolling, just simple list */}
+                  <div className="flex-1 flex flex-col justify-center">
+                    {!isConnected ? (
+                      <div className="text-center">
+                        <p className="text-sm text-white/70">Connect wallet to view tokens</p>
+                      </div>
+                    ) : tokenBalances && tokenBalances.balances && tokenBalances.balances.length > 0 ? (
+                      <div className="space-y-0.5 max-h-[250px] overflow-y-auto">
+                        {/* Header row */}
+                        <div className="text-xs text-blue-300/70 pb-1 border-b border-blue-400/20">
+                          <div className="grid grid-cols-3 gap-1">
+                            <span>Token</span>
+                            <span className="text-right">Amount</span>
+                            <span className="text-right">Value</span>
                           </div>
-                          
-                          {tokenBalances.balances && tokenBalances.balances.length > 0 ? (
-                            <div className="space-y-2 max-h-48 overflow-y-auto">
-                              {tokenBalances.balances.slice(0, 5).map((token, index) => (
-                                <div key={index} className="bg-black/30 rounded-lg p-2 border border-blue-400/30">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-white/70 text-xs truncate">
-                                      {token.symbol || 'Token'}
-                                    </span>
-                                    <span className="text-white font-bold text-xs">
-                                      {token.balance}
-                                    </span>
-                                  </div>
-                                  {token.valueUSD && (
-                                    <div className="flex justify-between items-center text-xs mt-1">
-                                      <span className="text-white/50">${token.priceUSD}</span>
-                                      <span className="text-green-400 font-medium">${token.valueUSD}</span>
-                                    </div>
-                                  )}
-                                  <div className="text-xs text-blue-300/70 mt-1">
-                                    {token.chain} • {token.type}
-                                  </div>
-                                </div>
-                              ))}
-                              {tokenBalances.balances.length > 5 && (
-                                <div className="text-center text-xs text-white/50">
-                                  +{tokenBalances.balances.length - 5} more tokens
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="text-xs text-white/50">
-                              No tokens found in this wallet
-                            </div>
-                          )}
                         </div>
-                      ) : (
-                        <div className="text-sm text-white/90 leading-relaxed">
-                          <p className="text-blue-300">Click to load tokens...</p>
-                        </div>
-                      )}
-                    </div>
+                        {/* Token rows - show ALL tokens */}
+                        {tokenBalances.balances.map((token, index) => (
+                          <div key={index} className="text-xs text-white/90 py-0.5 hover:bg-white/5 rounded">
+                            <div className="grid grid-cols-3 gap-1 items-center">
+                              <span className="text-white/70 truncate">{token.symbol || 'Token'}</span>
+                              <span className="text-white font-medium text-right">
+                                {formatTokenBalance(token.balance, token.decimals || 18)}
+                              </span>
+                              <span className="text-green-400 font-medium text-right">
+                                {formatUSDValue(token.valueUSD) || '$0'}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : tokenBalances ? (
+                      <div className="text-center">
+                        <p className="text-xs text-white/50">No tokens found</p>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <p className="text-xs text-white/50">Loading tokens...</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
