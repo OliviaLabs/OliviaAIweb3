@@ -108,7 +108,7 @@ export const AVAILABLE_PLUGINS = {
     name: 'Twitter/X',
     description: 'Search Twitter for real-time crypto discussions and trends',
     detailedDescription: 'Search Twitter (now X) for real-time cryptocurrency discussions, trending topics, and community sentiment. Get the latest tweets about crypto projects, market movements, and community reactions.',
-    logo: '/x-icon.avif',
+    logo: '/x-social-media-white-icon.png',
     category: 'Social',
     color: 'black'
   },

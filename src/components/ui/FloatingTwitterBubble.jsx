@@ -248,7 +248,7 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
             <div className="text-white font-medium animate-pulse text-center flex flex-col items-center">
               <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/40 shadow-lg shadow-white/20 mb-2 bg-black/20">
                 <img 
-                  src="/x-icon.avif" 
+                  src="/x-social-media-white-icon.png" 
                   alt="Twitter/X" 
                   className="w-full h-full object-cover opacity-50"
                 />
@@ -269,7 +269,7 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
                   <div className="relative mb-3">
                     <div className="w-10 h-10 rounded-full overflow-hidden border-4 border-white/40 shadow-2xl shadow-white/30 bg-gradient-to-br from-white/20 to-white/30 hover:border-white/60 transition-all duration-300 hover:shadow-white/50 hover:scale-105 group">
                       <img 
-                        src="/x-icon.avif" 
+                        src="/x-social-media-white-icon.png" 
                         alt="Twitter/X" 
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                       />
@@ -292,7 +292,7 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
                   <div className="absolute top-2 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
                     <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/40 shadow-lg shadow-white/30 bg-gradient-to-br from-white/20 to-white/30 mb-2">
                       <img 
-                        src="/x-icon.avif" 
+                        src="/x-social-media-white-icon.png" 
                         alt="Twitter/X" 
                         className="w-full h-full object-cover"
                       />
