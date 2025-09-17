@@ -59,12 +59,25 @@ app.use('/api', routes);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Determine the correct path to dist folder
+// In production on Render, we're running from microservice/ so dist is at ../dist
+// In development, we might be running from project root
+const distPath = process.env.NODE_ENV === 'production' 
+  ? path.join(__dirname, '../../../dist')  // microservice/src -> microservice -> project root -> dist
+  : path.join(__dirname, '../../dist');    // microservice/src -> microservice -> dist
+
+console.log('🗂️ Serving static files from:', distPath);
+console.log('🗂️ Current directory:', process.cwd());
+console.log('🗂️ __dirname:', __dirname);
+
 // Serve static files from the frontend build
-app.use(express.static(path.join(__dirname, '../../dist')));
+app.use(express.static(distPath));
 
 // Catch-all handler: send back React's index.html file for any non-API routes
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../dist/index.html'));
+  const indexPath = path.join(distPath, 'index.html');
+  console.log('📄 Serving index.html from:', indexPath);
+  res.sendFile(indexPath);
 });
 
 // Global error handler
