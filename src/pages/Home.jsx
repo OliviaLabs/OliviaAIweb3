@@ -2465,7 +2465,7 @@ export default function Home() {
 
 
   return (
-    <div className="flex flex-col gap-6 relative h-full w-full overflow-hidden bg-black">
+    <div className="fixed inset-0 flex flex-col bg-black overflow-hidden">
       
       {/* WebSocket Status Debug (bottom-right) - Development Only */}
       {import.meta.env.VITE_NODE === 'development' && (
@@ -2510,8 +2510,8 @@ export default function Home() {
         ))}
       </div>
 
-      {/* Conversation Display - Just Above Input */}
-      <div className="flex-1 flex items-center justify-center px-4 relative z-10 pb-36" style={{marginBottom: '-120px'}}>
+      {/* Conversation Display - Properly centered with safe area */}
+      <div className="flex-1 flex items-center justify-center px-4 relative z-10 pt-8 pb-36">
         <div className="text-center max-w-xl w-full">
             
             {/* Chat Messages - Scroll up and fade older messages */}
@@ -2615,17 +2615,32 @@ export default function Home() {
             {/* Simple Input */}
             {showInput && (
               <div className="fixed bottom-52 left-4 right-4 z-20">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={userInput}
-                  onChange={(e) => setUserInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="w-full bg-black border border-green-300 rounded-lg text-white text-sm px-3 py-2 text-center focus:outline-none focus:border-green-400"
-                  style={{
-                    caretColor: 'white'
-                  }}
-                />
+                <div className="relative">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={userInput}
+                    onChange={(e) => setUserInput(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    className="w-full bg-black border border-green-300 rounded-lg text-white text-sm pl-3 pr-12 py-2 text-center focus:outline-none focus:border-green-400"
+                    style={{
+                      caretColor: 'white'
+                    }}
+                    placeholder="Ask me anything..."
+                  />
+                  {/* Olivia Logo Submit Button */}
+                  <button
+                    onClick={handleSendMessage}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/50 hover:bg-green-900/30 transition-colors duration-200 flex items-center justify-center border border-green-300/50 hover:border-green-400"
+                    disabled={!userInput.trim()}
+                  >
+                    <img
+                      src="/Olivia-ai-LOGO.png"
+                      alt="Send"
+                      className={`w-4 h-4 ${!userInput.trim() ? 'opacity-50' : 'opacity-100'}`}
+                    />
+                  </button>
+                </div>
               </div>
             )}
           </div>

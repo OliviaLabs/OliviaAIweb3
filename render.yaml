@@ -4,13 +4,15 @@ services:
     env: node
     plan: starter
     buildCommand: rm -rf node_modules package-lock.json && npm install && NODE_OPTIONS="--max-old-space-size=400" npm run build && npm run postbuild && cd microservice && npm install
-    startCommand: npm start
+    startCommand: cd microservice && npm start
     envVars:
       - key: NODE_ENV
         value: production
       - key: NODE_OPTIONS
         value: --max-old-space-size=4096
-    healthCheckPath: /health
+      - key: PORT
+        value: 10000
+    healthCheckPath: /api/health
     disk:
       name: olivia-ai-disk
       mountPath: /opt/render/project/src

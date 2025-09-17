@@ -7,10 +7,10 @@ Set these environment variables in your Render dashboard:
 ### Required Variables
 ```
 NODE_ENV=production
-PORT=3001
+PORT=10000
 ADMIN_ACCESS_SECRET=your_admin_secret_here
 OPENAI_API_KEY=your_openai_api_key_here
-ALLOWED_ORIGIN=https://oliviaaiweb3-1.onrender.com
+ALLOWED_ORIGIN=https://olivia-ai-web3.onrender.com
 ```
 
 ### Optional Variables
@@ -40,9 +40,17 @@ npm install && NODE_OPTIONS="--max-old-space-size=4096" npm run build:production
 
 ## Start Command
 
+The start command is configured in render.yaml:
 ```bash
 cd microservice && npm start
 ```
+
+This command:
+1. Changes to the microservice directory
+2. Starts the Node.js server which:
+   - Serves the API endpoints at `/api/*`
+   - Serves the built frontend files from the `dist` directory
+   - Handles WebSocket connections at `/ws/secure-proxy`
 
 ## Testing the Deployment
 
@@ -50,18 +58,23 @@ After deployment, test these endpoints:
 
 1. **Health Check** (no auth required):
    ```
-   GET https://oliviaaiweb3-1.onrender.com/api/health
+   GET https://olivia-ai-web3.onrender.com/api/health
    ```
 
-2. **Token Info** (auth required):
+2. **Frontend Application**:
    ```
-   GET https://oliviaaiweb3-1.onrender.com/api/openai/token-info
+   https://olivia-ai-web3.onrender.com
+   ```
+
+3. **Token Info** (auth required):
+   ```
+   GET https://olivia-ai-web3.onrender.com/api/openai/token-info
    Authorization: Bearer dev-token
    ```
 
-3. **Chat Completions** (auth required):
+4. **Chat Completions** (auth required):
    ```
-   POST https://oliviaaiweb3-1.onrender.com/api/openai/chat/completions
+   POST https://olivia-ai-web3.onrender.com/api/openai/chat/completions
    Authorization: Bearer dev-token
    Content-Type: application/json
    

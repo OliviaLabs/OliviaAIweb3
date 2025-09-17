@@ -32,25 +32,6 @@ export default function BottomNavigation() {
       />
 
       <div className="fixed bottom-0 left-0 right-0 z-40 ">
-        {/* Olivia AI Logo Button - Bigger and Pulsing - Higher z-index */}
-        <div className="absolute left-1/2 -translate-x-1/2 -top-32 bg-[#0a0a0a] rounded-full border border-white/10 z-50">
-          <Button
-            variant="ghost"
-            className="w-20 h-20 min-w-20 p-0 flex flex-col items-center bg-[#0a0a0a] rounded-full olivia-pulse hover:animate-none"
-            onPress={() => startOliviaChat({
-              action: "quick_chat",
-              message: "",
-              suggestions: ["Ask me anything", "Chat with AI", "Get help"],
-            })}
-          >
-            <img
-              src="/Olivia-ai-LOGO.png"
-              alt="OliviaAI"
-              className="w-20 h-20 p-3"
-            />
-          </Button>
-        </div>
-
         {/* Navigation Bar - Taller and Transparent */}
         <nav className="bg-transparent backdrop-blur-sm border-t border-white/10 safe-bottom rounded-t-xl">
           <div className="px-2 py-6">
