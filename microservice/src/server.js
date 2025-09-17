@@ -60,11 +60,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Determine the correct path to dist folder
-// In production on Render, we're running from microservice/ so dist is at ../dist
-// In development, we might be running from project root
+// In production on Render, we're running from /opt/render/project/src/microservice
+// The dist folder is at /opt/render/project/src/dist
 const distPath = process.env.NODE_ENV === 'production' 
-  ? path.join(__dirname, '../../../dist')  // microservice/src -> microservice -> project root -> dist
-  : path.join(__dirname, '../../dist');    // microservice/src -> microservice -> dist
+  ? path.join(__dirname, '../../dist')  // microservice/src -> microservice -> src -> dist
+  : path.join(__dirname, '../../dist');  // same path for dev
 
 console.log('🗂️ Serving static files from:', distPath);
 console.log('🗂️ Current directory:', process.cwd());
