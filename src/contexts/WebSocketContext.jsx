@@ -1010,7 +1010,109 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
           max_tokens: 200,
           temperature: 0.7,
           taker: address,
-          chainId: 1  // Use Ethereum as default
+          chainId: 1,  // Use Ethereum as default
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "getSwapPrice",
+                description: "Get swap price estimate from 0x Protocol (lighter than quote)",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    sellToken: {
+                      type: "string",
+                      description: "Token to sell (symbol or address)"
+                    },
+                    buyToken: {
+                      type: "string",
+                      description: "Token to buy (symbol or address)"
+                    },
+                    sellAmount: {
+                      type: "string", 
+                      description: "Amount to sell (in token units)"
+                    }
+                  },
+                  required: ["sellToken", "buyToken", "sellAmount"]
+                }
+              }
+            },
+            {
+              type: "function",
+              function: {
+                name: "getSwapQuote",
+                description: "Get swap quote from 0x Protocol for token trading",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    sellToken: {
+                      type: "string",
+                      description: "Token to sell (symbol or address)"
+                    },
+                    buyToken: {
+                      type: "string", 
+                      description: "Token to buy (symbol or address)"
+                    },
+                    sellAmount: {
+                      type: "string",
+                      description: "Amount to sell (in token units)"
+                    },
+                    taker: {
+                      type: "string",
+                      description: "User wallet address"
+                    }
+                  },
+                  required: ["sellToken", "buyToken", "sellAmount"]
+                }
+              }
+            },
+            {
+              type: "function",
+              function: {
+                name: "executeSwap",
+                description: "Execute token swap transaction using 0x Protocol",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    sellToken: {
+                      type: "string",
+                      description: "Token to sell (symbol or address)"
+                    },
+                    buyToken: {
+                      type: "string",
+                      description: "Token to buy (symbol or address)"
+                    },
+                    sellAmount: {
+                      type: "string",
+                      description: "Amount to sell (in token units)"
+                    },
+                    taker: {
+                      type: "string",
+                      description: "User wallet address"
+                    }
+                  },
+                  required: ["sellToken", "buyToken", "sellAmount", "taker"]
+                }
+              }
+            },
+            {
+              type: "function",
+              function: {
+                name: "webSearch",
+                description: "Search the web for real-time cryptocurrency information, prices, trends, and news",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    query: {
+                      type: "string",
+                      description: "Search query for cryptocurrency information, prices, trends, or news"
+                    }
+                  },
+                  required: ["query"]
+                }
+              }
+            }
+          ]
         })
       });
       
@@ -1026,15 +1128,14 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
       
       if (result.data?.choices?.[0]?.message?.content) {
         fullResponse = result.data.choices[0].message.content;
+        console.log('🤖 AI Response:', fullResponse);
       } else if (result.data?.choices?.[0]?.message?.tool_calls) {
         // Handle function call results
         const toolCalls = result.data.choices[0].message.tool_calls;
         if (toolCalls && toolCalls.length > 0) {
-          // Get the function call results from the response
-          const functionResults = result.data.functionResults || [];
-          if (functionResults.length > 0) {
-            fullResponse = functionResults.map(r => r.message || r.ui || 'Function executed').join('\n\n');
-          }
+          console.log('🔧 Function calls detected:', toolCalls);
+          // The AI should have already processed the function calls and returned content
+          fullResponse = result.data.choices[0].message.content || 'Function executed successfully';
         }
       }
       

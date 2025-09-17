@@ -1,10 +1,35 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import { existsSync } from 'fs';
+import { fileURLToPath } from 'url';
+
+// Get __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load .env file from microservice directory
 const envPath = path.resolve(process.cwd(), '.env');
-console.log('🔧 Loading .env from:', envPath);
-dotenv.config({ path: envPath });
+const microserviceEnvPath = path.resolve(__dirname, '..', '..', '.env');
+const rootEnvPath = path.resolve(__dirname, '..', '..', '..', '.env');
+
+console.log('🔧 Looking for .env files:');
+console.log('  - Current dir:', envPath);
+console.log('  - Microservice dir:', microserviceEnvPath);
+console.log('  - Root dir:', rootEnvPath);
+
+// Try to load .env from multiple locations
+if (existsSync(envPath)) {
+  console.log('✅ Loading .env from current directory');
+  dotenv.config({ path: envPath });
+} else if (existsSync(microserviceEnvPath)) {
+  console.log('✅ Loading .env from microservice directory');
+  dotenv.config({ path: microserviceEnvPath });
+} else if (existsSync(rootEnvPath)) {
+  console.log('✅ Loading .env from root directory');
+  dotenv.config({ path: rootEnvPath });
+} else {
+  console.log('⚠️ No .env file found, using environment variables');
+}
 
 // Debug: Check if key environment variables are loaded
 console.log('🔍 Environment variables loaded:');
