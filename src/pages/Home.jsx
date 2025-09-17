@@ -904,10 +904,10 @@ export default function Home() {
     
     
     // Detect Portfolio mentions (wallet, balance, holdings triggers)
-    const mentionsPortfolio = /\b(wallet|balance|holdings|portfolio|my tokens|my coins|what do i have|what's in my wallet)\b/i.test(message)
+    const mentionsPortfolio = /\b(wallet|balance|holdings|portfolio|my tokens|my coins|what do i have|what's in my wallet|what i have|what i own)\b/i.test(message)
     
-    // Detect Alchemy mentions (detailed tokens, all tokens, token list)
-    const mentionsAlchemy = /\b(all tokens|token list|detailed balance|all my tokens|every token|alchemy)\b/i.test(message)
+    // Detect Alchemy mentions - trigger on wallet mentions too!
+    const mentionsAlchemy = /\b(wallet|balance|holdings|portfolio|all tokens|token list|detailed balance|all my tokens|every token|alchemy|what's in my|what do i have)\b/i.test(message)
     console.log('🔮 Alchemy trigger check:', { message, mentionsAlchemy, isPluginEnabled: isPluginEnabled('alchemy') })
     
     // Detect Protokols mentions (KOLs, influencers, social analytics)
