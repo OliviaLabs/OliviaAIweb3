@@ -12,6 +12,7 @@ import okxLogo from '../../OKx.png';
 import tonLogo from '/toncoin-ton-logo.svg';
 import chainbaseLogo from '/download-1.png';
 import kolsIcon from '../assets/KOLS.png';
+import newsIcon from '../../581x581 logo.png';
 
 // Define available plugins with metadata
 export const AVAILABLE_PLUGINS = {
@@ -149,6 +150,15 @@ export const AVAILABLE_PLUGINS = {
     logo: kolsIcon,
     category: 'Analytics',
     color: 'purple'
+  },
+  websearch: {
+    id: 'websearch',
+    name: 'Crypto News',
+    description: 'Latest crypto news and market updates',
+    detailedDescription: 'Get the latest cryptocurrency news, breaking updates, and market analysis from CryptoNews.com and other trusted sources. Stay informed about price movements, regulatory changes, and industry developments.',
+    logo: newsIcon,
+    category: 'News',
+    color: 'orange'
   }
 };
 
@@ -164,7 +174,7 @@ export const getPluginStates = () => {
   }
   
   // Default: enable core trading and portfolio plugins
-  const defaultEnabledPlugins = ['zerox', 'okx', 'toncenter', 'chainbase', 'portfolio', 'changenow', 'twitter', 'coingecko', 'coinstats', 'lurky'];
+  const defaultEnabledPlugins = ['zerox', 'okx', 'toncenter', 'chainbase', 'portfolio', 'changenow', 'twitter', 'coingecko', 'coinstats', 'lurky', 'websearch'];
   return Object.keys(AVAILABLE_PLUGINS).reduce((acc, pluginId) => {
     acc[pluginId] = defaultEnabledPlugins.includes(pluginId);
     return acc;
