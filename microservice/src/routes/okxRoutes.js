@@ -150,6 +150,68 @@ router.get('/tokens', async (req, res) => {
 });
 
 /**
+ * GET /api/okx/token-holders
+ * Get top token holders for a specific token
+ * 
+ * Query Parameters:
+ * - chainId: Blockchain network ID (required)
+ * - tokenContractAddress: Token contract address (required)
+ * 
+ * Example: /api/okx/token-holders?chainId=1&tokenContractAddress=0x...
+ * 
+ * Response:
+ * {
+ *   "success": true,
+ *   "data": [
+ *     {
+ *       "holdAmount": "570747950.108575",
+ *       "holderWalletAddress": "0x..."
+ *     }
+ *   ]
+ * }
+ */
+router.get('/token-holders', async (req, res) => {
+  try {
+    await okxController.getTokenHolders(req, res);
+  } catch (error) {
+    console.error('👥 OKX Route Error (token-holders):', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+/**
+ * POST /api/okx/token-holders-query
+ * Get token holders with AI query parsing
+ * 
+ * Body Parameters:
+ * - userQuery: Natural language query about token holders (required)
+ * 
+ * Example: POST /api/okx/token-holders-query
+ * Body: { "userQuery": "show me PEPE holders" }
+ * 
+ * Response:
+ * {
+ *   "success": true,
+ *   "data": [...],
+ *   "oliviaMessage": "Here are the top PEPE holders! ..."
+ * }
+ */
+router.post('/token-holders-query', async (req, res) => {
+  try {
+    await okxController.getTokenHoldersQuery(req, res);
+  } catch (error) {
+    console.error('🤖 OKX Route Error (token-holders-query):', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+/**
  * GET /api/okx/popular-pairs
  * Get popular trading pairs for quick access
  * 
@@ -212,6 +274,37 @@ router.post('/olivia-quote', async (req, res) => {
     await okxController.getOliviaQuote(req, res);
   } catch (error) {
     console.error('🤖 OKX Route Error (olivia-quote):', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+/**
+ * GET /api/okx/olivia-labs
+ * Enhanced OKX data via Olivia Labs API
+ * 
+ * Query Parameters:
+ * - token: Token symbol or address (optional)
+ * - pair: Trading pair (optional)
+ * - action: Action type (optional)
+ * 
+ * Example: /api/okx/olivia-labs?token=USDT&pair=USDT/USDC&action=quote
+ * 
+ * Response:
+ * {
+ *   "success": true,
+ *   "data": { ... },
+ *   "timestamp": "2025-09-18T10:30:00.000Z",
+ *   "source": "Olivia Labs"
+ * }
+ */
+router.get('/olivia-labs', async (req, res) => {
+  try {
+    await okxController.getOliviaLabsData(req, res);
+  } catch (error) {
+    console.error('🔬 OKX Route Error (olivia-labs):', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error'

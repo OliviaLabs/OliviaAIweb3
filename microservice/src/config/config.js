@@ -37,6 +37,7 @@ console.log('  - PORT:', process.env.PORT);
 console.log('  - ZERO_EX_API_KEY:', process.env.ZERO_EX_API_KEY ? 'SET' : 'MISSING');
 console.log('  - TON_CENTER_API_KEY:', process.env.TON_CENTER_API_KEY ? 'SET' : 'MISSING');
 console.log('  - OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? 'SET' : 'MISSING');
+console.log('  - OLIVIA_LABS_API_KEY:', process.env.OLIVIA_LABS_API_KEY ? 'SET' : 'MISSING');
 
 export const config = {
   port: process.env.PORT || 3001,
@@ -48,6 +49,7 @@ export const config = {
   lurkyApiKey: process.env.LURKY_API_KEY,
   lurkyApiBaseUrl: process.env.LURKY_API_BASE_URL || 'https://api.lurky.app',
   okxApiKey: process.env.OKX_API_KEY,
+  oliviaLabsApiKey: process.env.OLIVIA_LABS_API_KEY,
   okxSecretKey: process.env.OKX_SECRET_KEY,
   okxPassphrase: process.env.OKX_PASSPHRASE,
   

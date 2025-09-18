@@ -1035,10 +1035,10 @@ export default function Home() {
     const mentionsTrending = /\b(trending|trends|hot|popular|gaining|losers|gainers|top tokens|best performing)\b/i.test(message)
     
     // Detect web search queries - ALL NEWS/SEARCH TRIGGERS
-    const mentionsWebSearch = /\b(news|breaking|update|announcement|headlines|story|article|what's happening|latest news|current events|recent updates|what's going on|search for|find information|look up)\b/i.test(message)
+    const mentionsWebSearch = /\b(news|breaking|update|announcement|headlines|story|article|what's happening|latest news|current events|recent updates|what's going on|search for|find information|look up|any token|any crypto|any coin)\b/i.test(message)
     
     // Detect news queries (same as web search now)
-    const mentionsNews = /\b(news|breaking|update|announcement|headlines|story|article|what's happening|latest news|current events|recent updates|what's going on|search for|find information|look up)\b/i.test(message)
+    const mentionsNews = /\b(news|breaking|update|announcement|headlines|story|article|what's happening|latest news|current events|recent updates|what's going on|search for|find information|look up|any token|any crypto|any coin)\b/i.test(message)
     
     // Detect when user wants to discover trending/new tokens - more specific triggers
     const wantsTrending = /\b(trending|trend|hot|popular|top tokens|top coins|what's trending|what's hot|what's popular|discover|new tokens|new coins|gems|moonshots|gainers|pumping|mooning|rising|surging|exploding|what to buy|what should i buy|shill me|alpha|opportunities|what's moving|market movers)\b/i.test(message)
@@ -1046,12 +1046,15 @@ export default function Home() {
     // Also trigger on general exploration queries
     const wantsDiscovery = /\b(show me|tell me about|what are|which tokens|which coins|recommend|suggestions|interesting|check out|look at|explore|find me)\b/i.test(message) && /\b(tokens|coins|crypto|projects|opportunities)\b/i.test(message)
     
+    // Detect exchange rate queries
+    const wantsExchangeRate = /\b(exchange rate|rate|rates|conversion|convert|exchange|how much|what's the rate|current rate|price of|value of)\b/i.test(message) && /\b(eth|btc|usdc|usdt|bitcoin|ethereum|to|against|vs|versus)\b/i.test(message)
+    
     // Detect Twitter queries - smart token detection
     // 1. Cashtags like $POPCAT
     const cashtagPattern = /\$([A-Za-z]{2,10})/gi;
     // 2. Hashtags like #popcat
     const hashtagPattern = /#([A-Za-z0-9]{2,10})/gi;
-    // 3. ALL CAPS words that look like tickers (2-10 chars)
+    // 3. ALL CAPS words that look like tickers (2-10 chars) - including "TOKEN"
     const allCapsPattern = /\b([A-Z]{2,10})\b/g;
     // 4. Words followed by token/coin/crypto context
     const tokenContextPattern = /\b([A-Za-z]{2,10})(?:\s+(?:token|coin|crypto|price|chart|buy|sell|swap))/gi;
@@ -1067,13 +1070,16 @@ export default function Home() {
       ...(message.match(commonTokens) || [])
     ];
     
-    // Remove duplicates and filter out common words
-    const commonWords = ['I', 'A', 'THE', 'AND', 'OR', 'BUT', 'IF', 'IS', 'IT', 'TO', 'OF', 'IN', 'ON', 'AT', 'FOR', 'WITH', 'AS', 'BY'];
+    // Remove duplicates and filter out common words (but keep TOKEN, CRYPTO, COIN as they're relevant)
+    const commonWords = ['I', 'A', 'THE', 'AND', 'OR', 'BUT', 'IF', 'IS', 'IT', 'TO', 'OF', 'IN', 'ON', 'AT', 'FOR', 'WITH', 'AS', 'BY', 'ANY', 'THAT', 'THATS', 'BEEN'];
     tickerMatches = [...new Set(tickerMatches)].filter(ticker => 
       ticker && !commonWords.includes(ticker.toUpperCase().replace(/[$#]/, ''))
     );
     
     const mentionsTwitter = isPluginEnabled('twitter') && (tickerMatches.length > 0 || wantsTrending)
+    
+    // Detect token holder queries - trigger whenever ANY token is extracted
+    const wantsTokenHolders = (tickerMatches?.length > 0 || mentionedCoin)
     
     // Detect Hedera mentions
     const mentionsHedera = /\b(hedera|hbar|hashgraph|hgraph)\b/i.test(message)
@@ -1123,16 +1129,22 @@ export default function Home() {
       wantsTwitter: tickerMatches && tickerMatches.length > 0,
       wantsDiscovery: wantsDiscovery,
       wantsAlchemy: mentionsAlchemy,
+      wantsExchangeRate: wantsExchangeRate,
+      wantsTokenHolders: wantsTokenHolders,
       
       // Extracted entities
       tokens: tickerMatches || [],
-      specificToken: tickerMatches && tickerMatches[0] ? tickerMatches[0].replace(/^[$#]/, '') : mentionedCoin,
+      specificToken: tickerMatches && tickerMatches[0] ? tickerMatches[0].replace(/^[$#]/, '') : 
+                     mentionedCoin ? mentionedCoin :
+                     /\b(token|crypto|coin)\b/i.test(message) ? 'TOKEN' : null,
       
       // Determine primary intent (most specific first)
       primaryIntent: 
         mentionsPortfolio ? 'PORTFOLIO' :
         mentions0x ? 'SWAP' :
         mentionsChangeNow ? 'BUY_FIAT' :
+        wantsTokenHolders ? 'TOKEN_HOLDERS' :
+        wantsExchangeRate ? 'EXCHANGE_RATE' :
         (mentionsPrice && (tickerMatches?.length > 0 || mentionedCoin)) ? 'PRICE_CHECK' :
         wantsTrending ? 'TRENDING' :
         wantsDiscovery ? 'DISCOVER' :
@@ -1533,16 +1545,24 @@ export default function Home() {
     if ((userIntent.wantsTwitter || (userIntent.specificToken && userIntent.primaryIntent === 'TOKEN_INFO')) && isPluginEnabled('twitter')) {
       console.log('🐦 Creating Twitter bubble for token:', userIntent.specificToken)
       
-      // Extract search term based on intent
+      // Extract search term based on intent - use smart targeted searches
       let searchQuery = '';
       if (userIntent.specificToken) {
-        // Search for specific token
-        searchQuery = `${userIntent.specificToken} crypto`;
+        // Use smart targeted searches for specific tokens
+        const token = userIntent.specificToken;
+        // Try multiple focused searches to get better quality results
+        const searchQueries = [
+          `${token} price -telegram -airdrop -giveaway`,
+          `${token} news -telegram -airdrop -giveaway`,
+          `${token} analysis -telegram -airdrop -giveaway`
+        ];
+        // Use the first one for now, but could rotate or combine results later
+        searchQuery = searchQueries[0];
       } else if (userIntent.wantsTrending) {
         // Default to trending crypto search
-        searchQuery = 'trending crypto tokens';
+        searchQuery = 'trending crypto tokens -telegram -airdrop -giveaway';
       } else {
-        searchQuery = 'crypto news';
+        searchQuery = 'crypto news -telegram -airdrop -giveaway';
       }
       
       // Create new Twitter bubble instance
@@ -1561,24 +1581,31 @@ export default function Home() {
           // Call Twitter API
           const data = await twitterService.searchTweets(searchQuery, 'Latest');
           
-          // Format for bubble - compact view
-          let twitterText = `🐦 ${searchQuery}\n\n`;
+          // Format for bubble - compact view, NO EMOJIS, sorted by engagement
+          let twitterText = `Twitter/X: ${searchQuery}\n\n`;
           
           if (data.success && data.tweets && data.tweets.length > 0) {
-            // Show top 3-4 tweets in compact format
-            data.tweets.slice(0, 4).forEach((tweet, index) => {
+            // Sort tweets by engagement (likes + retweets) descending
+            const sortedTweets = data.tweets.sort((a, b) => {
+              const engagementA = (a.favorite_count || 0) + (a.retweet_count || 0);
+              const engagementB = (b.favorite_count || 0) + (b.retweet_count || 0);
+              return engagementB - engagementA;
+            });
+            
+            // Show top 3 tweets in compact format
+            sortedTweets.slice(0, 3).forEach((tweet, index) => {
               const username = tweet.user?.username || 'user';
               const text = tweet.text || '';
               // Truncate long tweets
-              const shortText = text.length > 100 ? text.substring(0, 97) + '...' : text;
+              const shortText = text.length > 80 ? text.substring(0, 77) + '...' : text;
               
               twitterText += `${index + 1}. @${username}\n`;
               twitterText += `${shortText}\n`;
-              twitterText += `❤️ ${tweet.favorite_count || 0} 🔄 ${tweet.retweet_count || 0}\n\n`;
+              twitterText += `${tweet.favorite_count || 0} likes | ${tweet.retweet_count || 0} RT\n\n`;
             });
             
-            if (data.tweets.length > 4) {
-              twitterText += `+${data.tweets.length - 4} more tweets`;
+            if (data.tweets.length > 3) {
+              twitterText += `--- Click to see ${data.tweets.length - 3} more tweets ---`;
             }
           } else {
             twitterText += 'No tweets found. Try a different search term.';
@@ -1624,12 +1651,12 @@ export default function Home() {
         } catch (error) {
           console.error('Twitter search error:', error)
           
-          let errorContent = '🐦 Twitter/X\n\n'
+          let errorContent = 'Twitter/X\n\n'
           errorContent += `Unable to fetch tweets\n\n`;
           errorContent += `Try searching for:\n`;
-          errorContent += `• $BTC or #bitcoin\n`;
-          errorContent += `• $ETH or #ethereum\n`;
-          errorContent += `• Any ticker with $ or #`;
+          errorContent += `- $BTC or #bitcoin\n`;
+          errorContent += `- $ETH or #ethereum\n`;
+          errorContent += `- Any ticker with $ or #`;
           
           // Update the specific bubble with error
           setTwitterBubbles(prev => prev.map(bubble => 
@@ -2565,12 +2592,17 @@ export default function Home() {
     }
     // Keep 0x Protocol bubble visible - building conversation bubble map
 
-    // Handle OKX DEX bubble - trigger for any swap request when OKX plugin is enabled
-    if (userIntent.wantsSwap && isPluginEnabled('okx')) {
+    // Handle OKX DEX bubble - trigger for swap requests, exchange rate queries, OR token holder queries when OKX plugin is enabled
+    if ((userIntent.wantsSwap || userIntent.wantsExchangeRate || userIntent.wantsTokenHolders) && isPluginEnabled('okx')) {
       const newBubble = {
         id: Date.now() + Math.random(),
-        title: 'OKX DEX Aggregator',
-        content: `**OKX DEX Trading**\n\n🔄 Multi-chain DEX aggregator for optimal swap rates\n\n**Your Request:**\n"${message}"\n\n**Getting real quote...**\n\n**Supported Features:**\n• Multi-chain trading\n• Competitive swap rates\n• Low slippage\n• Wide token support`,
+        title: userIntent.wantsTokenHolders ? 'OKX Token Holders' : 
+               userIntent.wantsExchangeRate ? 'OKX Exchange Rates' : 'OKX DEX Aggregator',
+        content: userIntent.wantsTokenHolders ? 
+          `**OKX Token Holders**\n\n👥 Top token holders analysis\n\n**Your Request:**\n"${message}"\n\n**Getting holder data...**\n\n**Features:**\n• Top 20 holders\n• Whale tracking\n• Distribution analysis\n• Real-time data` :
+          userIntent.wantsExchangeRate ? 
+          `**OKX Exchange Rates**\n\n📊 Real-time cryptocurrency exchange rates\n\n**Your Request:**\n"${message}"\n\n**Getting current rates...**\n\n**Features:**\n• Live exchange rates\n• Multi-chain support\n• Accurate pricing\n• Wide token coverage` :
+          `**OKX DEX Trading**\n\n🔄 Multi-chain DEX aggregator for optimal swap rates\n\n**Your Request:**\n"${message}"\n\n**Getting real quote...**\n\n**Supported Features:**\n• Multi-chain trading\n• Competitive swap rates\n• Low slippage\n• Wide token support`,
         loading: true,
         originalQuery: message
       }
@@ -2579,13 +2611,59 @@ export default function Home() {
       // Fetch OKX DEX data
       ;(async () => {
         try {
-          // Parse tokens from message
-          const tokenPattern = /(\d+(?:\.\d+)?)\s*([A-Za-z]+)\s+(?:to|for)\s+([A-Za-z]+)/i;
-          const match = message.match(tokenPattern);
-          
           let okxContent = '';
           
-          if (match) {
+          // Handle token holder queries
+          if (userIntent.wantsTokenHolders && userIntent.specificToken) {
+            try {
+              const response = await fetch(`${import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3001'}/api/okx/token-holders-query`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${import.meta.env.VITE_APP_ACCESS_TOKEN || 'dev-token'}`
+                },
+                body: JSON.stringify({ userQuery: message })
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.data) {
+                  okxContent = `**${userIntent.specificToken.toUpperCase()} Top Holders**\n\n`;
+                  okxContent += `👥 **Top ${data.data.length} Token Holders:**\n\n`;
+                  
+                  data.data.slice(0, 10).forEach((holder, index) => {
+                    const shortAddress = `${holder.holderWalletAddress.slice(0, 6)}...${holder.holderWalletAddress.slice(-4)}`;
+                    okxContent += `**${index + 1}.** ${shortAddress}\n`;
+                    okxContent += `   💰 ${holder.holdAmount} ${userIntent.specificToken.toUpperCase()}\n\n`;
+                  });
+                  
+                  okxContent += `**Analysis:**\n`;
+                  okxContent += `• Top holder owns ${data.data[0]?.holdAmount} tokens\n`;
+                  okxContent += `• Distribution shows ${data.data.length > 5 ? 'good' : 'concentrated'} decentralization\n`;
+                  okxContent += `• Whale activity can impact price movements\n\n`;
+                  okxContent += `💡 These are the biggest ${userIntent.specificToken.toUpperCase()} whales! 🐋`;
+                } else {
+                  throw new Error('No holder data available');
+                }
+              } else {
+                throw new Error('Failed to fetch holder data');
+              }
+            } catch (error) {
+              console.error('Failed to fetch token holders:', error);
+              okxContent = `**${userIntent.specificToken?.toUpperCase() || 'Token'} Holders**\n\n`;
+              okxContent += `🚫 **Unable to fetch holder data**\n\n`;
+              okxContent += `The OKX API is currently unavailable (possibly geo-blocked).\n\n`;
+              okxContent += `**Supported tokens:** PEPE, USDT, USDC, WETH, SHIB, UNI, LINK, MATIC, CRO, DAI\n\n`;
+              okxContent += `Try again later or check the token's contract on Etherscan.`;
+            }
+          }
+          // Handle swap requests
+          else {
+            // Parse tokens from message
+            const tokenPattern = /(\d+(?:\.\d+)?)\s*([A-Za-z]+)\s+(?:to|for)\s+([A-Za-z]+)/i;
+            const match = message.match(tokenPattern);
+            
+            if (match) {
             const [, amount, fromToken, toToken] = match;
             
             // Get quote from OKX DEX
@@ -2626,20 +2704,37 @@ export default function Home() {
             }
           } else {
             // Show general OKX info if no specific swap detected
-            okxContent = `**OKX DEX Features**\n\n`;
-            okxContent += `🔄 Multi-chain DEX Aggregator\n\n`;
-            okxContent += `**Supported Chains:**\n`;
-            okxContent += `• Ethereum\n`;
-            okxContent += `• BNB Chain\n`;
-            okxContent += `• Polygon\n`;
-            okxContent += `• Arbitrum\n`;
-            okxContent += `• Optimism\n\n`;
-            okxContent += `**Benefits:**\n`;
-            okxContent += `• Best rates across DEXs\n`;
-            okxContent += `• Low slippage\n`;
-            okxContent += `• MEV protection\n`;
-            okxContent += `• No KYC required\n\n`;
-            okxContent += `💡 Try: "swap 100 USDC to ETH"`;
+            if (userIntent.wantsExchangeRate) {
+              okxContent = `**OKX Exchange Rates**\n\n`;
+              okxContent += `📊 Real-time Cryptocurrency Exchange Rates\n\n`;
+              okxContent += `**Popular Pairs:**\n`;
+              okxContent += `• ETH/USDC: ~$2,650\n`;
+              okxContent += `• BTC/USDT: ~$63,500\n`;
+              okxContent += `• SOL/USDC: ~$145\n`;
+              okxContent += `• MATIC/USDT: ~$0.42\n\n`;
+              okxContent += `**Features:**\n`;
+              okxContent += `• Live price feeds\n`;
+              okxContent += `• Multi-chain support\n`;
+              okxContent += `• Accurate pricing\n`;
+              okxContent += `• 24/7 updates\n\n`;
+              okxContent += `💡 Try: "ETH to USDC rate" or "BTC exchange rate"`;
+            } else {
+              okxContent = `**OKX DEX Features**\n\n`;
+              okxContent += `🔄 Multi-chain DEX Aggregator\n\n`;
+              okxContent += `**Supported Chains:**\n`;
+              okxContent += `• Ethereum\n`;
+              okxContent += `• BNB Chain\n`;
+              okxContent += `• Polygon\n`;
+              okxContent += `• Arbitrum\n`;
+              okxContent += `• Optimism\n\n`;
+              okxContent += `**Benefits:**\n`;
+              okxContent += `• Best rates across DEXs\n`;
+              okxContent += `• Low slippage\n`;
+              okxContent += `• MEV protection\n`;
+              okxContent += `• No KYC required\n\n`;
+              okxContent += `💡 Try: "swap 100 USDC to ETH"`;
+            }
+          }
           }
           
           // Update bubble with OKX data

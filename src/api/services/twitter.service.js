@@ -25,6 +25,12 @@ export const twitterService = {
 
       const data = await response.json();
       
+      // Debug: Log the raw API response to see the actual structure
+      console.log('🐦 Raw Twitter API response:', JSON.stringify(data, null, 2));
+      if (data.timeline && data.timeline.length > 0) {
+        console.log('🐦 First tweet structure:', JSON.stringify(data.timeline[0], null, 2));
+      }
+      
       // Process the response to extract relevant tweet data
       let tweets = [];
       if (data.timeline && Array.isArray(data.timeline)) {
@@ -32,15 +38,17 @@ export const twitterService = {
           id: tweet.id_str || tweet.id,
           text: tweet.full_text || tweet.text,
           user: {
-            username: tweet.user?.screen_name,
-            name: tweet.user?.name,
-            profile_image_url: tweet.user?.profile_image_url_https
+            username: tweet.user?.screen_name || tweet.author?.username || 'anonymous',
+            name: tweet.user?.name || tweet.author?.name || 'Anonymous User',
+            profile_image_url: tweet.user?.profile_image_url_https || tweet.author?.profile_image_url
           },
           created_at: tweet.created_at,
-          favorite_count: tweet.favorite_count || 0,
-          retweet_count: tweet.retweet_count || 0,
-          reply_count: tweet.reply_count || 0,
-          url: `https://twitter.com/${tweet.user?.screen_name}/status/${tweet.id_str || tweet.id}`
+          favorite_count: tweet.favorite_count || tweet.public_metrics?.like_count || 0,
+          retweet_count: tweet.retweet_count || tweet.public_metrics?.retweet_count || 0,
+          reply_count: tweet.reply_count || tweet.public_metrics?.reply_count || 0,
+          url: tweet.user?.screen_name ? 
+            `https://twitter.com/${tweet.user.screen_name}/status/${tweet.id_str || tweet.id}` :
+            `https://twitter.com/i/status/${tweet.id_str || tweet.id}`
         }));
       }
 

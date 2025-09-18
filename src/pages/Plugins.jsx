@@ -16,7 +16,10 @@ const Plugins = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [pluginStates, setPluginStates] = useState(getPluginStates());
   const [pluginCounts, setPluginCounts] = useState(getPluginCounts());
-  const [selectedPlan, setSelectedPlan] = useState('free'); // free, starter, pro, unlimited
+  const [selectedPlan, setSelectedPlan] = useState(() => {
+    // Load selected plan from localStorage
+    return localStorage.getItem('olivia-selected-plan') || 'free';
+  });
 
   useEffect(() => {
     setPluginStates(getPluginStates());
@@ -55,6 +58,8 @@ const Plugins = () => {
 
   const handlePlanSelect = (plan) => {
     setSelectedPlan(plan);
+    // Save selected plan to localStorage
+    localStorage.setItem('olivia-selected-plan', plan);
     
     // If switching to a plan with fewer plugins, disable excess plugins
     const maxPlugins = plan === 'free' ? 2 : plan === 'starter' ? 4 : plan === 'pro' ? 8 : Infinity;

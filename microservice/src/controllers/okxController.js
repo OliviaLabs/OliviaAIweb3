@@ -12,6 +12,8 @@ class OKXController {
     this.apiKey = config.okxApiKey;
     this.secretKey = config.okxSecretKey;
     this.passphrase = config.okxPassphrase;
+    // Olivia Labs API integration
+    this.oliviaLabsApiKey = config.oliviaLabsApiKey;
   }
 
   /**
@@ -295,6 +297,208 @@ class OKXController {
    */
   parseTokenAmount(amount, decimals) {
     return (parseFloat(amount) / Math.pow(10, decimals)).toFixed(6);
+  }
+
+  /**
+   * GET /api/okx/token-holders - Get top token holders
+   * Query params: chainId, tokenContractAddress
+   */
+  async getTokenHolders(req, res) {
+    try {
+      const { chainId, tokenContractAddress } = req.query;
+      
+      if (!chainId || !tokenContractAddress) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required parameters: chainId, tokenContractAddress'
+        });
+      }
+
+      const requestPath = `/market/token/holder?chainIndex=${chainId}&tokenContractAddress=${tokenContractAddress}`;
+      const headers = this.createHeaders('GET', requestPath);
+      
+      const response = await axios.get(`https://web3.okx.com/api/v5/dex${requestPath}`, { headers });
+      
+      console.log('👥 OKX: Token holders fetched', {
+        token: tokenContractAddress,
+        chain: chainId,
+        holdersCount: response.data.data?.length || 0
+      });
+
+      res.json({
+        success: true,
+        data: response.data.data,
+        token: tokenContractAddress,
+        chainId: chainId
+      });
+    } catch (error) {
+      console.error('👥 OKX: Failed to fetch token holders:', error.response?.data || error.message);
+      res.status(500).json({
+        success: false,
+        error: error.response?.data?.msg || error.message
+      });
+    }
+  }
+
+  /**
+   * POST /api/okx/token-holders-query - Get token holders with AI parsing
+   * Body: { userQuery }
+   */
+  async getTokenHoldersQuery(req, res) {
+    try {
+      const { userQuery } = req.body;
+      
+      if (!userQuery) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required parameter: userQuery'
+        });
+      }
+
+      console.log('🤖 Olivia: Getting token holders for query:', userQuery);
+      
+      // Enhanced token extraction with common token mapping
+      const tokenPattern = /\b([A-Z]{2,10}|0x[a-fA-F0-9]{40})\b/g;
+      const matches = userQuery.match(tokenPattern);
+      
+      if (!matches) {
+        return res.json({
+          success: false,
+          oliviaMessage: `I need a token symbol or contract address to show you the top holders! Try something like "PEPE" or "ETH" 🔍`,
+          error: 'No token found in query'
+        });
+      }
+
+      const token = matches[0].toUpperCase();
+      
+      // Token to contract address mapping for major tokens
+      const tokenContracts = {
+        'PEPE': '0x6982508145454Ce325dDbE47a25d4ec3d2311933',
+        'USDT': '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        'USDC': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        'WETH': '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        'SHIB': '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE',
+        'UNI': '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',
+        'LINK': '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+        'MATIC': '0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0',
+        'CRO': '0xA0b73E1Ff0B80914AB6fe0444E65848C4C34450b',
+        'DAI': '0x6B175474E89094C44Da98b954EedeAC495271d0F'
+      };
+
+      const contractAddress = tokenContracts[token];
+      
+      if (!contractAddress) {
+        return res.json({
+          success: false,
+          oliviaMessage: `I found ${token} but don't have its contract address in my database yet. I currently support: ${Object.keys(tokenContracts).join(', ')}`,
+          error: 'Contract address not found',
+          token: token,
+          supportedTokens: Object.keys(tokenContracts)
+        });
+      }
+      
+      try {
+        console.log(`👥 OKX: Fetching holders for ${token} with contract ${contractAddress}`);
+        const requestPath = `/market/token/holder?chainIndex=1&tokenContractAddress=${contractAddress}`;
+        const headers = this.createHeaders('GET', requestPath);
+        
+        const response = await axios.get(`https://web3.okx.com/api/v5/dex${requestPath}`, { headers });
+        
+        if (response.data && response.data.data && response.data.data.length > 0) {
+          console.log('👥 OKX: Real holder data fetched for', token);
+          
+          // Format the top 5 holders
+          const topHolders = response.data.data.slice(0, 5).map((holder, index) => ({
+            rank: index + 1,
+            address: holder.holderWalletAddress,
+            amount: holder.holdAmount,
+            shortAddress: `${holder.holderWalletAddress.slice(0, 6)}...${holder.holderWalletAddress.slice(-4)}`
+          }));
+          
+          return res.json({
+            success: true,
+            data: response.data.data,
+            topHolders: topHolders,
+            token: token,
+            chainId: "1",
+            contractAddress: contractAddress,
+            oliviaMessage: `Here are the top ${token} holders! 🐋 Real data from OKX DEX API:\n\nThese whales control the biggest bags. Watch for their movements!`,
+            details: {
+              totalHolders: response.data.data.length,
+              topHolderAmount: response.data.data[0]?.holdAmount || 'Unknown',
+              blockchain: 'Ethereum',
+              analysisNote: "Real holder distribution data from OKX DEX API"
+            }
+          });
+        } else {
+          throw new Error('No holder data returned from OKX API');
+        }
+      } catch (error) {
+        console.log('🚨 OKX API call failed:', error.response?.data?.msg || error.message);
+        console.log('🚨 Full error:', error.response?.data || error.message);
+        
+        return res.json({
+          success: false,
+          oliviaMessage: `I tried to get ${token} holder data from OKX but the API is currently unavailable (possibly geo-blocked). The contract address is ${contractAddress} on Ethereum.`,
+          error: 'OKX API unavailable',
+          token: token,
+          contractAddress: contractAddress,
+          apiError: error.response?.data?.msg || error.message
+        });
+      }
+    } catch (error) {
+      console.error('🤖 Olivia: Token holders query error:', error);
+      
+      res.json({
+        success: false,
+        oliviaMessage: `Oops! I ran into trouble fetching those holder details. The blockchain data gods aren't cooperating right now 😅 Try again in a moment!`,
+        error: error.response?.data?.msg || error.message
+      });
+    }
+  }
+
+  /**
+   * GET /api/okx/olivia-labs - Enhanced OKX data via Olivia Labs API
+   */
+  async getOliviaLabsData(req, res) {
+    try {
+      if (!this.oliviaLabsApiKey) {
+        return res.status(400).json({
+          success: false,
+          error: 'Olivia Labs API key not configured'
+        });
+      }
+
+      const { token, pair, action } = req.query;
+      
+      // Example Olivia Labs API call for enhanced OKX data
+      const response = await axios.get('https://api.olivialabs.io/v1/okx/enhanced', {
+        headers: {
+          'Authorization': `Bearer ${this.oliviaLabsApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        params: {
+          token,
+          pair,
+          action
+        }
+      });
+
+      res.json({
+        success: true,
+        data: response.data,
+        timestamp: new Date().toISOString(),
+        source: 'Olivia Labs'
+      });
+
+    } catch (error) {
+      console.error('Olivia Labs OKX API error:', error.response?.data || error.message);
+      res.status(500).json({
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch Olivia Labs data',
+        timestamp: new Date().toISOString()
+      });
+    }
   }
 }
 
