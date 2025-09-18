@@ -149,9 +149,7 @@ const FloatingNewsBubble = ({ isOpen, onClose, title = 'Trending Tokens', conten
     setLastClickTime(currentTime);
     
     // Single click toggles expand/collapse
-    if (!isDragging) {
-      setIsExpanded(!isExpanded);
-    }
+    setIsExpanded(!isExpanded);
   };
 
   useEffect(() => {

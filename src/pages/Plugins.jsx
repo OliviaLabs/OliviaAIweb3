@@ -8,6 +8,7 @@ import {
   disableAllPlugins, 
   getPluginCounts 
 } from '../utils/pluginManager';
+import { nowpaymentsService } from '../api';
 import { ArrowLeft, ToggleLeft, ToggleRight } from 'lucide-react';
 
 const Plugins = () => {
@@ -15,16 +16,59 @@ const Plugins = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [pluginStates, setPluginStates] = useState(getPluginStates());
   const [pluginCounts, setPluginCounts] = useState(getPluginCounts());
+  const [selectedPlan, setSelectedPlan] = useState('free'); // free, starter, pro, unlimited
 
   useEffect(() => {
     setPluginStates(getPluginStates());
     setPluginCounts(getPluginCounts());
   }, []);
 
+  const getMaxPlugins = () => {
+    switch (selectedPlan) {
+      case 'free': return 2;
+      case 'starter': return 4;
+      case 'pro': return 8;
+      case 'unlimited': return Infinity;
+      default: return 2;
+    }
+  };
+
   const handleToggle = (pluginId) => {
+    const newStates = { ...pluginStates };
+    const isCurrentlyEnabled = pluginStates[pluginId] || false;
+    
+    if (!isCurrentlyEnabled) {
+      // Trying to enable - check if we're at the limit
+      const currentEnabled = Object.values(pluginStates).filter(Boolean).length;
+      const maxAllowed = getMaxPlugins();
+      
+      if (currentEnabled >= maxAllowed) {
+        alert(`You can only enable ${maxAllowed} plugins on your ${selectedPlan} plan. Upgrade to enable more plugins.`);
+        return;
+      }
+    }
+    
     togglePlugin(pluginId);
     setPluginStates(getPluginStates());
     setPluginCounts(getPluginCounts());
+  };
+
+  const handlePlanSelect = (plan) => {
+    setSelectedPlan(plan);
+    
+    // If switching to a plan with fewer plugins, disable excess plugins
+    const maxPlugins = plan === 'free' ? 2 : plan === 'starter' ? 4 : plan === 'pro' ? 8 : Infinity;
+    const currentEnabled = Object.entries(pluginStates).filter(([_, enabled]) => enabled);
+    
+    if (currentEnabled.length > maxPlugins && maxPlugins !== Infinity) {
+      // Disable excess plugins (keep the first N enabled)
+      const pluginsToDisable = currentEnabled.slice(maxPlugins);
+      pluginsToDisable.forEach(([pluginId, _]) => {
+        togglePlugin(pluginId);
+      });
+      setPluginStates(getPluginStates());
+      setPluginCounts(getPluginCounts());
+    }
   };
 
   const handleEnableAll = () => {
@@ -79,33 +123,143 @@ const Plugins = () => {
           </div>
         </div>
 
-        {/* Responsive Stats - More Compact on Mobile */}
+        {/* Subscription Tiers - Smaller */}
+        <div className="mt-2 mb-3">
+          <h3 className="text-xs font-semibold text-white mb-2 text-center">Choose Your Plan</h3>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+            {/* Free Plan */}
+            <div className={`bg-black/60 backdrop-blur-sm rounded-lg p-2 border transition-all flex flex-col h-full cursor-pointer ${
+              selectedPlan === 'free' 
+                ? 'border-green-400/70 bg-green-900/20 shadow-lg shadow-green-400/20' 
+                : 'border-gray-800/50 hover:border-gray-700/50'
+            }`} onClick={() => handlePlanSelect('free')}>
+              <div className="text-center flex-1">
+                <h4 className="text-xs font-bold text-white">Free</h4>
+                <div className="text-lg font-bold text-green-400 mt-1">$0</div>
+                <div className="text-xs text-gray-400 mb-2">per month</div>
+                <div className="text-xs text-gray-300 mb-3 space-y-0.5">
+                  <div className="font-medium text-white text-xs">2 Plugins</div>
+                  <div className="text-xs">Basic AI assistance</div>
+                </div>
+              </div>
+              <div className={`w-full py-1 px-2 rounded text-xs font-medium text-center ${
+                selectedPlan === 'free' 
+                  ? 'bg-green-600/80 text-white' 
+                  : 'bg-gray-800/80 text-gray-300'
+              }`}>
+                {selectedPlan === 'free' ? 'Active' : 'Select'}
+              </div>
+            </div>
+
+            {/* Starter Plan */}
+            <div className={`bg-black/60 backdrop-blur-sm rounded-lg p-2 border transition-all flex flex-col h-full cursor-pointer ${
+              selectedPlan === 'starter' 
+                ? 'border-blue-400/70 bg-blue-900/20 shadow-lg shadow-blue-400/20' 
+                : 'border-blue-500/30 hover:border-blue-400/50'
+            }`} onClick={() => handlePlanSelect('starter')}>
+              <div className="text-center flex-1">
+                <h4 className="text-xs font-bold text-white">Starter</h4>
+                <div className="text-lg font-bold text-blue-400 mt-1">$5</div>
+                <div className="text-xs text-gray-400 mb-2">per month</div>
+                <div className="text-xs text-gray-300 mb-3 space-y-0.5">
+                  <div className="font-medium text-white text-xs">4 Plugins</div>
+                  <div className="text-xs">Enhanced AI capabilities</div>
+                </div>
+              </div>
+              <div className={`w-full py-1 px-2 rounded text-xs font-medium text-center transition-colors ${
+                selectedPlan === 'starter' 
+                  ? 'bg-blue-600/80 text-white' 
+                  : 'bg-blue-600/80 hover:bg-blue-500 text-white'
+              }`}>
+                {selectedPlan === 'starter' ? 'Active' : 'Upgrade Now'}
+              </div>
+            </div>
+
+            {/* Pro Plan */}
+            <div className={`bg-black/60 backdrop-blur-sm rounded-lg p-2 border transition-all flex flex-col h-full cursor-pointer ${
+              selectedPlan === 'pro' 
+                ? 'border-purple-400/70 bg-purple-900/20 shadow-lg shadow-purple-400/20' 
+                : 'border-purple-500/30 hover:border-purple-400/50'
+            }`} onClick={() => handlePlanSelect('pro')}>
+              <div className="text-center flex-1">
+                <h4 className="text-xs font-bold text-white">Pro</h4>
+                <div className="text-lg font-bold text-purple-400 mt-1">$10</div>
+                <div className="text-xs text-gray-400 mb-2">per month</div>
+                <div className="text-xs text-gray-300 mb-3 space-y-0.5">
+                  <div className="font-medium text-white text-xs">8 Plugins</div>
+                  <div className="text-xs">Advanced AI features</div>
+                </div>
+              </div>
+              <div className={`w-full py-1 px-2 rounded text-xs font-medium text-center transition-colors ${
+                selectedPlan === 'pro' 
+                  ? 'bg-purple-600/80 text-white' 
+                  : 'bg-purple-600/80 hover:bg-purple-500 text-white'
+              }`}>
+                {selectedPlan === 'pro' ? 'Active' : 'Upgrade Now'}
+              </div>
+            </div>
+
+            {/* Unlimited Plan */}
+            <div className={`bg-black/60 backdrop-blur-sm rounded-lg p-2 border transition-all flex flex-col h-full relative cursor-pointer ${
+              selectedPlan === 'unlimited' 
+                ? 'border-orange-400/70 bg-orange-900/20 shadow-lg shadow-orange-400/20' 
+                : 'border-orange-500/50 hover:border-orange-400/70'
+            }`} onClick={() => handlePlanSelect('unlimited')}>
+              <div className="absolute -top-1 -right-1 bg-orange-500 text-black text-xs px-1.5 py-0.5 rounded-full font-bold" style={{fontSize: '9px'}}>
+                POPULAR
+              </div>
+              <div className="text-center flex-1">
+                <h4 className="text-xs font-bold text-white">Unlimited</h4>
+                <div className="text-lg font-bold text-orange-400 mt-1">$15</div>
+                <div className="text-xs text-gray-400 mb-2">per month</div>
+                <div className="text-xs text-gray-300 mb-3 space-y-0.5">
+                  <div className="font-medium text-white text-xs">All Plugins</div>
+                  <div className="text-xs">Complete AI experience</div>
+                </div>
+              </div>
+              <div className={`w-full py-1 px-2 rounded text-xs font-medium text-center transition-colors ${
+                selectedPlan === 'unlimited' 
+                  ? 'bg-orange-600/80 text-white' 
+                  : 'bg-orange-600/80 hover:bg-orange-500 text-white'
+              }`}>
+                {selectedPlan === 'unlimited' ? 'Active' : 'Upgrade Now'}
+              </div>
+            </div>
+          </div>
+          
+          {/* Payment Info - Smaller */}
+          <div className="mt-2 text-center">
+            <div className="text-xs text-gray-500">
+              Secure crypto payments via <span className="text-blue-400 font-medium">NOWPayments</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Plugin Usage Stats */}
         <div className="bg-gray-900/30 rounded-lg p-2 md:p-3 my-2 md:my-3 border border-gray-800">
           <div className="flex items-center justify-between">
             <div className="flex gap-3 md:gap-6 text-xs">
               <div>
                 <span className="text-green-400 font-medium">{pluginCounts.enabled}</span>
-                <span className="text-gray-400 ml-1 hidden sm:inline">Active</span>
+                <span className="text-gray-400 ml-1">Active</span>
               </div>
               <div>
                 <span className="text-gray-400 font-medium">{pluginCounts.disabled}</span>
-                <span className="text-gray-400 ml-1 hidden sm:inline">Inactive</span>
+                <span className="text-gray-400 ml-1">Inactive</span>
               </div>
             </div>
             
-            <div className="flex gap-1.5">
-              <button
-                onClick={handleEnableAll}
-                className="px-2 py-0.5 md:py-1 rounded bg-green-600/80 hover:bg-green-600 transition-colors text-xs font-medium"
-              >
-                All On
-              </button>
-              <button
-                onClick={handleDisableAll}
-                className="px-2 py-0.5 md:py-1 rounded bg-red-600/80 hover:bg-red-600 transition-colors text-xs font-medium"
-              >
-                All Off
-              </button>
+            <div className="text-xs text-gray-400">
+              {selectedPlan === 'unlimited' ? (
+                <span className="text-orange-400 font-medium">Unlimited plugins</span>
+              ) : (
+                <>
+                  <span className="text-blue-400 font-medium">
+                    {Math.max(0, getMaxPlugins() - pluginCounts.enabled)} left
+                  </span>
+                  <span className="ml-1">on {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} plan</span>
+                </>
+              )}
             </div>
           </div>
         </div>

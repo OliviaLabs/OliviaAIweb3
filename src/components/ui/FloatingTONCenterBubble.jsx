@@ -200,10 +200,10 @@ const FloatingTONCenterBubble = ({ isOpen, onClose, title = 'TON Center', conten
   const loadTONData = async () => {
     setIsLoadingData(true);
     
-    // REAL API CALL - NO FAKE DATA
+    // REAL API CALL - Use centralized CoinGecko service
     try {
-      const priceResponse = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
-      const priceData = await priceResponse.json();
+      const { coingeckoService } = await import('../../api');
+      const priceData = await coingeckoService.getPrices(['the-open-network']);
       
       if (priceData && priceData['the-open-network']) {
         setTonPrice({ 
@@ -258,6 +258,11 @@ const FloatingTONCenterBubble = ({ isOpen, onClose, title = 'TON Center', conten
       
       addParticlesToSwarm(newParticles);
     }
+    
+    // Close the bubble after particle effect
+    setTimeout(() => {
+      onClose();
+    }, 100);
   };
 
   const handleClick = (e) => {

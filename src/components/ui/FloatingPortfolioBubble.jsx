@@ -59,11 +59,10 @@ const FloatingPortfolioBubble = ({
   // Fetch PEPE price from CoinGecko
   const fetchPepePrice = useCallback(async () => {
     try {
-      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=pepe&vs_currencies=usd');
-      if (response.ok) {
-        const data = await response.json();
-        setPepePrice(data.pepe?.usd);
-      }
+      // Use centralized CoinGecko service
+      const { coingeckoService } = await import('../../api');
+      const data = await coingeckoService.getPrices(['pepe']);
+      setPepePrice(data.pepe?.usd);
     } catch (error) {
       console.error('Error fetching PEPE price:', error);
     }

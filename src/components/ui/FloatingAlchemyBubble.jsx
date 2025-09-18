@@ -108,16 +108,13 @@ const FloatingAlchemyBubble = ({
             const coinId = symbolToId[token.symbol?.toUpperCase()];
             if (coinId) {
               try {
-                const priceResponse = await fetch(
-                  `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`
-                );
-                if (priceResponse.ok) {
-                  const priceData = await priceResponse.json();
-                  const price = priceData[coinId]?.usd || 0;
-                  const balance = getRawBalance(token.balance, token.decimals || 18);
-                  const valueUSD = balance * price;
-                  return { ...token, priceUSD: price, valueUSD: valueUSD };
-                }
+                // Use centralized CoinGecko service
+                const { coingeckoService } = await import('../../api');
+                const priceData = await coingeckoService.getPrices([coinId]);
+                const price = priceData[coinId]?.usd || 0;
+                const balance = getRawBalance(token.balance, token.decimals || 18);
+                const valueUSD = balance * price;
+                return { ...token, priceUSD: price, valueUSD: valueUSD };
               } catch (e) {
                 console.warn(`Could not fetch price for ${token.symbol}:`, e);
               }

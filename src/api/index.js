@@ -36,13 +36,14 @@ export * as authService from './services/auth.service.js';
 export { aiService } from './services/ai.service.js';
 export { lurkyService } from './services/lurky.service.js';
 export { coingeckoService } from './services/coingecko.service.js';
-// export { coinstatsService } from './services/coinstats.service.js'; // DISABLED
+export { coinstatsService } from './services/coinstats.service.js';
 export { changeNowService } from './services/changenow.service.js';
 export { hgraphService } from './services/hgraph.service.js';
 export { icpService } from './services/icp.service.js';
 export { privacyService } from './services/privacy.service.js';
 export { okxDexService } from './services/okx-dex.service.js';
 export { zeroXService } from './services/zerox.service.js';
+export { nowpaymentsService } from './services/nowpayments.service.js';
 
 // Types
 export * from './types/auth.types.js';

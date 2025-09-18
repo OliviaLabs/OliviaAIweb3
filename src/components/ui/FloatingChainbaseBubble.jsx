@@ -334,6 +334,11 @@ const FloatingChainbaseBubble = ({ isOpen, onClose, title = 'Chainbase', content
       
       addParticlesToSwarm(newParticles);
     }
+    
+    // Close the bubble after particle effect
+    setTimeout(() => {
+      onClose();
+    }, 100);
   };
 
   const handleClick = (e) => {

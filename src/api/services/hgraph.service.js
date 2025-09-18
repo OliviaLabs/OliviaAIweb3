@@ -71,9 +71,9 @@ export const hgraphService = {
    */
   async getHbarPrice() {
     try {
-      // Fallback to CoinGecko for price data since Hgraph focuses on network data
-      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=hedera-hashgraph&vs_currencies=usd&include_24hr_change=true&include_market_cap=true');
-      const data = await response.json();
+      // Use centralized CoinGecko service instead of direct fetch
+      const { coingeckoService } = await import('../index.js');
+      const data = await coingeckoService.getPrices(['hedera-hashgraph']);
       console.log('🟢 HBAR price data:', data);
       return data['hedera-hashgraph'];
     } catch (error) {

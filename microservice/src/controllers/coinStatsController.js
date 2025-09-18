@@ -260,16 +260,25 @@ export class CoinStatsController {
         'dfinity': 'internet-computer'
       };
       
-      const coinId = coinMapping[query.toLowerCase()] || query.toLowerCase();
+      const coinId = coinMapping[query.toLowerCase()];
+      
+      // If we don't have a mapping for this coin, return empty result instead of 400 error
+      if (!coinId) {
+        console.log(`CoinStats: No mapping found for query "${query}"`);
+        return res.json({
+          success: true,
+          data: [], // Empty array indicates no results found
+          timestamp: new Date().toISOString()
+        });
+      }
       
       const response = await coinStatsAxios.get(`/coins/${coinId}`, {
         params: { currency }
       });
       
       // Return in expected format
-      const data = {
-        result: [response.data.coin || response.data]
-      };
+      const coinData = response.data.coin || response.data;
+      const data = [coinData]; // Return as array for consistency
 
       res.json({
         success: true,
@@ -279,6 +288,15 @@ export class CoinStatsController {
 
     } catch (error) {
       console.error('CoinStats searchCoins error:', error);
+      
+      // For 404 or other API errors, return empty result instead of error
+      if (error.response?.status === 404) {
+        return res.json({
+          success: true,
+          data: [], // Empty array indicates no results found
+          timestamp: new Date().toISOString()
+        });
+      }
       
       res.status(error.response?.status || 500).json({
         success: false,

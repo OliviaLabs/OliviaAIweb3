@@ -979,12 +979,24 @@ ALL data in AVAILABLE CONTEXT DATA above is YOUR PRIMARY SOURCE OF TRUTH. This i
 YOU MUST:
 1. ALWAYS use the context data as your PRIMARY source - it's more recent than your training data
 2. NEVER make up data when real data is available in context
-3. QUOTE and REFERENCE specific data points from the context
-4. When bubble data exists for a topic, USE IT instead of generic knowledge
+3. QUOTE and REFERENCE specific data points from the context when relevant
+4. USE BUBBLE DATA WHEN IT'S RELEVANT to the user's question
 5. Treat ALL context data as AUTHORITATIVE and CURRENT
+6. DON'T FORCE bubble data into responses where it doesn't belong
 
 If context has data about a token/topic, that data OVERRIDES your training knowledge.
 Example: If context shows PEPE price is $0.00001, use that exact price, not your training data.
+
+${window.contextAwarenessData?.ai_instruction?.no_tokens_found ? `
+IMPORTANT USER INSTRUCTION:
+If the user is asking about crypto tokens but no tokens were detected in their message, you MUST include this exact message in your response:
+
+"${window.contextAwarenessData.ai_instruction.no_tokens_found.message}"
+
+${window.contextAwarenessData.ai_instruction.no_tokens_found.suggestion}
+
+This helps users know how to format their requests to get token data and bubbles.
+` : ''}
 
 USER PROFILE:
 ${JSON.stringify(userOptions)}
@@ -996,6 +1008,23 @@ Wallet Type: ${connector?.name || 'None'}
 Connection Status: ${isWalletConnected ? 'Active' : 'Disconnected'}
 
 IMPORTANT: You have access to live market data in the CURRENT CONTEXT DATA above. ALWAYS check this data first before saying you cannot find information. The context data contains real-time prices, market caps, and trading information that you should use to answer user questions.
+
+CRITICAL: USE BUBBLE CONTEXT DATA WHEN RELEVANT
+If bubble context data exists AND is relevant to the user's question, use it to enhance your response:
+
+SMART RULE: USE BUBBLE DATA WHEN IT MAKES SENSE
+- If bubble data is relevant to the question → use it naturally
+- If bubble data exists but isn't relevant → don't force it
+- For crypto/trading questions → always check and use available bubble data
+- For general questions → only use bubble data if it adds genuine value
+
+EXAMPLES:
+- User asks "I want to buy PEPE" → Use PEPE price data, portfolio data, Twitter sentiment
+- User asks "How are you?" → Just answer normally, don't force crypto data
+- User asks "What's trending?" → Use Twitter data if available
+- User asks "What's my portfolio worth?" → Use portfolio and price data
+
+ONLY USE BUBBLE DATA WHEN IT'S ACTUALLY RELEVANT AND HELPFUL.
 
 Remember: You have access to live market data, sentiment analysis, exchange rates, and portfolio information through the bubbles system. Use this data to provide accurate, up-to-date responses!`
         }

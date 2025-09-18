@@ -50,6 +50,10 @@ export const config = {
   okxApiKey: process.env.OKX_API_KEY,
   okxSecretKey: process.env.OKX_SECRET_KEY,
   okxPassphrase: process.env.OKX_PASSPHRASE,
+  
+  // NOWPayments API
+  nowpaymentsApiKey: process.env.NOWPAYMENTS_API_KEY,
+  nowpaymentsPublicKey: process.env.NOWPAYMENTS_PUBLIC_KEY,
   okxDexBaseUrl: process.env.OKX_DEX_BASE_URL || 'https://www.okx.com/api/v5/dex/aggregator',
   tonCenterApiKey: process.env.TON_CENTER_API_KEY,
   zeroXApiKey: process.env.ZERO_EX_API_KEY,
@@ -96,6 +100,10 @@ if (!config.lurkyApiKey) {
 
 if (!config.okxApiKey) {
   console.warn('Warning: OKX_API_KEY is not set. You will need to set this to use OKX DEX features.');
+}
+
+if (!config.nowpaymentsApiKey) {
+  console.warn('Warning: NOWPAYMENTS_API_KEY is not set. You will need to set this to use NOWPayments features.');
 }
 
 if (!config.okxSecretKey) {

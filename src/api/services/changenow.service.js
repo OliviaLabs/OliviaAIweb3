@@ -45,6 +45,10 @@ export const changeNowService = {
       return data.success ? data.data : data;
     } catch (error) {
       console.error('ChangeNOW minimal exchange error:', error);
+      // Return null instead of throwing for 404s to allow graceful handling
+      if (error.message.includes('404')) {
+        return null;
+      }
       throw error;
     }
   },
@@ -69,6 +73,10 @@ export const changeNowService = {
       return data.success ? data.data : data;
     } catch (error) {
       console.error('ChangeNOW exchange amount error:', error);
+      // Return null instead of throwing for 404s to allow graceful handling
+      if (error.message.includes('404')) {
+        return null;
+      }
       throw error;
     }
   },
@@ -93,6 +101,10 @@ export const changeNowService = {
       return data.success ? data.data : data;
     } catch (error) {
       console.error('ChangeNOW exchange range error:', error);
+      // Return null instead of throwing for 404s to allow graceful handling
+      if (error.message.includes('404')) {
+        return null;
+      }
       throw error;
     }
   },
