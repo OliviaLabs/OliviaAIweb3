@@ -41,6 +41,47 @@ const modal = createAppKit({
     onramp: true
   },
   themeMode: 'dark',
+  // Mobile-specific configurations
+  enableWalletConnect: true,
+  enableInjected: true,
+  enableCoinbase: true,
+  mobileWallets: [
+    {
+      id: 'metamask',
+      name: 'MetaMask',
+      links: {
+        native: 'metamask://',
+        universal: 'https://metamask.app.link'
+      }
+    },
+    {
+      id: 'trust',
+      name: 'Trust Wallet',
+      links: {
+        native: 'trust://',
+        universal: 'https://link.trustwallet.com'
+      }
+    },
+    {
+      id: 'coinbase',
+      name: 'Coinbase Wallet',
+      links: {
+        native: 'cbwallet://',
+        universal: 'https://go.cb-w.com'
+      }
+    }
+  ],
+  // Desktop wallet configurations
+  desktopWallets: [
+    {
+      id: 'metamask',
+      name: 'MetaMask',
+      links: {
+        native: 'metamask://',
+        universal: 'https://metamask.io'
+      }
+    }
+  ],
   themeVariables: {
     // Background colors
     '--w3m-color-bg-1': '#000000',
@@ -70,18 +111,86 @@ const modal = createAppKit({
     '--w3m-font-family': 'Inter, system-ui, sans-serif',
     '--w3m-font-size-master': '14px',
     
+    // Mobile-responsive sizing
+    '--w3m-modal-width': 'min(90vw, 400px)',
+    '--w3m-modal-height': 'auto',
+    '--w3m-modal-max-height': '90vh',
+    
+    // Button sizing for mobile
+    '--w3m-button-size': '56px',
+    '--w3m-button-icon-size': '24px',
+    
+    // Wallet item sizing
+    '--w3m-wallet-item-height': '64px',
+    '--w3m-wallet-icon-size': '40px',
+    
     // Z-index for modal overlay
     '--w3m-z-index': 9999,
     
     // Overlay background
     '--w3m-overlay-background-color': 'rgba(0, 0, 0, 0.8)',
-    '--w3m-overlay-backdrop-filter': 'blur(5px)'
+    '--w3m-overlay-backdrop-filter': 'blur(5px)',
+    
+    // Mobile viewport fixes
+    '--w3m-mobile-breakpoint': '768px'
   }
 })
 
 // Make modal accessible globally for custom buttons
 if (typeof window !== 'undefined') {
   window.appKitModal = modal;
+  
+  // Mobile wallet return flow fixes
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
+  if (isMobile) {
+    // Handle page visibility changes (when user returns from wallet app)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        // User returned to the page - check connection status
+        setTimeout(() => {
+          // Force a connection check
+          if (window.appKitModal && window.appKitModal.getIsConnected) {
+            window.appKitModal.getIsConnected().then(isConnected => {
+              if (isConnected) {
+                // Successfully connected - close modal if open
+                if (window.appKitModal.getIsOpen && window.appKitModal.getIsOpen()) {
+                  window.appKitModal.close();
+                }
+              }
+            }).catch(console.error);
+          }
+        }, 1000); // Give wallet time to update connection status
+      }
+    });
+    
+    // Handle focus events (alternative to visibility change)
+    window.addEventListener('focus', () => {
+      setTimeout(() => {
+        // Check if we should refresh connection status
+        if (window.appKitModal) {
+          // Trigger a refresh of the modal state
+          try {
+            window.appKitModal.subscribeState(() => {
+              // State change handler - will update UI automatically
+            });
+          } catch (error) {
+            console.log('Modal state subscription not available');
+          }
+        }
+      }, 500);
+    });
+    
+    // Prevent zoom on modal open
+    const preventZoom = (e) => {
+      if (e.touches && e.touches.length > 1) {
+        e.preventDefault();
+      }
+    };
+    
+    document.addEventListener('touchstart', preventZoom, { passive: false });
+    document.addEventListener('touchmove', preventZoom, { passive: false });
+  }
 }
 
 export { wagmiAdapter, queryClient, modal }

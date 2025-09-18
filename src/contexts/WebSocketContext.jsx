@@ -859,6 +859,7 @@ export const WebSocketProvider = ({ children }) => {
         portfolioData: window.contextAwarenessData?.portfolio_data,
         fullContext: window.contextAwarenessData
       });
+
       
       // Build OpenAI messages array
       const openaiMessages = [
@@ -986,6 +987,7 @@ YOU MUST:
 
 If context has data about a token/topic, that data OVERRIDES your training knowledge.
 Example: If context shows PEPE price is $0.00001, use that exact price, not your training data.
+
 
 ${window.contextAwarenessData?.ai_instruction?.no_tokens_found ? `
 IMPORTANT USER INSTRUCTION:

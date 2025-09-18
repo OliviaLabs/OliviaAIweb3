@@ -512,15 +512,54 @@ export default function Home() {
           // Fall through to CoinGecko fallback
         }
         
-        // FALLBACK: Try CoinGecko API for validation
+        // FALLBACK: Try CoinGecko API for validation with proper ID mapping
         try {
-          // Use centralized CoinGecko service instead of direct fetch
-          const geckoData = await coingeckoService.getPrices([token.toLowerCase()]);
+          // Map common symbols to CoinGecko IDs
+          const geckoIdMap = {
+            'btc': 'bitcoin',
+            'bitcoin': 'bitcoin',
+            'eth': 'ethereum', 
+            'ethereum': 'ethereum',
+            'usdc': 'usd-coin',
+            'usdt': 'tether',
+            'bnb': 'binancecoin',
+            'sol': 'solana',
+            'solana': 'solana',
+            'ada': 'cardano',
+            'cardano': 'cardano',
+            'dot': 'polkadot',
+            'polkadot': 'polkadot',
+            'link': 'chainlink',
+            'chainlink': 'chainlink',
+            'avax': 'avalanche-2',
+            'avalanche': 'avalanche-2',
+            'matic': 'matic-network',
+            'polygon': 'matic-network',
+            'atom': 'cosmos',
+            'cosmos': 'cosmos',
+            'near': 'near',
+            'algo': 'algorand',
+            'algorand': 'algorand',
+            'icp': 'internet-computer',
+            'hbar': 'hedera-hashgraph',
+            'hedera': 'hedera-hashgraph',
+            'ton': 'the-open-network',
+            'toncoin': 'the-open-network',
+            'doge': 'dogecoin',
+            'dogecoin': 'dogecoin',
+            'shib': 'shiba-inu',
+            'shiba': 'shiba-inu',
+            'pepe': 'pepe'
+          };
+          
+          const geckoId = geckoIdMap[token.toLowerCase()] || token.toLowerCase();
+          const geckoData = await coingeckoService.getPrices([geckoId]);
+          
           if (Object.keys(geckoData).length > 0) {
-            log(`✅ Found valid token via CoinGecko: ${token}`);
+            log(`✅ Found valid token via CoinGecko: ${token} -> ${geckoId}`);
             return {
               searchTerm: token,
-              coinData: { name: token.toUpperCase(), symbol: token.toUpperCase(), id: token.toLowerCase() },
+              coinData: { name: token.toUpperCase(), symbol: token.toUpperCase(), id: geckoId },
               isValid: true,
               source: 'coingecko'
             };
@@ -584,14 +623,44 @@ export default function Home() {
       
       // Create CoinGecko bubble for tokens mentioned by AI
       if (isPluginEnabled('coingecko')) {
-        // Map token names to CoinGecko IDs
+        // Map token names to CoinGecko IDs (comprehensive mapping)
         const tokenIdMap = {
+          'btc': 'bitcoin',
+          'bitcoin': 'bitcoin',
+          'eth': 'ethereum', 
+          'ethereum': 'ethereum',
+          'usdc': 'usd-coin',
+          'usdt': 'tether',
+          'bnb': 'binancecoin',
+          'sol': 'solana',
+          'solana': 'solana',
+          'ada': 'cardano',
+          'cardano': 'cardano',
+          'dot': 'polkadot',
+          'polkadot': 'polkadot',
+          'link': 'chainlink',
+          'chainlink': 'chainlink',
+          'avax': 'avalanche-2',
+          'avalanche': 'avalanche-2',
+          'matic': 'matic-network',
+          'polygon': 'matic-network',
+          'atom': 'cosmos',
+          'cosmos': 'cosmos',
+          'near': 'near',
+          'algo': 'algorand',
+          'algorand': 'algorand',
+          'icp': 'internet-computer',
+          'hbar': 'hedera-hashgraph',
+          'hedera': 'hedera-hashgraph',
+          'ton': 'the-open-network',
+          'toncoin': 'the-open-network',
+          'doge': 'dogecoin',
+          'dogecoin': 'dogecoin',
+          'shib': 'shiba-inu',
+          'shiba': 'shiba-inu',
           'pepe': 'pepe',
           'css': 'cyrus-sargon',
-          'dk': 'disco-kitus',
-          'usdc': 'usd-coin',
-          'bitcoin': 'bitcoin',
-          'ethereum': 'ethereum'
+          'dk': 'disco-kitus'
         };
         
         const geckoId = tokenIdMap[searchTerm.toLowerCase()] || searchTerm.toLowerCase();
@@ -1252,7 +1321,7 @@ export default function Home() {
     // Keep Lurky bubble visible - building conversation bubble map
 
     // Handle trending tokens logic
-    if (mentionsTrending && isPluginEnabled('coingecko')) {
+    if (userIntent.wantsTrending && isPluginEnabled('coingecko')) {
       // Create new CoinGecko trending bubble instance
       const newBubble = {
         id: Date.now() + Math.random(), // Unique ID
