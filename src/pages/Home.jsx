@@ -424,6 +424,7 @@ export default function Home() {
       
       // Pattern 3: Token names in parentheses - "Aster (ASTER)", "Bitcoin (BTC)", "Hyperliquid (HYPE)"
       const parenTokens = text.match(/\b[A-Za-z]+\s*\([A-Z]{2,10}\)/g) || [];
+      console.log('🔍 Found parentheses tokens:', parenTokens);
       parenTokens.forEach(match => {
         const symbol = match.match(/\(([A-Z]{2,10})\)/);
         const name = match.match(/^([A-Za-z]+)/);
@@ -475,12 +476,19 @@ export default function Home() {
     const potentialTokens = extractPotentialTokens(aiMessage);
     log('🔍 AI Agent found potential tokens:', potentialTokens);
     console.log('🎯 FINAL EXTRACTED TOKENS:', potentialTokens);
+    console.log('🎯 AI MESSAGE BEING PARSED:', aiMessage.substring(0, 500));
+    
+    // Skip API validation for trending responses to prevent flooding
+    const isTrendingResponse = aiMessage.toLowerCase().includes('trending') || aiMessage.includes('**') || potentialTokens.length > 3;
+    
+    if (isTrendingResponse) {
+      console.log('🦎 Skipping individual token validation for trending response to prevent API flooding');
+      return; // Don't create individual bubbles for trending - use the trending endpoint instead
+    }
     
     // DYNAMIC API VALIDATION - Test each candidate against CoinStats API
     const validatedTokens = [];
-    // Test more tokens if it's a trending response with multiple tokens
-    const isTrendingResponse = aiMessage.toLowerCase().includes('trending') || aiMessage.includes('**') || potentialTokens.length > 3;
-    const maxTokensToTest = isTrendingResponse ? Math.min(potentialTokens.length, 5) : 1; // Test up to 5 for trending, 1 otherwise
+    const maxTokensToTest = Math.min(potentialTokens.length, 2); // Limit to 2 tokens max
     const tokensToTest = potentialTokens.slice(0, maxTokensToTest);
     
     log('🧪 AI Agent: Testing tokens against CoinStats API...', tokensToTest);
@@ -660,7 +668,15 @@ export default function Home() {
           'shiba': 'shiba-inu',
           'pepe': 'pepe',
           'css': 'cyrus-sargon',
-          'dk': 'disco-kitus'
+          'dk': 'disco-kitus',
+          // Add trending tokens
+          'aster': 'aster',
+          'safepal': 'safepal',
+          'sfp': 'safepal',
+          'hyperliquid': 'hyperliquid',
+          'hype': 'hyperliquid',
+          'bless': 'bless',
+          'hemi': 'hemi-network'
         };
         
         const geckoId = tokenIdMap[searchTerm.toLowerCase()] || searchTerm.toLowerCase();
@@ -1015,7 +1031,9 @@ export default function Home() {
       'icp', 'hbar', 'hedera', 'near', 'algo', 'algorand', 'fil', 'filecoin',
       'omikami', 'rize', 'sui', 'apt', 'aptos', 'injective', 'inj', 'render', 'rndr',
       'theta', 'mana', 'decentraland', 'sand', 'sandbox', 'axs', 'axie',
-      'cfx', 'conflux', 'pudgy', 'penguins', 'ethena', 'curve', 'dao', 'crv'
+      'cfx', 'conflux', 'pudgy', 'penguins', 'ethena', 'curve', 'dao', 'crv',
+      // Add trending tokens that AI commonly mentions
+      'aster', 'safepal', 'sfp', 'hyperliquid', 'hype', 'bless', 'hemi'
     ];
     
     log('🔍 Known cryptos detected in message:', words.filter(word => knownCryptos.includes(word)));
@@ -1350,34 +1368,101 @@ export default function Home() {
       }
       
       setCoinGeckoBubbles(prev => [...prev, newBubble])
-      ;(async () => {
+      
+      // Use a longer delay to prevent API flooding
+      setTimeout(async () => {
         try {
-          // Get trending coins from CoinGecko
-          const trendingData = await coingeckoService.getTrending()
+          // Get trending coins from CoinGecko with 5-minute cache and in-flight guard
+          const CACHE_MS = 300000 // 5 minutes to reduce API calls
+          const cacheKey = '__coingeckoTrendingCache'
+          const now = Date.now()
+          window[cacheKey] = window[cacheKey] || { ts: 0, data: null, inFlight: null }
+          
+          console.log('🦎 CoinGecko cache status:', {
+            hasCachedData: !!window[cacheKey].data,
+            cacheAge: now - window[cacheKey].ts,
+            cacheExpired: (now - window[cacheKey].ts) >= CACHE_MS,
+            inFlightRequest: !!window[cacheKey].inFlight
+          });
+
+          let trendingData
+          if (window[cacheKey].data && (now - window[cacheKey].ts) < CACHE_MS) {
+            console.log('🦎 Using cached trending data');
+            trendingData = window[cacheKey].data
+          } else if (window[cacheKey].inFlight) {
+            console.log('🦎 Waiting for in-flight trending request');
+            trendingData = await window[cacheKey].inFlight
+          } else {
+            console.log('🦎 Making fresh trending API call');
+            window[cacheKey].inFlight = (async () => {
+              try {
+                const res = await coingeckoService.getTrending()
+                window[cacheKey].data = res
+                window[cacheKey].ts = Date.now()
+                console.log('🦎 Fresh trending data received and cached');
+                return res
+              } finally {
+                window[cacheKey].inFlight = null
+              }
+            })()
+            trendingData = await window[cacheKey].inFlight
+          }
           
           let trendingText = '🔥 Trending Tokens\n\n'
           
-          if (trendingData.coins && trendingData.coins.length > 0) {
+          console.log('🦎 CoinGecko trending data received:', trendingData);
+          
+          if (trendingData && trendingData.coins && trendingData.coins.length > 0) {
             trendingData.coins.slice(0, 10).forEach((coin, index) => {
               const price = coin.item.data?.price || 0
               const change = coin.item.data?.price_change_percentage_24h?.usd || 0
               const changeDirection = change > 0 ? '🟢' : '🔴'
               
+              console.log(`🦎 Processing coin ${index + 1}:`, {
+                name: coin.item.name,
+                symbol: coin.item.symbol,
+                price: price,
+                change: change,
+                hasData: !!coin.item.data
+              });
+              
               trendingText += `${index + 1}. ${coin.item.name} (${coin.item.symbol.toUpperCase()})\n`
               if (price > 0) {
                 trendingText += `   $${price < 1 ? price.toFixed(6) : price.toFixed(2)}`
+              } else {
+                trendingText += `   Price: Loading...`
               }
               if (change !== 0) {
                 trendingText += ` ${changeDirection} ${Math.abs(change).toFixed(2)}%`
+              } else {
+                trendingText += ` Change: Loading...`
               }
               trendingText += `\n\n`
             })
             trendingText += '🦎 Powered by CoinGecko'
+            
+            // Create individual bubbles for each trending token (but don't make API calls)
+            trendingData.coins.slice(0, 5).forEach((coin, index) => {
+              const tokenBubble = {
+                id: Date.now() + Math.random() + index,
+                title: `${coin.item.symbol.toUpperCase()} Data`,
+                content: `${coin.item.name} (${coin.item.symbol.toUpperCase()})\n\nPrice: ${coin.item.data?.price ? '$' + (coin.item.data.price < 1 ? coin.item.data.price.toFixed(6) : coin.item.data.price.toFixed(2)) : 'N/A'}\nChange: ${coin.item.data?.price_change_percentage_24h?.usd ? (coin.item.data.price_change_percentage_24h.usd > 0 ? '🟢' : '🔴') + ' ' + Math.abs(coin.item.data.price_change_percentage_24h.usd).toFixed(2) + '%' : 'N/A'}\n\n🦎 From CoinGecko Trending`,
+                loading: false,
+                intent: 'TRENDING_TOKEN',
+                token: coin.item.id
+              }
+              
+              // Add individual token bubble with delay to prevent flooding
+              setTimeout(() => {
+                setCoinGeckoBubbles(prev => [...prev, tokenBubble])
+              }, (index + 1) * 500) // Staggered creation
+            })
+            
           } else {
             trendingText += 'No trending data available.'
           }
           
-          // Update the specific bubble with trending data
+          // Update the main trending bubble
           setCoinGeckoBubbles(prev => prev.map(bubble => 
             bubble.id === newBubble.id 
               ? { ...bubble, content: trendingText, loading: false }
@@ -1416,7 +1501,9 @@ export default function Home() {
           console.error('CoinGecko trending error:', error)
           
           let errorContent = '❌ Trending Data Error\n\n'
-          if (error.message?.includes('fetch')) {
+          if (error.message?.includes('429') || error.message?.includes('Too Many Requests')) {
+            errorContent += `Rate Limited\n\nCoinGecko API rate limit exceeded\nPlease wait a few minutes\n\nTip: Try asking for specific tokens instead`;
+          } else if (error.message?.includes('fetch') || error.message?.includes('Network')) {
             errorContent += `Network error\n\nCannot reach CoinGecko API\nCheck internet connection`;
           } else {
             errorContent += `Service unavailable\n\nCoinGecko API is currently down\nTry again later\n\nError: ${error.message || 'Unknown error'}`;
@@ -1429,27 +1516,45 @@ export default function Home() {
               : bubble
           ))
         }
-      })()
+      }, 1000) // 1 second delay before making API call
     }
 
-    // Handle web search bubble logic
-    if ((mentionsWebSearch || mentionsNews) && isPluginEnabled('websearch')) {
+    // Handle web search bubble logic - create news bubble when:
+    // 1. News is explicitly mentioned, OR
+    // 2. A specific token is mentioned (to get latest news about that token), OR  
+    // 3. Trending is mentioned with news words
+    // 4. Any validated token is detected (use existing token validation logic)
+    const hasValidatedTokens = validatedTokens && validatedTokens.length > 0;
+    if ((mentionsWebSearch || mentionsNews || userIntent.specificToken || hasValidatedTokens || (userIntent.wantsTrending && /\b(news|update|breaking|latest)\b/i.test(message))) && isPluginEnabled('websearch')) {
+      // Determine which token to use for news search (prioritize validated tokens)
+      const targetToken = hasValidatedTokens ? validatedTokens[0].searchTerm : userIntent.specificToken;
+      
       // Create new web search bubble instance
       const newBubble = {
         id: Date.now() + Math.random(), // Unique ID
-        title: 'Latest Crypto News',
-        content: 'Searching CryptoNews.com for latest articles...',
+        title: targetToken ? `${targetToken.toUpperCase()} News` : 'Latest Crypto News',
+        content: targetToken ? `Searching for latest ${targetToken.toUpperCase()} news...` : 'Searching CryptoNews.com for latest articles...',
         loading: true
       }
       
       setWebSearchBubbles(prev => [...prev, newBubble])
       ;(async () => {
         try {
-          // Extract search query from the message
-          const searchQuery = message.replace(/\b(what's happening|latest news|current events|recent updates|what's going on|search for|find information|look up)\b/gi, '').trim() || 'latest crypto news';
+          // Extract search query - use validated token or fallback to userIntent token
+          let searchQuery;
+          if (targetToken) {
+            // Use the validated token name and coin data for better search
+            const tokenData = hasValidatedTokens ? validatedTokens[0] : null;
+            const tokenName = tokenData ? tokenData.coinData.name : targetToken;
+            searchQuery = `${tokenName} ${targetToken} latest news updates analysis`;
+          } else {
+            searchQuery = message.replace(/\b(what's happening|latest news|current events|recent updates|what's going on|search for|find information|look up)\b/gi, '').trim() || 'latest crypto news';
+          }
           
           // Use real crypto news content from CryptoNews.com
-          let searchText = `📰 Latest Crypto Headlines\n\n`;
+          let searchText = targetToken ? 
+            `📰 Latest ${targetToken.toUpperCase()} News\n\n` : 
+            `📰 Latest Crypto Headlines\n\n`;
           
           // Real-time crypto news headlines from CryptoNews.com
           const cryptoNews = [
@@ -1831,7 +1936,15 @@ export default function Home() {
         'near': 'near-protocol',
         'apt': 'aptos',
         'inj': 'injective-protocol',
-        'rndr': 'render-token'
+        'rndr': 'render-token',
+        // Add trending tokens
+        'aster': 'aster',
+        'safepal': 'safepal',
+        'sfp': 'safepal',
+        'hyperliquid': 'hyperliquid',
+        'hype': 'hyperliquid',
+        'bless': 'bless',
+        'hemi': 'hemi-network'
       };
       
       // Use mapped ID or lowercase token name

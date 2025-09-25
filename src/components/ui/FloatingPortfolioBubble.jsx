@@ -296,6 +296,23 @@ const FloatingPortfolioBubble = ({
     }
   }, [isDragging, dragOffset, isExpanded]);
 
+  // Clamp within viewport on expand
+  useEffect(() => {
+    if (!isOpen || !isExpanded) return;
+    const margin = 20;
+    requestAnimationFrame(() => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const maxX = window.innerWidth - rect.width - margin;
+      const maxY = window.innerHeight - rect.height - margin;
+      const clampedX = Math.max(margin, Math.min(position.x, maxX));
+      const clampedY = Math.max(margin, Math.min(position.y, maxY));
+      if (clampedX !== position.x || clampedY !== position.y) {
+        setPosition({ x: clampedX, y: clampedY });
+      }
+    });
+  }, [isOpen, isExpanded]);
+
   const handleClick = (e) => {
     if (e.target.closest('button')) return;
     if (!isDragging) {
@@ -349,6 +366,7 @@ const FloatingPortfolioBubble = ({
   
   // Floating animation state
   const [floatOffset, setFloatOffset] = useState(0);
+  const containerRef = useRef(null);
   
   // Floating swarm effect like other bubbles
   useEffect(() => {
@@ -425,7 +443,7 @@ const FloatingPortfolioBubble = ({
   
   const bubble = (
     <div 
-      ref={bubbleRef}
+      ref={containerRef}
       className={`fixed pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isDragging ? '' : 'transition-all duration-150 ease-in-out'}`}
       style={{ 
         left: `${position.x}px`,

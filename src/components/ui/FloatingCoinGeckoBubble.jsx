@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import coingeckoIcon from '../../assets/coingecko-icon.png';
 
 const FloatingCoinGeckoBubble = ({ isOpen, onClose, title = 'CoinGecko', content = '', loading = false, addParticlesToSwarm }) => {
@@ -15,6 +15,7 @@ const FloatingCoinGeckoBubble = ({ isOpen, onClose, title = 'CoinGecko', content
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isExpanded, setIsExpanded] = useState(false);
   const [lastClickTime, setLastClickTime] = useState(0);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     if (!isOpen || isDragging) return;
@@ -94,34 +95,42 @@ const FloatingCoinGeckoBubble = ({ isOpen, onClose, title = 'CoinGecko', content
     return () => clearInterval(interval);
   }, [isOpen, isDragging, isExpanded]);
 
-  // Create pop particles and add them to main swarm
+  // Create pop particles and add them to main swarm, always close
   const createPopEffect = () => {
-    if (!addParticlesToSwarm) return;
-    
-    // Use same dynamic sizing logic\n    let bubbleSize = 128;\n    if (isExpanded && typeof content === 'string') {\n      const lines = content.split('\\n').length;\n      const avgLineLength = content.length / lines;\n      const estimatedWidth = Math.max(250, Math.min(450, avgLineLength * 8 + 100));\n      const estimatedHeight = Math.max(200, lines * 20 + 80);\n      bubbleSize = Math.max(estimatedWidth, estimatedHeight);\n    } else if (isExpanded) {\n      bubbleSize = 300;\n    }
+    // Use same dynamic sizing logic
+    let bubbleSize = 128;
+    if (isExpanded && typeof content === 'string') {
+      const lines = content.split('\n').length;
+      const avgLineLength = content.length / lines;
+      const estimatedWidth = Math.max(250, Math.min(450, avgLineLength * 8 + 100));
+      const estimatedHeight = Math.max(200, lines * 20 + 80);
+      bubbleSize = Math.max(estimatedWidth, estimatedHeight);
+    } else if (isExpanded) {
+      bubbleSize = 300;
+    }
     const bubbleCenter = {
-      x: position.x + bubbleSize / 2, // Actual bubble center
-      y: position.y + bubbleSize / 2  // Actual bubble center
+      x: position.x + bubbleSize / 2,
+      y: position.y + bubbleSize / 2
     };
 
-    const newParticles = [];
-    for (let i = 0; i < 8; i++) { // Reduced from 25 to 8 particles
-      const angle = (Math.PI * 2 * i) / 8;
-      const speed = Math.random() * 8 + 3; // Faster initial speed
-      const drift = (Math.random() - 0.5) * 0.5; // Random drift
-      newParticles.push({
-        id: Math.random(),
-        x: bubbleCenter.x + (Math.random() - 0.5) * 20, // Slight random spread from center
-        y: bubbleCenter.y + (Math.random() - 0.5) * 20,
-        vx: Math.cos(angle) * speed + drift,
-        vy: Math.sin(angle) * speed - Math.random() * 3, // More varied upward velocity
-        size: Math.random() * 2 + 1.5, // Same as background particles: 1.5-3.5px
-      });
+    if (addParticlesToSwarm) {
+      const newParticles = [];
+      for (let i = 0; i < 8; i++) {
+        const angle = (Math.PI * 2 * i) / 8;
+        const speed = Math.random() * 8 + 3;
+        const drift = (Math.random() - 0.5) * 0.5;
+        newParticles.push({
+          id: Math.random(),
+          x: bubbleCenter.x + (Math.random() - 0.5) * 20,
+          y: bubbleCenter.y + (Math.random() - 0.5) * 20,
+          vx: Math.cos(angle) * speed + drift,
+          vy: Math.sin(angle) * speed - Math.random() * 3,
+          size: Math.random() * 2 + 1.5,
+        });
+      }
+      addParticlesToSwarm(newParticles);
     }
-    
-    // Add particles to main swarm
-    addParticlesToSwarm(newParticles);
-    
+
     setTimeout(() => {
       onClose();
     }, 100);
@@ -184,6 +193,23 @@ const FloatingCoinGeckoBubble = ({ isOpen, onClose, title = 'CoinGecko', content
     }
   }, [isDragging, dragOffset]);
 
+  // Clamp within viewport on expand
+  useEffect(() => {
+    if (!isOpen || !isExpanded) return;
+    const margin = 20;
+    requestAnimationFrame(() => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const maxX = window.innerWidth - rect.width - margin;
+      const maxY = window.innerHeight - rect.height - margin;
+      const clampedX = Math.max(margin, Math.min(position.x, maxX));
+      const clampedY = Math.max(margin, Math.min(position.y, maxY));
+      if (clampedX !== position.x || clampedY !== position.y) {
+        setPosition({ x: clampedX, y: clampedY });
+      }
+    });
+  }, [isOpen, isExpanded]);
+
   if (!isOpen) return null;
   
   // Dynamic bubble size based on content length and expanded state
@@ -203,6 +229,7 @@ const FloatingCoinGeckoBubble = ({ isOpen, onClose, title = 'CoinGecko', content
   
   const bubble = (
     <div 
+      ref={containerRef}
       className={`fixed pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isDragging ? '' : 'transition-all duration-150 ease-in-out'}`}
       style={{ 
         left: `${position.x}px`,

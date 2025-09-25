@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import newsIcon from '../../../581x581 logo.png';
 
 const FloatingWebSearchBubble = ({ isOpen, onClose, title = 'Crypto News', content = '', loading = false, addParticlesToSwarm }) => {
@@ -15,6 +15,7 @@ const FloatingWebSearchBubble = ({ isOpen, onClose, title = 'Crypto News', conte
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isExpanded, setIsExpanded] = useState(false);
   const [lastClickTime, setLastClickTime] = useState(0);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     if (!isOpen || isDragging) return;
@@ -90,7 +91,6 @@ const FloatingWebSearchBubble = ({ isOpen, onClose, title = 'Crypto News', conte
 
   // Create pop particles and add them to main swarm
   const createPopEffect = () => {
-    if (!addParticlesToSwarm) return;
     
     // Use same sizing logic
     let bubbleSize = 128;
@@ -102,23 +102,24 @@ const FloatingWebSearchBubble = ({ isOpen, onClose, title = 'Crypto News', conte
       y: position.y + bubbleSize / 2  // Actual bubble center
     };
 
-    const newParticles = [];
-    for (let i = 0; i < 8; i++) { // Reduced from 25 to 8 particles
-      const angle = (Math.PI * 2 * i) / 8;
-      const speed = Math.random() * 8 + 3; // Faster initial speed
-      const drift = (Math.random() - 0.5) * 0.5; // Random drift
-      newParticles.push({
-        id: Math.random(),
-        x: bubbleCenter.x + (Math.random() - 0.5) * 20, // Slight random spread from center
-        y: bubbleCenter.y + (Math.random() - 0.5) * 20,
-        vx: Math.cos(angle) * speed + drift,
-        vy: Math.sin(angle) * speed - Math.random() * 3, // More varied upward velocity
-        size: Math.random() * 2 + 1.5, // Same as background particles: 1.5-3.5px
-      });
+    if (addParticlesToSwarm) {
+      const newParticles = [];
+      for (let i = 0; i < 8; i++) { // Reduced from 25 to 8 particles
+        const angle = (Math.PI * 2 * i) / 8;
+        const speed = Math.random() * 8 + 3; // Faster initial speed
+        const drift = (Math.random() - 0.5) * 0.5; // Random drift
+        newParticles.push({
+          id: Math.random(),
+          x: bubbleCenter.x + (Math.random() - 0.5) * 20, // Slight random spread from center
+          y: bubbleCenter.y + (Math.random() - 0.5) * 20,
+          vx: Math.cos(angle) * speed + drift,
+          vy: Math.sin(angle) * speed - Math.random() * 3, // More varied upward velocity
+          size: Math.random() * 2 + 1.5, // Same as background particles: 1.5-3.5px
+        });
+      }
+      // Add particles to main swarm
+      addParticlesToSwarm(newParticles);
     }
-    
-    // Add particles to main swarm
-    addParticlesToSwarm(newParticles);
     
     setTimeout(() => {
       onClose();
@@ -176,6 +177,23 @@ const FloatingWebSearchBubble = ({ isOpen, onClose, title = 'Crypto News', conte
     }
   }, [isDragging, dragOffset]);
 
+  // Clamp within viewport on expand
+  useEffect(() => {
+    if (!isOpen || !isExpanded) return;
+    const margin = 20;
+    requestAnimationFrame(() => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const maxX = window.innerWidth - rect.width - margin;
+      const maxY = window.innerHeight - rect.height - margin;
+      const clampedX = Math.max(margin, Math.min(position.x, maxX));
+      const clampedY = Math.max(margin, Math.min(position.y, maxY));
+      if (clampedX !== position.x || clampedY !== position.y) {
+        setPosition({ x: clampedX, y: clampedY });
+      }
+    });
+  }, [isOpen, isExpanded]);
+
   if (!isOpen) return null;
 
   // Dynamic bubble size - match other bubbles exactly
@@ -189,6 +207,7 @@ const FloatingWebSearchBubble = ({ isOpen, onClose, title = 'Crypto News', conte
   
   const bubble = (
     <div 
+      ref={containerRef}
       className={`fixed pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isDragging ? '' : 'transition-all duration-150 ease-in-out'}`}
       style={{ 
         left: `${position.x}px`,

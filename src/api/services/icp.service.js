@@ -5,9 +5,12 @@ import { log, error } from '../../utils/logger.js';
 // Canister ID from your deployment
 const CANISTER_ID = import.meta.env.VITE_ICP_CANISTER_ID || 'umunu-kh777-77774-qaaca-cai';
 
-// ICP Host - use local for development, mainnet for production
-const HOST = process.env.NODE_ENV === 'production' 
-  ? 'https://ic0.app' 
+// Feature flag to control ICP in development
+const ENABLE_ICP = import.meta.env.VITE_ENABLE_ICP === 'true';
+
+// ICP Host - use local only when explicitly enabled in development
+const HOST = process.env.NODE_ENV === 'production' || !ENABLE_ICP
+  ? 'https://ic0.app'
   : 'http://localhost:4943';
 
 // IDL factory for the canister interface
@@ -84,10 +87,15 @@ const createAgent = async (identity = null) => {
         log('🟦 Creating ICP Agent with anonymous identity');
       }
       
+      // In development, optionally short-circuit to avoid noisy network errors
+      if (import.meta.env.DEV && !ENABLE_ICP) {
+        throw new Error('ICP disabled in development (set VITE_ENABLE_ICP=true to enable)');
+      }
+
       const newAgent = new HttpAgent(agentOptions);
       
-      // In development, fetch the root key (with timeout to prevent hanging)
-      if (import.meta.env.DEV) {
+      // In development with local replica enabled, fetch the root key
+      if (import.meta.env.DEV && ENABLE_ICP) {
         const rootKeyPromise = newAgent.fetchRootKey();
         const timeoutPromise = new Promise((_, reject) => {
           setTimeout(() => reject(new Error('Root key fetch timeout')), 2000);

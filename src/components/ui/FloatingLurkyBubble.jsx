@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import ReactMarkdown from 'react-markdown';
 import { createPortal } from 'react-dom';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import lurkyCharacter from '../../assets/lurky-character.png';
 
 const FloatingLurkyBubble = ({ isOpen, onClose, title = 'Lurky', content = '', loading = false, addParticlesToSwarm }) => {
@@ -16,6 +16,7 @@ const FloatingLurkyBubble = ({ isOpen, onClose, title = 'Lurky', content = '', l
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isExpanded, setIsExpanded] = useState(false);
   const [lastClickTime, setLastClickTime] = useState(0);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     if (!isOpen || isDragging) return;
@@ -177,6 +178,23 @@ const FloatingLurkyBubble = ({ isOpen, onClose, title = 'Lurky', content = '', l
     }
   }, [isDragging, dragOffset]);
 
+  // Clamp within viewport on expand
+  useEffect(() => {
+    if (!isOpen || !isExpanded) return;
+    const margin = 20;
+    requestAnimationFrame(() => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const maxX = window.innerWidth - rect.width - margin;
+      const maxY = window.innerHeight - rect.height - margin;
+      const clampedX = Math.max(margin, Math.min(position.x, maxX));
+      const clampedY = Math.max(margin, Math.min(position.y, maxY));
+      if (clampedX !== position.x || clampedY !== position.y) {
+        setPosition({ x: clampedX, y: clampedY });
+      }
+    });
+  }, [isOpen, isExpanded]);
+
   if (!isOpen) return null;
   
   // Dynamic bubble size based on content length and expanded state
@@ -196,6 +214,7 @@ const FloatingLurkyBubble = ({ isOpen, onClose, title = 'Lurky', content = '', l
   
   const bubble = (
     <div 
+      ref={containerRef}
       className={`fixed pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isDragging ? '' : 'transition-all duration-150 ease-in-out'}`}
       style={{ 
         left: `${position.x}px`,
