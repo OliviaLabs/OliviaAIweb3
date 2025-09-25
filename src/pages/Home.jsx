@@ -1413,7 +1413,7 @@ export default function Home() {
           console.log('🦎 CoinGecko trending data received:', trendingData);
           
           if (trendingData && trendingData.coins && trendingData.coins.length > 0) {
-            trendingData.coins.slice(0, 10).forEach((coin, index) => {
+            trendingData.coins.slice(0, 8).forEach((coin, index) => {
               const price = coin.item.data?.price || 0
               const change = coin.item.data?.price_change_percentage_24h?.usd || 0
               const changeDirection = change > 0 ? '🟢' : '🔴'
@@ -1426,20 +1426,17 @@ export default function Home() {
                 hasData: !!coin.item.data
               });
               
-              trendingText += `${index + 1}. ${coin.item.name} (${coin.item.symbol.toUpperCase()})\n`
-              if (price > 0) {
-                trendingText += `   $${price < 1 ? price.toFixed(6) : price.toFixed(2)}`
-              } else {
-                trendingText += `   Price: Loading...`
-              }
-              if (change !== 0) {
-                trendingText += ` ${changeDirection} ${Math.abs(change).toFixed(2)}%`
-              } else {
-                trendingText += ` Change: Loading...`
-              }
-              trendingText += `\n\n`
+              // Compact format: "1. ASTER $2.27 🟢20.67%"
+              const priceStr = price > 0 ? 
+                (price < 1 ? `$${price.toFixed(4)}` : `$${price.toFixed(2)}`) : 
+                'N/A'
+              const changeStr = change !== 0 ? 
+                `${changeDirection}${Math.abs(change).toFixed(1)}%` : 
+                ''
+              
+              trendingText += `${index + 1}. ${coin.item.symbol.toUpperCase()} ${priceStr} ${changeStr}\n`
             })
-            trendingText += '🦎 Powered by CoinGecko'
+            trendingText += '\n🦎 CoinGecko'
             
             // Create individual bubbles for each trending token (but don't make API calls)
             trendingData.coins.slice(0, 5).forEach((coin, index) => {
@@ -1523,11 +1520,9 @@ export default function Home() {
     // 1. News is explicitly mentioned, OR
     // 2. A specific token is mentioned (to get latest news about that token), OR  
     // 3. Trending is mentioned with news words
-    // 4. Any validated token is detected (use existing token validation logic)
-    const hasValidatedTokens = validatedTokens && validatedTokens.length > 0;
-    if ((mentionsWebSearch || mentionsNews || userIntent.specificToken || hasValidatedTokens || (userIntent.wantsTrending && /\b(news|update|breaking|latest)\b/i.test(message))) && isPluginEnabled('websearch')) {
-      // Determine which token to use for news search (prioritize validated tokens)
-      const targetToken = hasValidatedTokens ? validatedTokens[0].searchTerm : userIntent.specificToken;
+    if ((mentionsWebSearch || mentionsNews || userIntent.specificToken || (userIntent.wantsTrending && /\b(news|update|breaking|latest)\b/i.test(message))) && isPluginEnabled('websearch')) {
+      // Use the specific token detected by userIntent
+      const targetToken = userIntent.specificToken;
       
       // Create new web search bubble instance
       const newBubble = {
@@ -1540,13 +1535,11 @@ export default function Home() {
       setWebSearchBubbles(prev => [...prev, newBubble])
       ;(async () => {
         try {
-          // Extract search query - use validated token or fallback to userIntent token
+          // Extract search query - use specific token if available
           let searchQuery;
           if (targetToken) {
-            // Use the validated token name and coin data for better search
-            const tokenData = hasValidatedTokens ? validatedTokens[0] : null;
-            const tokenName = tokenData ? tokenData.coinData.name : targetToken;
-            searchQuery = `${tokenName} ${targetToken} latest news updates analysis`;
+            // Use the token for targeted news search
+            searchQuery = `${targetToken} latest news updates analysis`;
           } else {
             searchQuery = message.replace(/\b(what's happening|latest news|current events|recent updates|what's going on|search for|find information|look up)\b/gi, '').trim() || 'latest crypto news';
           }
