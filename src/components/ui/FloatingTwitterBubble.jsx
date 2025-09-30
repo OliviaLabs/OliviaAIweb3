@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect, useRef } from 'react';
+import twitterIcon from '../../assets/x-icon.png';
 
 const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content = '', loading = false, addParticlesToSwarm }) => {
   const bubbleId = useState(() => `twitter-${Date.now()}-${Math.random()}`)[0]; // Unique ID for this bubble instance
@@ -16,83 +17,8 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
   const [lastClickTime, setLastClickTime] = useState(0);
   const containerRef = useRef(null);
 
-  useEffect(() => {
-    if (!isOpen || isDragging) return;
-
-    const interval = setInterval(() => {
-      setPosition(prev => {
-        // Use same dynamic sizing as outside
-        let bubbleSize = 128;
-        if (isExpanded && typeof content === 'string') {
-          const lines = content.split('\n').length;
-          const avgLineLength = content.length / lines;
-          const estimatedWidth = Math.max(280, Math.min(320, avgLineLength * 6 + 80));
-          const estimatedHeight = Math.max(280, Math.min(320, lines * 18 + 80));
-          bubbleSize = Math.max(estimatedWidth, estimatedHeight);
-        } else if (isExpanded) {
-          bubbleSize = 320;
-        }
-        const margin = 20;
-        
-        // Simple upward floating - no hard stops
-        let newY = prev.y;
-        let newX = prev.x;
-        
-        // Always try to float up (like a balloon)
-        const floatForce = -1.0; // Faster upward force (2x speed)
-        newY += floatForce;
-        
-        // Stop at top of screen naturally
-        if (newY < margin) {
-          newY = margin;
-        }
-        
-        // Keep X within screen bounds
-        const maxX = window.innerWidth - bubbleSize - margin;
-        const minX = margin;
-        newX = Math.max(minX, Math.min(maxX, newX));
-        
-        // Gentle collision avoidance
-        const allBubbles = Array.from(document.querySelectorAll('[data-bubble]'));
-        const otherBubbles = allBubbles.filter(b => b.getAttribute('data-bubble-id') !== bubbleId);
-        
-        otherBubbles.forEach(otherBubble => {
-          const otherRect = otherBubble.getBoundingClientRect();
-          const otherCenterX = otherRect.left + otherRect.width / 2;
-          const otherCenterY = otherRect.top + otherRect.height / 2;
-          const thisCenterX = newX + bubbleSize / 2;
-          const thisCenterY = newY + bubbleSize / 2;
-          
-          const distance = Math.sqrt(
-            Math.pow(thisCenterX - otherCenterX, 2) + 
-            Math.pow(thisCenterY - otherCenterY, 2)
-          );
-          
-          const minDistance = bubbleSize + 10;
-          
-          // Gentle collision avoidance - small pushes
-          if (distance < minDistance && distance > 0) {
-            const angle = Math.atan2(thisCenterY - otherCenterY, thisCenterX - otherCenterX);
-            const overlap = minDistance - distance;
-            
-            // Very gentle push - small incremental movements
-            const pushForce = overlap * 0.02; // Much smaller force
-            newX += Math.cos(angle) * pushForce;
-            newY += Math.sin(angle) * pushForce;
-          }
-        });
-        
-        // SOLID BOUNDARIES - Absolutely prevent going off-screen
-        newX = Math.max(minX, Math.min(maxX, newX));
-        newY = Math.max(margin, newY); // Can't go above top
-        newY = Math.min(window.innerHeight - bubbleSize - margin, newY); // Can't go below bottom
-        
-        return { x: newX, y: newY };
-      });
-    }, 16);
-
-    return () => clearInterval(interval);
-  }, [isOpen, isDragging, isExpanded]);
+  // Remove auto-floating movement
+  useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
 
   // Create pop particles and add them to main swarm
   const createPopEffect = () => {
@@ -214,17 +140,8 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
   if (!isOpen) return null;
   
   // Dynamic bubble size based on content length and expanded state
-  let bubbleSize = 140; // Base collapsed size - slightly bigger for the new design
-  if (isExpanded && typeof content === 'string') {
-    // Calculate size based on content length - limited to match other bubbles
-    const lines = content.split('\n').length;
-    const avgLineLength = content.length / lines;
-    const estimatedWidth = Math.max(280, Math.min(320, avgLineLength * 6 + 80));
-    const estimatedHeight = Math.max(280, Math.min(320, lines * 18 + 80));
-    bubbleSize = Math.max(estimatedWidth, estimatedHeight);
-  } else if (isExpanded) {
-    bubbleSize = 320; // Standard expanded size to match other bubbles
-  }
+  let bubbleSize = 70;
+  if (isExpanded) bubbleSize = 160;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
   
@@ -267,7 +184,7 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
             <div className="text-white font-medium animate-pulse text-center flex flex-col items-center">
               <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/40 shadow-lg shadow-white/20 mb-2 bg-black/20">
                 <img 
-                  src="/x-social-media-white-icon.png" 
+                  src={twitterIcon} 
                   alt="Twitter/X" 
                   className="w-full h-full object-cover opacity-50"
                 />
@@ -288,7 +205,7 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
                   <div className="relative mb-3">
                     <div className="w-10 h-10 rounded-full overflow-hidden border-4 border-white/40 shadow-2xl shadow-white/30 bg-gradient-to-br from-white/20 to-white/30 hover:border-white/60 transition-all duration-300 hover:shadow-white/50 hover:scale-105 group">
                       <img 
-                        src="/x-social-media-white-icon.png" 
+                        src={twitterIcon} 
                         alt="Twitter/X" 
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                       />
@@ -311,7 +228,7 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
                   <div className="absolute top-2 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
                     <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/40 shadow-lg shadow-white/30 bg-gradient-to-br from-white/20 to-white/30 mb-2">
                       <img 
-                        src="/x-social-media-white-icon.png" 
+                        src={twitterIcon} 
                         alt="Twitter/X" 
                         className="w-full h-full object-cover"
                       />

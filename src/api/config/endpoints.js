@@ -1,4 +1,4 @@
-const API_GATEWAY_URL = import.meta.env.VITE_API_GATEWAY_URL || 'https://api.example.com';
+export const API_GATEWAY_URL = import.meta.env.VITE_API_GATEWAY_URL || 'https://api.example.com';
 export const API_GATEWAY_JWT = import.meta.env.VITE_API_GATEWAY_JWT;
 
 // Secure OpenAI Microservice Configuration
@@ -43,6 +43,15 @@ export const ENDPOINTS = {
         // Profile settings - USED by auth flows
         CHECK_PROFILE_SETTINGS: `${API_GATEWAY_URL}/profile_settings/user/:id`,
         CREATE_PROFILE_SETTINGS: `${API_GATEWAY_URL}/profile_settings`,
+    },
+
+    // Social endpoints - USED by explore feature
+    SOCIAL: {
+        GET_INFLUENCERS: `${API_GATEWAY_URL}/cashtags/influencers`,
+        GET_INFLUENCER_BY_ID: `${API_GATEWAY_URL}/influencers_bens_list/:id`,
+        UPDATE_INFLUENCER_BY_ID: `${API_GATEWAY_URL}/influencers_bens_list/:id`,
+        GET_TOKENS: `${API_GATEWAY_URL}/tokens`,
+        GET_MENTIONS: `${API_GATEWAY_URL}/cashtags/mentions`
     }
 };
 

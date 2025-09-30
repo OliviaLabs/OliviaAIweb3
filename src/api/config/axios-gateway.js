@@ -1,7 +1,8 @@
 import axios from 'axios';
-import { API_GATEWAY_JWT } from './endpoints';
+import { API_GATEWAY_JWT, API_GATEWAY_URL } from './endpoints';
 
 const axiosInstanceAPIGateway = axios.create({
+  baseURL: API_GATEWAY_URL,
   headers: {
     "Content-Type": "application/json",
     ...(API_GATEWAY_JWT && { "Authorization": `Bearer ${API_GATEWAY_JWT}` })
@@ -9,9 +10,7 @@ const axiosInstanceAPIGateway = axios.create({
 });
 
 export const logError = (error) => {
-  if (import.meta.env.VITE_NODE === 'development') {
-    console.error(error);
-  }
+  console.error(error);
 };
 
 

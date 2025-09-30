@@ -16,77 +16,8 @@ const FloatingHederaBubble = ({ isOpen, onClose, title = 'Hedera', content = '',
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isExpanded, setIsExpanded] = useState(false);
 
-  useEffect(() => {
-    if (!isOpen || isDragging) return;
-
-    const interval = setInterval(() => {
-      setPosition(prev => {
-        // Dynamic bubble size based on expanded state
-        let bubbleSize = 140; // Base collapsed size
-        if (isExpanded) {
-          bubbleSize = 380; // Expanded size for content
-        }
-        const margin = 20;
-        
-        // Simple upward floating - no hard stops
-        let newY = prev.y;
-        let newX = prev.x;
-        
-        // Always try to float up (like a balloon)
-        const floatForce = -1.0; // Faster upward force (2x speed)
-        newY += floatForce;
-        
-        // Stop at top of screen naturally
-        if (newY < margin) {
-          newY = margin;
-        }
-        
-        // Keep X within screen bounds
-        const maxX = window.innerWidth - bubbleSize - margin;
-        const minX = margin;
-        newX = Math.max(minX, Math.min(maxX, newX));
-        
-        // Gentle collision avoidance
-        const allBubbles = Array.from(document.querySelectorAll('[data-bubble]'));
-        const otherBubbles = allBubbles.filter(b => b.getAttribute('data-bubble-id') !== bubbleId);
-        
-        otherBubbles.forEach(otherBubble => {
-          const otherRect = otherBubble.getBoundingClientRect();
-          const otherCenterX = otherRect.left + otherRect.width / 2;
-          const otherCenterY = otherRect.top + otherRect.height / 2;
-          const thisCenterX = newX + bubbleSize / 2;
-          const thisCenterY = newY + bubbleSize / 2;
-          
-          const distance = Math.sqrt(
-            Math.pow(thisCenterX - otherCenterX, 2) + 
-            Math.pow(thisCenterY - otherCenterY, 2)
-          );
-          
-          const minDistance = bubbleSize + 10;
-          
-          // Gentle collision avoidance - small pushes
-          if (distance < minDistance && distance > 0) {
-            const angle = Math.atan2(thisCenterY - otherCenterY, thisCenterX - otherCenterX);
-            const overlap = minDistance - distance;
-            
-            // Very gentle push - small incremental movements
-            const pushForce = overlap * 0.02; // Much smaller force
-            newX += Math.cos(angle) * pushForce;
-            newY += Math.sin(angle) * pushForce;
-          }
-        });
-        
-        // SOLID BOUNDARIES - Absolutely prevent going off-screen
-        newX = Math.max(minX, Math.min(maxX, newX));
-        newY = Math.max(margin, newY); // Can't go above top
-        newY = Math.min(window.innerHeight - bubbleSize - margin, newY); // Can't go below bottom
-        
-        return { x: newX, y: newY };
-      });
-    }, 16);
-
-    return () => clearInterval(interval);
-  }, [isOpen, isDragging, isExpanded]);
+  // Remove auto-floating
+  useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
 
   const handleMouseDown = (e) => {
     if (e.target.getAttribute('aria-label') === 'Close') return;
@@ -114,7 +45,6 @@ const FloatingHederaBubble = ({ isOpen, onClose, title = 'Hedera', content = '',
   const handleMouseUp = () => {
     if (isDragging) {
       setIsDragging(false);
-      // Bubble will resume upward floating automatically
     }
   };
 
@@ -140,10 +70,8 @@ const FloatingHederaBubble = ({ isOpen, onClose, title = 'Hedera', content = '',
     if (!isOpen) return null;
 
   // Dynamic bubble size based on expanded state
-  let bubbleSize = 140; // Base collapsed size
-  if (isExpanded) {
-    bubbleSize = 380; // Expanded size for content
-  }
+  let bubbleSize = 70;
+  if (isExpanded) bubbleSize = 160;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
   

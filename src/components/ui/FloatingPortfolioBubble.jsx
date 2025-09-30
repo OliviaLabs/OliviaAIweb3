@@ -356,10 +356,8 @@ const FloatingPortfolioBubble = ({
   if (!isOpen) return null;
 
   // Dynamic bubble size
-  let bubbleSize = 140;
-  if (isExpanded) {
-    bubbleSize = 400; // Increased size for better layout
-  }
+  let bubbleSize = 70;
+  if (isExpanded) bubbleSize = 160;
   
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
@@ -369,77 +367,8 @@ const FloatingPortfolioBubble = ({
   const containerRef = useRef(null);
   
   // Floating swarm effect like other bubbles
-  useEffect(() => {
-    if (!isOpen || isDragging) return;
-
-    const interval = setInterval(() => {
-      setPosition(prev => {
-        // Use same dynamic sizing as outside
-        let bubbleSize = 140;
-        if (isExpanded) {
-          bubbleSize = 400;
-        }
-        const margin = 20;
-        
-        // Simple upward floating - no hard stops
-        let newY = prev.y;
-        let newX = prev.x;
-        
-        // Always try to float up (like a balloon)
-        const floatForce = -1.0; // Faster upward force
-        newY += floatForce;
-        
-        // Stop at top of screen naturally
-        if (newY < margin) {
-          newY = margin;
-        }
-        
-        // Keep X within screen bounds
-        const maxX = window.innerWidth - bubbleSize - margin;
-        const minX = margin;
-        newX = Math.max(minX, Math.min(maxX, newX));
-        
-        // Gentle collision avoidance
-        const allBubbles = Array.from(document.querySelectorAll('[data-bubble]'));
-        const otherBubbles = allBubbles.filter(b => b.getAttribute('data-bubble-id') !== bubbleId);
-        
-        otherBubbles.forEach(otherBubble => {
-          const otherRect = otherBubble.getBoundingClientRect();
-          const otherCenterX = otherRect.left + otherRect.width / 2;
-          const otherCenterY = otherRect.top + otherRect.height / 2;
-          const thisCenterX = newX + bubbleSize / 2;
-          const thisCenterY = newY + bubbleSize / 2;
-          
-          const distance = Math.sqrt(
-            Math.pow(thisCenterX - otherCenterX, 2) + 
-            Math.pow(thisCenterY - otherCenterY, 2)
-          );
-          
-          const minDistance = bubbleSize + 10;
-          
-          // Gentle collision avoidance - small pushes
-          if (distance < minDistance && distance > 0) {
-            const angle = Math.atan2(thisCenterY - otherCenterY, thisCenterX - otherCenterX);
-            const overlap = minDistance - distance;
-            
-            // Very gentle push - small incremental movements
-            const pushForce = overlap * 0.02;
-            newX += Math.cos(angle) * pushForce;
-            newY += Math.sin(angle) * pushForce;
-          }
-        });
-        
-        // SOLID BOUNDARIES - Absolutely prevent going off-screen
-        newX = Math.max(minX, Math.min(maxX, newX));
-        newY = Math.max(margin, newY); // Can't go above top
-        newY = Math.min(window.innerHeight - bubbleSize - margin, newY); // Can't go below bottom
-        
-        return { x: newX, y: newY };
-      });
-    }, 16);
-
-    return () => clearInterval(interval);
-  }, [isOpen, isDragging, isExpanded, bubbleId]);
+  // Remove auto-floating
+  useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded, bubbleId]);
   
   const bubble = (
     <div 
@@ -490,57 +419,39 @@ const FloatingPortfolioBubble = ({
           ) : (
             <div className="w-full h-full flex items-center justify-center text-center relative">
               {!isExpanded ? (
-                // Collapsed: Icon and title
                 <div className="flex flex-col items-center justify-center">
-                  <div className="relative mb-3">
-                    <div className="w-10 h-10 rounded-full border-4 border-purple-400 shadow-2xl shadow-purple-500/60 bg-gradient-to-br from-purple-400/30 to-purple-600/40 hover:border-purple-300 transition-all duration-300 hover:shadow-purple-400/80 hover:scale-105 group overflow-hidden">
-                      <img 
-                        src={walletConnectLogo} 
-                        alt="WalletConnect" 
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-purple-400/10 to-purple-300/20"></div>
+                  <div className="relative mb-2">
+                    <div className="w-5 h-5 rounded-full border-2 border-purple-400 shadow-lg bg-gradient-to-br from-purple-400/30 to-purple-600/40 overflow-hidden">
+                      <img src={walletConnectLogo} alt="WalletConnect" className="w-full h-full object-cover" />
                     </div>
-                    <div className="absolute inset-0 rounded-full border-2 border-purple-300/40 animate-ping" style={{animationDuration: '3s'}}></div>
                   </div>
-                  
                   <div className="text-center">
-                    <div className="text-xs font-bold text-purple-300 drop-shadow-xl">WalletConnect</div>
+                    <div className="text-[6px] font-bold text-purple-300">Portfolio</div>
                   </div>
                 </div>
               ) : (
-                // Expanded: Portfolio content
-                <div className="w-full h-full flex flex-col">
-                  {/* Header section with logo and title */}
-                  <div className="text-center mb-6">
-                    <div className="w-12 h-12 rounded-full overflow-hidden border-4 border-purple-400 shadow-2xl shadow-purple-500/60 bg-gradient-to-br from-purple-400/30 to-purple-600/40 mx-auto mb-2">
-                      <img 
-                        src={walletConnectLogo} 
-                        alt="WalletConnect" 
-                        className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-purple-400/10 to-purple-300/20"></div>
+                // Expanded
+                <div className="w-full h-full flex flex-col p-2">
+                  <div className="text-center mb-1">
+                    <div className="w-6 h-6 rounded-full overflow-hidden border border-purple-400 shadow-lg bg-gradient-to-br from-purple-400/30 to-purple-600/40 mx-auto mb-1">
+                      <img src={walletConnectLogo} alt="WalletConnect" className="w-full h-full object-cover" />
                     </div>
-                    <div className="text-sm font-bold text-purple-300 drop-shadow-lg">WalletConnect</div>
-                    <div className="text-xs text-white/70 font-medium">Wallet Holdings</div>
+                    <div className="text-[8px] font-bold text-purple-300">Portfolio</div>
                   </div>
                   
-                  {/* Central content area */}
-                  <div className="flex-1 px-6 py-4">
-                    <div className="text-center space-y-3">
+                  <div className="flex-1 px-2 overflow-y-auto">
+                    <div className="text-center space-y-1">
                       {!isConnected ? (
-                        <div className="text-sm text-white/90 leading-relaxed">
-                          <p className="text-purple-300 mb-2">No Wallet Connected</p>
-                          <p className="text-xs text-white/60">Connect your wallet to view portfolio</p>
+                        <div className="text-[7px] text-white/90 leading-tight">
+                          <p className="text-purple-300">No Wallet</p>
                         </div>
                       ) : portfolioData ? (
-                        <div className="text-sm text-white/90 leading-relaxed space-y-2">
-                          <div className="text-xs text-purple-300 mb-3">
+                        <div className="text-[7px] text-white/90 leading-tight space-y-1">
+                          <div className="text-[6px] text-purple-300">
                             {portfolioData.address}
                           </div>
                           
-
-                          
-                          {/* Simple Token Display */}
-                          <div className="mt-4 text-sm text-white">
+                          <div className="text-[7px] text-white">
                             {tokenBalances.length > 0 ? (
                               <div>
                                 <span className="text-gray-400">{tokenBalances[0].symbol}:</span> {tokenBalances[0].balance}

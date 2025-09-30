@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect } from 'react';
-import coinstatsLogo from '../../api/services/coinstats-2.png';
+import coinstatsLogo from '../../assets/coinstats-2.png';
 
 const FloatingCoinStatsBubble = ({ isOpen, onClose, title = 'CoinStats', content = '', loading = false, addParticlesToSwarm }) => {
   const bubbleId = useState(() => `coinstats-${Date.now()}-${Math.random()}`)[0]; // Unique ID for this bubble instance
@@ -16,82 +16,8 @@ const FloatingCoinStatsBubble = ({ isOpen, onClose, title = 'CoinStats', content
   const [isExpanded, setIsExpanded] = useState(false);
   const [lastClickTime, setLastClickTime] = useState(0);
 
-  useEffect(() => {
-    if (!isOpen || isDragging) return;
-
-    const interval = setInterval(() => {
-      setPosition(prev => {
-        // Use same dynamic sizing as outside
-        let bubbleSize = 128;
-        if (isExpanded && typeof content === 'string') {
-          const lines = content.split('\n').length;
-          const avgLineLength = content.length / lines;
-          const estimatedWidth = Math.max(250, Math.min(400, avgLineLength * 8 + 100));
-          const estimatedHeight = Math.max(200, lines * 20 + 80);
-          bubbleSize = Math.max(estimatedWidth, estimatedHeight);
-        } else if (isExpanded) {
-          bubbleSize = 280;
-        }
-        const margin = 20;
-        
-        // Simple upward floating - no hard stops
-        let newY = prev.y;
-        let newX = prev.x;
-        
-        // Always try to float up (like a balloon)
-        const floatForce = -1.0; // Faster upward force (2x speed)
-        newY += floatForce;
-        
-        // Stop at top of screen naturally
-        if (newY < margin) {
-          newY = margin;
-        }
-        
-        // Keep X within screen bounds
-        const maxX = window.innerWidth - bubbleSize - margin;
-        const minX = margin;
-        newX = Math.max(minX, Math.min(maxX, newX));
-        
-        // Gentle collision avoidance
-        const allBubbles = Array.from(document.querySelectorAll('[data-bubble]'));
-        const otherBubbles = allBubbles.filter(b => b.getAttribute('data-bubble-id') !== bubbleId);
-        
-        otherBubbles.forEach(otherBubble => {
-          const otherRect = otherBubble.getBoundingClientRect();
-          const otherCenterX = otherRect.left + otherRect.width / 2;
-          const otherCenterY = otherRect.top + otherRect.height / 2;
-          const thisCenterX = newX + bubbleSize / 2;
-          const thisCenterY = newY + bubbleSize / 2;
-          
-          const distance = Math.sqrt(
-            Math.pow(thisCenterX - otherCenterX, 2) + 
-            Math.pow(thisCenterY - otherCenterY, 2)
-          );
-          
-          const minDistance = bubbleSize + 10;
-          
-          // Gentle collision avoidance - small pushes
-          if (distance < minDistance && distance > 0) {
-            const angle = Math.atan2(thisCenterY - otherCenterY, thisCenterX - otherCenterX);
-            const overlap = minDistance - distance;
-            
-            // Very gentle push - small incremental movements
-            const pushForce = overlap * 0.02; // Much smaller force
-            newX += Math.cos(angle) * pushForce;
-            newY += Math.sin(angle) * pushForce;
-          }
-        });
-        
-        // SOLID BOUNDARIES - Absolutely prevent going off-screen
-        newX = Math.max(minX, Math.min(maxX, newX));
-        newY = Math.max(margin, newY); // Can't go above top
-        newY = Math.min(window.innerHeight - bubbleSize - margin, newY); // Can't go below bottom
-        
-        return { x: newX, y: newY };
-      });
-    }, 16);
-
-    return () => clearInterval(interval);
+  // Remove auto-floating
+  useEffect(() => { if (!isOpen || isDragging) return; return undefined;
   }, [isOpen, isDragging, isExpanded, bubbleId]);
 
   // Create pop particles and add them to main swarm
@@ -188,17 +114,8 @@ const FloatingCoinStatsBubble = ({ isOpen, onClose, title = 'CoinStats', content
   if (!isOpen) return null;
   
   // Dynamic bubble size based on content length and expanded state
-  let bubbleSize = 128; // Base collapsed size
-  if (isExpanded && typeof content === 'string') {
-    // Calculate size based on content length
-    const lines = content.split('\n').length;
-    const avgLineLength = content.length / lines;
-    const estimatedWidth = Math.max(250, Math.min(400, avgLineLength * 8 + 100));
-    const estimatedHeight = Math.max(200, lines * 20 + 80);
-    bubbleSize = Math.max(estimatedWidth, estimatedHeight);
-  } else if (isExpanded) {
-    bubbleSize = 280; // Default expanded size
-  }
+  let bubbleSize = 70;
+  if (isExpanded) bubbleSize = 160;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
   

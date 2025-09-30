@@ -1,18 +1,19 @@
 // Simple plugin management without React context - just localStorage based
 import lurkyCharacter from '../assets/lurky-character.png';
-import icpLogo from '../assets/icp-logo.jpg';
+import icpLogo from '../assets/icp-logo.png';
 import hederaLogo from '../assets/hedera-logo.png';
 import coingeckoIcon from '../assets/coingecko-icon.png';
-import changeNowLogo from '../components/ui/change now .png';
-import coinstatsLogo from '../api/services/coinstats-2.png';
+import changeNowLogo from '../assets/changenow.jpeg';
+import coinstatsLogo from '../assets/coinstats-2.png';
 import walletConnectLogo from '../assets/wallet-connect.png';
-import alchemyLogo from '../assets/alchemy-logo.jpg';
-import zeroXLogo from '../assets/0x-logo.png';
-import okxLogo from '../../OKx.png';
-import tonLogo from '/toncoin-ton-logo.svg';
-import chainbaseLogo from '/download-1.png';
+import alchemyLogo from '../assets/alchemy-logo.png';
+import zeroXLogo from '../assets/0x.png';
+import okxLogo from '../assets/OKx.png';
+import tonLogo from '../assets/ton.png';
+import chainbaseLogo from '../assets/download-1.png';
 import kolsIcon from '../assets/KOLS.png';
-import newsIcon from '../../581x581 logo.png';
+import newsIcon from '../assets/OLIVIA NEWS.png';
+import twitterIcon from '../assets/x-icon.png';
 
 // Define available plugins with metadata
 export const AVAILABLE_PLUGINS = {
@@ -129,7 +130,7 @@ export const AVAILABLE_PLUGINS = {
     name: 'Crypto News',
     description: 'Latest cryptocurrency news and market updates',
     detailedDescription: 'Stay informed with the latest cryptocurrency news, market analysis, and breaking updates from the crypto world. Get real-time news from top sources like CoinDesk, Cointelegraph, and CryptoSlate.',
-    logo: coingeckoIcon, // We'll use coingecko icon for now
+    logo: newsIcon,
     category: 'News',
     color: 'red'
   },
@@ -138,7 +139,7 @@ export const AVAILABLE_PLUGINS = {
     name: 'Twitter/X',
     description: 'Search Twitter for real-time crypto discussions and trends',
     detailedDescription: 'Search Twitter (now X) for real-time cryptocurrency discussions, trending topics, and community sentiment. Get the latest tweets about crypto projects, market movements, and community reactions.',
-    logo: '/x-social-media-white-icon.png',
+    logo: twitterIcon,
     category: 'Social',
     color: 'black'
   },

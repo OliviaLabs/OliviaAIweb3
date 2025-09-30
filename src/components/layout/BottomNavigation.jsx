@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import ConnectWalletModalComponent from '../ui/ConnectWalletModalComponent';
 import { startOliviaChat } from '../../utils/olivia';
-
+import { Home, Puzzle, Search, User } from 'lucide-react';
 
 export default function BottomNavigation() {
   const { telegramUser } = useAuth();
@@ -23,6 +23,39 @@ export default function BottomNavigation() {
     }
   };
 
+  // Navigation items
+  const navItems = [
+    {
+      id: 'home',
+      label: 'Home',
+      route: '/home',
+      icon: Home,
+      isActive: location.pathname === '/home'
+    },
+    {
+      id: 'explore',
+      label: 'Explore',
+      route: '/explore',
+      icon: Search,
+      isActive: location.pathname === '/explore'
+    },
+    {
+      id: 'plugins',
+      label: 'Plugins',
+      route: '/plugins',
+      icon: Puzzle,
+      isActive: location.pathname === '/plugins'
+    }
+    ,
+    {
+      id: 'profile',
+      label: 'Profile',
+      route: '/profile',
+      icon: User,
+      isActive: location.pathname === '/profile'
+    }
+  ];
+
   return (
     <>
       {/* The Connect Wallet Modal */}
@@ -31,18 +64,32 @@ export default function BottomNavigation() {
         onClose={() => setIsConnectModalOpen(false)}
       />
 
-      <div className="fixed bottom-0 left-0 right-0 z-40 ">
-        {/* Navigation Bar - Taller and Transparent */}
-        <nav className="bg-transparent backdrop-blur-sm border-t border-white/10 safe-bottom rounded-t-xl">
-          <div className="px-2 py-6">
-            <div className="flex justify-center items-center">
-              <div className="flex-1 flex flex-col items-center justify-end h-full">
-              </div>
+      <div className="fixed bottom-0 left-0 right-0 z-40">
+        {/* Navigation Bar - Frosted Glass Effect */}
+        <nav className="bg-black/80 backdrop-blur-md border-t border-white/20 safe-bottom">
+          <div className="px-4 py-3">
+            <div className="flex justify-around items-center">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleNavigation(item.route)}
+                    className={`flex flex-col items-center justify-center px-4 py-2 transition-all duration-200 ${
+                      item.isActive
+                        ? 'text-white'
+                        : 'text-white/70 hover:text-white'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5 mb-1" />
+                    <span className="text-xs font-medium">{item.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </nav>
       </div>
-
     </>
   );
 }

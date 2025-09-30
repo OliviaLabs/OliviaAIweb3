@@ -17,83 +17,8 @@ const FloatingCoinGeckoBubble = ({ isOpen, onClose, title = 'CoinGecko', content
   const [lastClickTime, setLastClickTime] = useState(0);
   const containerRef = useRef(null);
 
-  useEffect(() => {
-    if (!isOpen || isDragging) return;
-
-    const interval = setInterval(() => {
-      setPosition(prev => {
-        // Use same dynamic sizing as outside
-        let bubbleSize = 128;
-        if (isExpanded && typeof content === 'string') {
-          const lines = content.split('\n').length;
-          const avgLineLength = content.length / lines;
-          const estimatedWidth = Math.max(250, Math.min(450, avgLineLength * 8 + 100));
-          const estimatedHeight = Math.max(200, lines * 20 + 80);
-          bubbleSize = Math.max(estimatedWidth, estimatedHeight);
-        } else if (isExpanded) {
-          bubbleSize = 300;
-        }
-        const margin = 20;
-        
-        // Simple upward floating - no hard stops
-        let newY = prev.y;
-        let newX = prev.x;
-        
-        // Always try to float up (like a balloon)
-        const floatForce = -1.0; // Faster upward force (2x speed)
-        newY += floatForce;
-        
-        // Stop at top of screen naturally
-        if (newY < margin) {
-          newY = margin;
-        }
-        
-        // Keep X within screen bounds
-        const maxX = window.innerWidth - bubbleSize - margin;
-        const minX = margin;
-        newX = Math.max(minX, Math.min(maxX, newX));
-        
-        // Gentle collision avoidance
-        const allBubbles = Array.from(document.querySelectorAll('[data-bubble]'));
-        const otherBubbles = allBubbles.filter(b => b.getAttribute('data-bubble-id') !== bubbleId);
-        
-        otherBubbles.forEach(otherBubble => {
-          const otherRect = otherBubble.getBoundingClientRect();
-          const otherCenterX = otherRect.left + otherRect.width / 2;
-          const otherCenterY = otherRect.top + otherRect.height / 2;
-          const thisCenterX = newX + bubbleSize / 2;
-          const thisCenterY = newY + bubbleSize / 2;
-          
-          const distance = Math.sqrt(
-            Math.pow(thisCenterX - otherCenterX, 2) + 
-            Math.pow(thisCenterY - otherCenterY, 2)
-          );
-          
-          const minDistance = bubbleSize + 10;
-          
-          // Gentle collision avoidance - small pushes
-          if (distance < minDistance && distance > 0) {
-            const angle = Math.atan2(thisCenterY - otherCenterY, thisCenterX - otherCenterX);
-            const overlap = minDistance - distance;
-            
-            // Very gentle push - small incremental movements
-            const pushForce = overlap * 0.02; // Much smaller force
-            newX += Math.cos(angle) * pushForce;
-            newY += Math.sin(angle) * pushForce;
-          }
-        });
-        
-        // SOLID BOUNDARIES - Absolutely prevent going off-screen
-        newX = Math.max(minX, Math.min(maxX, newX));
-        newY = Math.max(margin, newY); // Can't go above top
-        newY = Math.min(window.innerHeight - bubbleSize - margin, newY); // Can't go below bottom
-        
-        return { x: newX, y: newY };
-      });
-    }, 16);
-
-    return () => clearInterval(interval);
-  }, [isOpen, isDragging, isExpanded]);
+  // Remove auto-floating
+  useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
 
   // Create pop particles and add them to main swarm, always close
   const createPopEffect = () => {
@@ -178,7 +103,6 @@ const FloatingCoinGeckoBubble = ({ isOpen, onClose, title = 'CoinGecko', content
   const handleMouseUp = () => {
     if (isDragging) {
       setIsDragging(false);
-      // Bubble will resume upward floating automatically
     }
   };
 
@@ -213,17 +137,8 @@ const FloatingCoinGeckoBubble = ({ isOpen, onClose, title = 'CoinGecko', content
   if (!isOpen) return null;
   
   // Dynamic bubble size based on content length and expanded state
-  let bubbleSize = 140; // Base collapsed size - slightly bigger for the new design
-  if (isExpanded && typeof content === 'string') {
-    // Calculate size based on content length
-    const lines = content.split('\n').length;
-    const avgLineLength = content.length / lines;
-    const estimatedWidth = Math.max(320, Math.min(480, avgLineLength * 8 + 140));
-    const estimatedHeight = Math.max(280, lines * 22 + 120);
-    bubbleSize = Math.max(estimatedWidth, estimatedHeight);
-  } else if (isExpanded) {
-    bubbleSize = 380; // Default expanded size - slightly bigger
-  }
+  let bubbleSize = 70;
+  if (isExpanded) bubbleSize = 160;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
   
@@ -281,49 +196,30 @@ const FloatingCoinGeckoBubble = ({ isOpen, onClose, title = 'CoinGecko', content
           ) : (
             <div className="w-full h-full flex items-center justify-center text-center relative">
               {!isExpanded ? (
-                // Collapsed: Central icon with title below in spherical layout
                 <div className="flex flex-col items-center justify-center">
-                  {/* Central CoinGecko Icon */}
-                  <div className="relative mb-3">
-                    <div className="w-10 h-10 rounded-full overflow-hidden border-4 border-green-400 shadow-2xl shadow-green-500/60 bg-gradient-to-br from-green-400/30 to-green-600/40 hover:border-green-300 transition-all duration-300 hover:shadow-green-400/80 hover:scale-105 group">
-                      <img 
-                        src={coingeckoIcon} 
-                        alt="CoinGecko" 
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      />
-                      {/* Inner circular glow */}
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-green-400/10 to-green-300/20"></div>
+                  <div className="relative mb-2">
+                    <div className="w-5 h-5 rounded-full overflow-hidden border-2 border-green-400 shadow-lg bg-gradient-to-br from-green-400/30 to-green-600/40">
+                      <img src={coingeckoIcon} alt="CoinGecko" className="w-full h-full object-cover" />
                     </div>
-                    {/* Pulsing outer ring */}
-                    <div className="absolute inset-0 rounded-full border-2 border-green-300/40 animate-ping" style={{animationDuration: '3s'}}></div>
                   </div>
-                  
-                  {/* Circular text layout */}
                   <div className="text-center">
-                    <div className="text-xs font-bold text-green-300 drop-shadow-xl">{title}</div>
+                    <div className="text-[6px] font-bold text-green-300">{title}</div>
                   </div>
                 </div>
               ) : (
-                // Expanded: Spherical content organization
-                <div className="w-full h-full relative flex flex-col items-center p-6">
-                  {/* Top section - Icon and title in circular arc */}
-                  <div className="absolute top-2 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
-                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-green-400 shadow-lg shadow-green-500/40 bg-gradient-to-br from-green-400/20 to-green-600/30 mb-2">
-                      <img 
-                        src={coingeckoIcon} 
-                        alt="CoinGecko" 
-                        className="w-full h-full object-cover"
-                      />
+                // Expanded
+                <div className="w-full h-full flex flex-col p-2">
+                  <div className="text-center mb-1">
+                    <div className="w-6 h-6 rounded-full overflow-hidden border border-green-400 shadow-lg bg-gradient-to-br from-green-400/20 to-green-600/30 mx-auto mb-1">
+                      <img src={coingeckoIcon} alt="CoinGecko" className="w-full h-full object-cover" />
                     </div>
-                    <div className="text-sm font-bold text-green-300 drop-shadow-lg">{title}</div>
-                    <div className="text-xs text-white/70 font-medium">Market Data</div>
+                    <div className="text-[8px] font-bold text-green-300">{title}</div>
                   </div>
                   
-                  {/* Central content area - no scrollbar, proper text layout */}
-                  <div className="flex-1 px-6 py-4 mt-24">
-                    <div className="text-center space-y-3">
+                  <div className="flex-1 px-2 overflow-y-auto">
+                    <div className="text-center space-y-1">
                       {typeof content === 'string' ? (
-                        <div className="text-sm text-white/90 leading-relaxed space-y-2">
+                        <div className="text-[7px] text-white/90 leading-tight space-y-1">
                           {content.split('\n\n').map((paragraph, index) => (
                             <p key={index} className="text-center">
                               {paragraph.split('\n').map((line, lineIndex) => (
@@ -336,7 +232,7 @@ const FloatingCoinGeckoBubble = ({ isOpen, onClose, title = 'CoinGecko', content
                           ))}
                         </div>
                       ) : (
-                        <div className="font-mono text-xs text-green-300 bg-black/30 p-3 rounded border border-green-400/30">
+                        <div className="font-mono text-[6px] text-green-300 bg-black/30 p-1 rounded border border-green-400/30">
                           <pre className="whitespace-pre-wrap text-left">
                             {JSON.stringify(content, null, 2)}
                           </pre>

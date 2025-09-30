@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { log, error as logError } from '../../utils/logger.js';
-import zeroXLogo from '../../assets/0x-logo.png';
+import zeroXLogo from '../../assets/0x.png';
 
 // 0x Protocol Trading Parameter Extraction Service
 const extractTradingParameters = async (input) => {
@@ -41,27 +41,9 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
   const [isExpanded, setIsExpanded] = useState(false);
   const [lastClickTime, setLastClickTime] = useState(0);
 
+  // Remove auto-floating: keep bubble where it is until user drags or clicks
   useEffect(() => {
-    if (!isOpen || isDragging) return;
-
-    const interval = setInterval(() => {
-      setPosition(prev => {
-        // Dynamic bubble size based on expanded state
-        let bubbleSize = 140; // Base collapsed size
-        if (isExpanded) {
-          bubbleSize = 380; // Expanded size
-        }
-        const bubbleHeight = bubbleSize;
-        
-        // Only float if not dragging and not at top
-        if (prev.y > 50) {
-          return { ...prev, y: prev.y - 1 }; // Smooth continuous float
-        }
-        return prev;
-      });
-    }, 16);
-
-    return () => clearInterval(interval);
+    return undefined;
   }, [isOpen, isDragging, isExpanded]);
 
   const createPopEffect = () => {
@@ -129,7 +111,6 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
   const handleMouseUp = () => {
     if (isDragging) {
       setIsDragging(false);
-      // Bubble will resume upward floating automatically
     }
   };
 
@@ -147,17 +128,8 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
   if (!isOpen) return null;
   
   // Dynamic bubble size based on content length and expanded state
-  let bubbleSize = 140; // Base collapsed size - slightly bigger for the new design
-  if (isExpanded && typeof content === 'string') {
-    // Calculate size based on content length
-    const lines = content.split('\n').length;
-    const avgLineLength = content.length / lines;
-    const estimatedWidth = Math.max(320, Math.min(480, avgLineLength * 8 + 140));
-    const estimatedHeight = Math.max(280, lines * 22 + 120);
-    bubbleSize = Math.max(estimatedWidth, estimatedHeight);
-  } else if (isExpanded) {
-    bubbleSize = 380; // Default expanded size - slightly bigger
-  }
+  let bubbleSize = 70;
+  if (isExpanded) bubbleSize = 160;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
   

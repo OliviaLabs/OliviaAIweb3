@@ -44,11 +44,12 @@ export { privacyService } from './services/privacy.service.js';
 export { okxDexService } from './services/okx-dex.service.js';
 export { zeroXService } from './services/zerox.service.js';
 export { nowpaymentsService } from './services/nowpayments.service.js';
+export { socialService } from './services/social.service.js';
 
 // Types
 export * from './types/auth.types.js';
-
 export * from './types/chat.types.js';
+export * from './types/social.types.js';
 
 // Config
 export { ENDPOINTS } from './config/endpoints.js';

@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect, useRef } from 'react';
-import newsIcon from '../../../581x581 logo.png';
+import newsIcon from '../../assets/OLIVIA NEWS.png';
 
 const FloatingWebSearchBubble = ({ isOpen, onClose, title = 'Crypto News', content = '', loading = false, addParticlesToSwarm }) => {
   const bubbleId = useState(() => `websearch-${Date.now()}-${Math.random()}`)[0]; // Unique ID for this bubble instance
@@ -17,77 +17,8 @@ const FloatingWebSearchBubble = ({ isOpen, onClose, title = 'Crypto News', conte
   const [lastClickTime, setLastClickTime] = useState(0);
   const containerRef = useRef(null);
 
-  useEffect(() => {
-    if (!isOpen || isDragging) return;
-
-    const interval = setInterval(() => {
-      setPosition(prev => {
-        // Use same sizing as main bubble
-        let bubbleSize = 128;
-        if (isExpanded) {
-          bubbleSize = 400; // Match expanded size
-        }
-        const margin = 20;
-        
-        // Simple upward floating - no hard stops
-        let newY = prev.y;
-        let newX = prev.x;
-        
-        // Always try to float up (like a balloon)
-        const floatForce = -1.0; // Faster upward force (2x speed)
-        newY += floatForce;
-        
-        // Stop at top of screen naturally
-        if (newY < margin) {
-          newY = margin;
-        }
-        
-        // Keep X within screen bounds
-        const maxX = window.innerWidth - bubbleSize - margin;
-        const minX = margin;
-        newX = Math.max(minX, Math.min(maxX, newX));
-        
-        // Gentle collision avoidance
-        const allBubbles = Array.from(document.querySelectorAll('[data-bubble]'));
-        const otherBubbles = allBubbles.filter(b => b.getAttribute('data-bubble-id') !== bubbleId);
-        
-        otherBubbles.forEach(otherBubble => {
-          const otherRect = otherBubble.getBoundingClientRect();
-          const otherCenterX = otherRect.left + otherRect.width / 2;
-          const otherCenterY = otherRect.top + otherRect.height / 2;
-          const thisCenterX = newX + bubbleSize / 2;
-          const thisCenterY = newY + bubbleSize / 2;
-          
-          const distance = Math.sqrt(
-            Math.pow(thisCenterX - otherCenterX, 2) + 
-            Math.pow(thisCenterY - otherCenterY, 2)
-          );
-          
-          const minDistance = bubbleSize + 10;
-          
-          // Gentle collision avoidance - small pushes
-          if (distance < minDistance && distance > 0) {
-            const angle = Math.atan2(thisCenterY - otherCenterY, thisCenterX - otherCenterX);
-            const overlap = minDistance - distance;
-            
-            // Very gentle push - small incremental movements
-            const pushForce = overlap * 0.02; // Much smaller force
-            newX += Math.cos(angle) * pushForce;
-            newY += Math.sin(angle) * pushForce;
-          }
-        });
-        
-        // SOLID BOUNDARIES - Absolutely prevent going off-screen
-        newX = Math.max(minX, Math.min(maxX, newX));
-        newY = Math.max(margin, newY); // Can't go above top
-        newY = Math.min(window.innerHeight - bubbleSize - margin, newY); // Can't go below bottom
-        
-        return { x: newX, y: newY };
-      });
-    }, 16);
-
-    return () => clearInterval(interval);
-  }, [isOpen, isDragging, isExpanded, content]);
+  // Remove auto-floating
+  useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded, content]);
 
   // Create pop particles and add them to main swarm
   const createPopEffect = () => {
@@ -197,11 +128,8 @@ const FloatingWebSearchBubble = ({ isOpen, onClose, title = 'Crypto News', conte
   if (!isOpen) return null;
 
   // Dynamic bubble size - match other bubbles exactly
-  let bubbleSize = 128; // Default collapsed size
-  if (isExpanded) {
-    // Fixed expanded size for consistency with other bubbles
-    bubbleSize = 400; // Same as other bubbles when expanded
-  }
+  let bubbleSize = 70;
+  if (isExpanded) bubbleSize = 160;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
   

@@ -3,9 +3,12 @@ import { Toaster } from 'sonner';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Plugins from './pages/Plugins';
+import Explore from './pages/Explore';
+import Profile from './pages/Profile';
 
 import Layout from './components/layout/Layout';
 import { PrivateRoute, PublicRoute } from './components/auth/RouteGuards';
+import { TokenInfluencerProvider } from './contexts/TokenInfluencerContext';
 import React, { useState, useEffect } from 'react';
 import QrCode from './pages/QrCode';
 
@@ -41,7 +44,7 @@ function App() {
   }, []);
 
   return (
-    <>
+    <TokenInfluencerProvider>
       <Routes>
         {showQrCode ? (
           // Redirect users to the QR Code page if they're not using Telegram.
@@ -69,8 +72,10 @@ function App() {
             <Route element={<PrivateRoute />}>
               <Route element={<Layout />}>
                 <Route path="/home" element={<Home />} />
+                <Route path="/explore" element={<Explore />} />
+                <Route path="/plugins" element={<Plugins />} />
+                <Route path="/profile" element={<Profile />} />
               </Route>
-              <Route path="/plugins" element={<Plugins />} />
             </Route>
 
             {/* Catch-all route for deleted/unknown pages */}
@@ -80,7 +85,7 @@ function App() {
         )}
       </Routes>
       <Toaster richColors position="bottom-right" closeButton />
-    </>
+    </TokenInfluencerProvider>
   );
 }
 

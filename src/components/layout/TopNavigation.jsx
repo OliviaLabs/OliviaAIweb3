@@ -13,7 +13,7 @@ import { log } from '../../utils/logger.js';
 import { useNavigate } from 'react-router-dom';
 import { useAccountUpgrade } from '../../hooks/useAccountUpgrade';
 import { Settings, Puzzle } from 'lucide-react';
-import icpLogo from '../../assets/icp-logo.jpg';
+import icpLogo from '../../assets/icp-logo.png';
 
 export default function TopNavigation() {
   const { address: wallet, isConnected } = useAccount();
@@ -167,18 +167,8 @@ export default function TopNavigation() {
 
       <div className="px-4 py-4" style={{ zIndex: 2147483646 }}>
         <div className="flex justify-between items-center">
-          {/* Left side - Plugins button */}
-          <div className="flex items-center gap-3">
-                            <button
-                  onClick={() => navigate('/plugins')}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800/50 hover:bg-gray-700 transition-colors border border-gray-600 hover:border-gray-500"
-                >
-                  <Puzzle className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-300">
-                    Plugins ({pluginCounts.enabled}/{pluginCounts.total})
-                  </span>
-                </button>
-          </div>
+          {/* Left side - empty (Plugins button removed) */}
+          <div />
           
           {/* Right side - User dropdown */}
           <div className="relative" ref={dropdownRef}>
@@ -369,29 +359,7 @@ export default function TopNavigation() {
                   </div>
                 )}
               </div>
-            ) : wallet ? (
-              // TON Wallet User
-              <div className="flex items-center gap-2 flex-nowrap">
-                <div className="flex flex-col">
-                  <span className="text-cyan-400 text-xs">Web3 Wallet</span>
-                  <span className="text-white text-sm font-mono">
-                    {wallet ? 
-                      `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : 
-                      'Connected'
-                    }
-                  </span>
-                </div>
-                <Button
-                  onPress={handleLogout}
-                  className="bg-transparent text-white/70 underline text-sm"
-                  size="sm"
-                >
-                  Logout
-                </Button>
-              </div>
-            ) : (
-              <appkit-account-button />
-            )}
+            ) : null}
             
 
           </div>

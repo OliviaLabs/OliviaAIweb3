@@ -1,35 +1,23 @@
-// Olivia chat utilities for inline chat system
+// Get the setIsOpen function and extra data from context
+let setIsOpenRef = null;
 let extraDataRef = null;
 let isWebsocketRunningRef = false;
-let chatOpenCallback = null;
 
-// Legacy function - no longer used with inline chat
 export function initializeChat(setIsOpen) {
-  console.log('initializeChat called but not needed for inline chat');
+  setIsOpenRef = setIsOpen;
 }
 
-// Set the callback function to open chat
-export function setChatOpenCallback(callback) {
-  chatOpenCallback = callback;
-}
-
-// Store extra data for chat usage and open chat
 export function startOliviaChat(extraData) {
-  extraDataRef = extraData;
-  console.log('🚀 Olivia chat data stored:', extraData);
-  
-  // Open the chat if callback is available
-  if (chatOpenCallback) {
-    chatOpenCallback(true);
+  if (setIsOpenRef) {
+    extraDataRef = extraData;
+    setIsOpenRef(true);
+  } else {
+    console.error('❌ setIsOpenRef is not available!');
   }
 }
 
 export function getExtraData() {
   return extraDataRef;
-}
-
-export function clearExtraData() {
-  extraDataRef = null;
 }
 
 export function setWebsocketRunning(isRunning) {

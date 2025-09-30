@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { log, error as logError } from '../../utils/logger.js';
-import okxLogo from '../../../OKx.png';
+import okxLogo from '../../assets/OKx.png';
 
 // OKX DEX Trading Parameter Extraction Service
 const extractTradingParameters = async (input) => {
@@ -120,28 +120,8 @@ const FloatingOKXBubble = ({ isOpen, onClose, title = 'OKX DEX', content = '', l
   const [quote, setQuote] = useState(null);
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
 
-  useEffect(() => {
-    if (!isOpen || isDragging) return;
-
-    const interval = setInterval(() => {
-      setPosition(prev => {
-        // Dynamic bubble size based on expanded state
-        let bubbleSize = 140; // Base collapsed size
-        if (isExpanded) {
-          bubbleSize = 320; // Smaller expanded size
-        }
-        const bubbleHeight = bubbleSize;
-        
-        // Only float if not dragging and not at top
-        if (prev.y > 50) {
-          return { ...prev, y: prev.y - 1 }; // Smooth continuous float
-        }
-        return prev;
-      });
-    }, 16);
-
-    return () => clearInterval(interval);
-  }, [isOpen, isDragging, isExpanded]);
+  // Remove auto-floating
+  useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
 
   useEffect(() => {
     // Add flag to prevent duplicate calls in React StrictMode
@@ -191,8 +171,8 @@ const FloatingOKXBubble = ({ isOpen, onClose, title = 'OKX DEX', content = '', l
     const newX = e.clientX - dragOffset.x;
     const newY = e.clientY - dragOffset.y;
 
-    let bubbleSize = 140;
-    if (isExpanded) bubbleSize = 320;
+    let bubbleSize = 70; // Halved
+    if (isExpanded) bubbleSize = 160; // Halved
 
     setPosition({
       x: Math.max(50, Math.min(window.innerWidth - bubbleSize - 50, newX)),
@@ -319,19 +299,15 @@ const FloatingOKXBubble = ({ isOpen, onClose, title = 'OKX DEX', content = '', l
   if (!isOpen) return null;
 
   // Dynamic bubble size based on content length and expanded state
-  let bubbleSize = 140; // Base collapsed size
-  if (isExpanded && typeof content === 'string') {
-    // Calculate size based on content length - more conservative sizing
-    const lines = content.split('\n').length;
-    const avgLineLength = content.length / lines;
-    const estimatedWidth = Math.max(300, Math.min(400, avgLineLength * 6 + 120));
-    const estimatedHeight = Math.max(250, lines * 18 + 100);
-    bubbleSize = Math.max(estimatedWidth, estimatedHeight);
-  } else if (isExpanded) {
-    bubbleSize = 320; // Smaller default expanded size
+  let bubbleSize = 70; // Base collapsed size (halved)
+  if (isExpanded) {
+    bubbleSize = 160; // Fixed expanded size
   }
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
+  
+  // Scale factor for all internal elements
+  const scale = bubbleSize / 140; // Original was 140px
 
   const bubble = (
     <div 
@@ -383,50 +359,42 @@ const FloatingOKXBubble = ({ isOpen, onClose, title = 'OKX DEX', content = '', l
           ) : (
             <div className="text-white w-full h-full flex flex-col items-center justify-center text-center">
               {!isExpanded ? (
-                // Collapsed: Central icon with title below in spherical layout
+                // Collapsed: Central icon with title below
                 <div className="flex flex-col items-center justify-center">
-                  {/* Central OKX Icon */}
-                  <div className="relative mb-3">
-                    <div className="w-10 h-10 rounded-full overflow-hidden border-4 border-blue-400 shadow-2xl shadow-blue-500/60 bg-gradient-to-br from-blue-400/30 to-blue-600/40 hover:border-blue-300 transition-all duration-300 hover:shadow-blue-400/80 hover:scale-105 group">
+                  <div className="relative" style={{marginBottom: `${scale * 12}px`}}>
+                    <div className="rounded-full overflow-hidden border-blue-400 shadow-2xl shadow-blue-500/60 bg-gradient-to-br from-blue-400/30 to-blue-600/40 hover:border-blue-300 transition-all duration-300 hover:shadow-blue-400/80 hover:scale-105 group" style={{width: `${scale * 40}px`, height: `${scale * 40}px`, border: `${Math.max(2, scale * 4)}px solid #3b82f6`}}>
                       <img 
                         src={okxLogo} 
                         alt="OKX Logo" 
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                       />
-                      {/* Inner circular glow */}
                       <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-blue-400/10 to-blue-300/20"></div>
                     </div>
-                    {/* Pulsing outer ring */}
-                    <div className="absolute inset-0 rounded-full border-2 border-blue-300/40 animate-ping" style={{animationDuration: '3s'}}></div>
+                    <div className="absolute inset-0 rounded-full border-blue-300/40 animate-ping" style={{border: `${Math.max(1, scale * 2)}px solid rgba(147, 197, 253, 0.4)`, animationDuration: '3s'}}></div>
                   </div>
-                  
-                  {/* Circular text layout */}
                   <div className="text-center">
-                    <div className="text-xs font-bold text-blue-300 drop-shadow-xl">{title}</div>
+                    <div className="font-bold text-blue-300 drop-shadow-xl" style={{fontSize: `${scale * 12}px`}}>{title}</div>
                   </div>
                 </div>
             ) : (
-              // Expanded: Spherical layout with enhanced content
-              <div className="w-full h-full flex flex-col">
-                {/* Header section with logo and title */}
-                <div className="text-center mb-3">
-                  <div className="w-12 h-12 rounded-full overflow-hidden border-4 border-blue-400 shadow-2xl shadow-blue-500/60 bg-gradient-to-br from-blue-400/30 to-blue-600/40 mx-auto mb-2">
+              // Expanded: Smaller text and icons to fit
+              <div className="w-full h-full flex flex-col p-2">
+                <div className="text-center mb-1">
+                  <div className="w-6 h-6 rounded-full overflow-hidden border border-blue-400 shadow-lg shadow-blue-500/40 bg-gradient-to-br from-blue-400/30 to-blue-600/40 mx-auto mb-1">
                     <img 
                       src={okxLogo} 
                       alt="OKX Logo" 
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-blue-400/10 to-blue-300/20"></div>
                   </div>
-                  <div className="text-sm font-bold text-blue-300 drop-shadow-lg">{title}</div>
-                  <div className="text-xs text-white/70 font-medium">DEX Aggregator</div>
+                  <div className="text-[8px] font-bold text-blue-300">{title}</div>
                 </div>
                 
-                {/* Central content area - improved text flow */}
-                <div className="flex-1 px-3 py-2 overflow-y-auto max-h-[150px]">
+                {/* Content */}
+                <div className="flex-1 px-2 overflow-y-auto">
                   <div className="text-center space-y-1">
                     {typeof content === 'string' ? (
-                      <div className="text-xs text-white/90 leading-tight space-y-1">
+                      <div className="text-[7px] text-white/90 leading-tight space-y-1">
                         {content.split('\n\n').map((paragraph, index) => (
                           <p key={index} className="text-center">
                             {paragraph.split('\n').map((line, lineIndex) => (

@@ -38,6 +38,78 @@ export default function Home() {
   const [loadingText, setLoadingText] = useState('Analyzing')
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const [particles, setParticles] = useState([])
+  
+  // 🧠 DYNAMIC TOKEN REGISTRY - Build intelligence from API responses and conversation
+  const tokenRegistry = useRef(new Map()); // Map<tokenName, {id, symbol, name, source, timestamp}>
+  
+  // Add token to registry
+  const registerToken = useCallback((tokenData, source = 'API') => {
+    const key = tokenData.name?.toLowerCase() || tokenData.symbol?.toLowerCase() || tokenData.id?.toLowerCase();
+    if (!key) return;
+    
+    const existingToken = tokenRegistry.current.get(key);
+    const newToken = {
+      id: tokenData.id,
+      symbol: tokenData.symbol?.toUpperCase(),
+      name: tokenData.name,
+      rank: tokenData.rank || tokenData.market_cap_rank,
+      source: source,
+      timestamp: Date.now(),
+      ...existingToken // Keep any existing data
+    };
+    
+    tokenRegistry.current.set(key, newToken);
+    
+    // Also register by symbol and id for easy lookup
+    if (tokenData.symbol) {
+      tokenRegistry.current.set(tokenData.symbol.toLowerCase(), newToken);
+    }
+    if (tokenData.id && tokenData.id !== key) {
+      tokenRegistry.current.set(tokenData.id.toLowerCase(), newToken);
+    }
+    
+    log('🧠 Registered token:', key, newToken);
+  }, []);
+  
+  // Find token in registry
+  const findToken = useCallback((query) => {
+    if (!query) return null;
+    const key = query.toLowerCase();
+    return tokenRegistry.current.get(key) || null;
+  }, []);
+  
+  // 🧠 API CALL CACHE - Prevent API spam with smart caching
+  const apiCache = useRef(new Map()); // Map<cacheKey, {data, timestamp, inFlight}>
+  
+  const getCached = useCallback((cacheKey, maxAge = 300000) => { // 5 min default
+    const cached = apiCache.current.get(cacheKey);
+    if (!cached) return null;
+    
+    const age = Date.now() - cached.timestamp;
+    if (age > maxAge) {
+      apiCache.current.delete(cacheKey);
+      return null;
+    }
+    
+    return cached.data;
+  }, []);
+  
+  const setCache = useCallback((cacheKey, data) => {
+    apiCache.current.set(cacheKey, {
+      data,
+      timestamp: Date.now()
+    });
+  }, []);
+  
+  const isInFlight = useCallback((cacheKey) => {
+    const cached = apiCache.current.get(cacheKey);
+    return cached?.inFlight || false;
+  }, []);
+  
+  const setInFlight = useCallback((cacheKey, inFlight = true) => {
+    const cached = apiCache.current.get(cacheKey) || {};
+    apiCache.current.set(cacheKey, { ...cached, inFlight });
+  }, []);
   // Multiple bubble instances - arrays instead of single states
   const [lurkyBubbles, setLurkyBubbles] = useState([])
   const [coinGeckoBubbles, setCoinGeckoBubbles] = useState([])
@@ -1021,6 +1093,33 @@ export default function Home() {
       words.push(happeningMatch[1].toLowerCase());
     }
     
+    // 🚨 CRITICAL: Check if user is responding to Olivia's proactive token mention
+    // If Olivia mentioned a token and user says "yes", "tell me more", etc., use that token!
+    const isFollowUpResponse = /^(yes|yeah|yep|sure|ok|okay|tell me more|more|details|absolutely|definitely|interested|what's happening|why|how|analyze|show me|let's look)$/i.test(message.trim());
+    
+    if (isFollowUpResponse && window.proactiveMentionedToken) {
+      log('🎯 User is responding to proactive token mention:', window.proactiveMentionedToken);
+      // Add the proactively mentioned token to words so all plugins can use it
+      words.push(window.proactiveMentionedToken.name.toLowerCase());
+      words.push(window.proactiveMentionedToken.symbol.toLowerCase());
+      words.push(window.proactiveMentionedToken.id.toLowerCase());
+    }
+    
+    // ALSO: Check the last AI message for any token mentions
+    const lastAiMessage = messages.filter(m => m.type === 'ai').slice(-1)[0];
+    if (lastAiMessage && isFollowUpResponse) {
+      // Extract token names from AI's last message (look for capitalized words or tokens in parentheses)
+      const aiTokenPattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s*\(([A-Z]{2,})\)/g;
+      let match;
+      while ((match = aiTokenPattern.exec(lastAiMessage.content)) !== null) {
+        const tokenName = match[1].toLowerCase();
+        const tokenSymbol = match[2].toLowerCase();
+        words.push(tokenName);
+        words.push(tokenSymbol);
+        log('🎯 Extracted token from AI message:', tokenName, tokenSymbol);
+      }
+    }
+    
     // Known cryptocurrencies and common variations
     const knownCryptos = [
       'bitcoin', 'btc', 'ethereum', 'eth', 'solana', 'sol', 'cardano', 'ada',
@@ -1136,7 +1235,7 @@ export default function Home() {
     
     // ====== CONSOLIDATED INTENT SYSTEM ======
     // Create a unified intent object from all our detections
-    const userIntent = {
+    let userIntent = {
       // Primary intents
       wantsPrice: mentionsPrice,
       wantsTrending: wantsTrending || mentionsTrending,
@@ -1170,6 +1269,20 @@ export default function Home() {
         (tickerMatches?.length > 0 || mentionedCoin) ? 'TOKEN_INFO' :
         'GENERAL'
     };
+    
+    // 🚨 CRITICAL OVERRIDE: If user is responding to proactive token mention, use that token!
+    if (isFollowUpResponse && window.proactiveMentionedToken) {
+      log('🎯 OVERRIDING userIntent with proactive token:', window.proactiveMentionedToken);
+      userIntent.specificToken = window.proactiveMentionedToken.id; // Use CoinGecko ID
+      userIntent.tokens = [window.proactiveMentionedToken.symbol]; // Add ticker
+      userIntent.wantsPrice = true; // Enable price checking
+      userIntent.wantsNews = true; // Enable news
+      userIntent.wantsTwitter = true; // Enable social data
+      userIntent.primaryIntent = 'TOKEN_INFO'; // Set primary intent
+      
+      // Store the full token info for plugins to use
+      window.currentTokenContext = window.proactiveMentionedToken;
+    }
     
     console.log('🎯 User Intent:', userIntent);
     console.log('📰 News/Search Detection:', { 
@@ -3138,17 +3251,206 @@ export default function Home() {
     }
   }
 
-  // Auto-initialize the chat on component mount
+  // Auto-initialize the chat on component mount with dynamic trending token message
   useEffect(() => {
-    log('🚀 Home.jsx: Auto-initializing chat on mount');
-    setIsLoading(false) // Don't show loading initially
-    setMessages([{
-      type: 'ai',
-      content: "Hey there, welcome to Olivia AI! Ask me about cryptocurrencies, trading, or anything Web3!"
-    }]) // Show instant greeting
-    setCurrentResponse('')
+    log('🚀 Home.jsx: Auto-initializing chat with trending data');
+    setIsLoading(true) // Show loading while fetching trending data
     setShowInput(true) // Show input immediately
     setUserInput('')
+    
+    // Fetch trending tokens and generate dynamic first message
+    const initializeChatWithTrending = async () => {
+      try {
+        // Call CoinGecko trending API
+        const trendingData = await coingeckoService.getTrending();
+        log('📈 Trending data fetched:', trendingData);
+        
+        if (trendingData?.coins && trendingData.coins.length > 0) {
+          // Pick a random trending token (0-2 for variety)
+          const randomIndex = Math.floor(Math.random() * Math.min(3, trendingData.coins.length));
+          const trendingCoin = trendingData.coins[randomIndex];
+          const coin = trendingCoin.item;
+          
+          // Format market data
+          const priceChange = coin.data?.price_change_percentage_24h?.usd;
+          const marketCapRaw = coin.data?.market_cap;
+          const rank = coin.market_cap_rank;
+          
+          // Build message dynamically based on available data with varied personality
+          const openings = [
+            `Hey! Have you seen what's happening with ${coin.name}?`,
+            `Check this out - ${coin.name} is making some moves.`,
+            `${coin.name} caught my attention today.`,
+            `Interesting action on ${coin.name} right now.`,
+            `Noticed ${coin.name} moving today.`
+          ];
+          
+          let proactiveMessage = openings[Math.floor(Math.random() * openings.length)];
+          
+          if (rank) {
+            proactiveMessage += ` It's sitting at #${rank}`;
+          }
+          
+          if (priceChange !== undefined && priceChange !== null && !isNaN(priceChange)) {
+            const changeText = priceChange > 0 ? `up ${priceChange.toFixed(2)}%` : `down ${Math.abs(priceChange).toFixed(2)}%`;
+            proactiveMessage += ` and ${changeText} in the last 24 hours`;
+          }
+          
+          if (marketCapRaw && !isNaN(marketCapRaw) && marketCapRaw > 0) {
+            const marketCapFormatted = marketCapRaw >= 1e9 
+              ? `$${(marketCapRaw / 1e9).toFixed(2)}B`
+              : `$${(marketCapRaw / 1e6).toFixed(2)}M`;
+            proactiveMessage += ` with a ${marketCapFormatted} market cap`;
+          }
+          
+          const closings = [
+            `. Want to dig into what's causing this?`,
+            `. Should we take a look at what's driving it?`,
+            `. Curious what you think about this.`,
+            `. Want me to pull up more details?`,
+            `. Think it's worth exploring?`
+          ];
+          
+          proactiveMessage += closings[Math.floor(Math.random() * closings.length)];
+          
+          setMessages([{
+            type: 'ai',
+            content: proactiveMessage
+          }]);
+          
+          // 🚀 CRITICAL: Pre-trigger ALL relevant plugins for this token so data is ready
+          log('🔥 AUTO-TRIGGERING ALL PLUGINS FOR:', coin.name, coin.symbol);
+          
+          // Store the mentioned token info globally so AI can access it
+          const tokenInfo = {
+            name: coin.name,
+            symbol: coin.symbol.toUpperCase(),
+            id: coin.id, // CoinGecko ID
+            rank: coin.market_cap_rank,
+            priceChange: priceChange,
+            marketCap: marketCapRaw
+          };
+          
+          window.proactiveMentionedToken = tokenInfo;
+          
+          // 🧠 REGISTER TOKEN IN DYNAMIC REGISTRY
+          registerToken({
+            id: coin.id,
+            symbol: coin.symbol,
+            name: coin.name,
+            rank: coin.market_cap_rank
+          }, 'CoinGecko_Trending');
+          
+          // Update context awareness immediately
+          window.contextAwarenessData = window.contextAwarenessData || {};
+          window.contextAwarenessData.proactive_token = tokenInfo;
+          
+          // 1. CoinGecko - Price & Market Data
+          if (isPluginEnabled('coingecko')) {
+            log('📊 CoinGecko: Fetching data for', coin.id);
+            const fetchCoinGeckoData = async () => {
+              try {
+                const data = await coingeckoService.getCoinDetails(coin.id);
+                const bubbleContent = `${coin.name} (${coin.symbol.toUpperCase()})\nPrice: $${data.market_data?.current_price?.usd?.toLocaleString() || 'N/A'}\n24h: ${priceChange?.toFixed(2)}%\nMarket Cap: ${marketCapRaw >= 1e9 ? `$${(marketCapRaw / 1e9).toFixed(2)}B` : `$${(marketCapRaw / 1e6).toFixed(2)}M`}\nVolume: $${(data.market_data?.total_volume?.usd / 1e6)?.toFixed(2)}M`;
+                
+                // Store in context
+                window.contextAwarenessData.market_data = window.contextAwarenessData.market_data || {};
+                window.contextAwarenessData.market_data[coin.symbol.toLowerCase()] = data.market_data;
+                
+                setCoinGeckoBubbles(prev => [...prev, {
+                  id: `coingecko-${Date.now()}`,
+                  isOpen: true,
+                  content: bubbleContent,
+                  loading: false,
+                  title: `${coin.name} Market Data`
+                }]);
+              } catch (err) {
+                logError('CoinGecko fetch failed:', err);
+              }
+            };
+            fetchCoinGeckoData();
+          }
+          
+          // 2. Twitter/X - Social mentions for ticker
+          if (isPluginEnabled('twitter')) {
+            log('🐦 Twitter: Searching for $', coin.symbol);
+            const fetchTwitterData = async () => {
+              try {
+                const ticker = `$${coin.symbol.toUpperCase()}`;
+                const data = await twitterService.searchTicker(ticker);
+                const bubbleContent = data ? `Found ${data.mentions || 0} mentions of ${ticker}` : 'No social data available';
+                
+                setTwitterBubbles(prev => [...prev, {
+                  id: `twitter-${Date.now()}`,
+                  isOpen: true,
+                  content: bubbleContent,
+                  loading: false,
+                  title: `${ticker} Social Data`
+                }]);
+              } catch (err) {
+                logError('Twitter fetch failed:', err);
+              }
+            };
+            fetchTwitterData();
+          }
+          
+          // 3. News/WebSearch - Latest news
+          if (isPluginEnabled('websearch')) {
+            log('📰 WebSearch: Looking for news about', coin.name);
+            const searchQuery = `${coin.name} ${coin.symbol} cryptocurrency news latest`;
+            setWebSearchBubbles(prev => [...prev, {
+              id: `websearch-${Date.now()}`,
+              isOpen: true,
+              content: `Searching for latest news on ${coin.name}...`,
+              loading: true,
+              title: `${coin.name} News`,
+              searchQuery: searchQuery
+            }]);
+          }
+          
+          // 4. CoinStats - Additional market data
+          if (isPluginEnabled('coinstats')) {
+            log('📊 CoinStats: Fetching for', coin.symbol);
+            const fetchCoinStatsData = async () => {
+              try {
+                const data = await coinstatsService.getCoinData(coin.id);
+                setCoinstatsBubbles(prev => [...prev, {
+                  id: `coinstats-${Date.now()}`,
+                  isOpen: true,
+                  content: JSON.stringify(data, null, 2),
+                  loading: false,
+                  title: `${coin.name} Stats`
+                }]);
+              } catch (err) {
+                logError('CoinStats fetch failed:', err);
+              }
+            };
+            fetchCoinStatsData();
+          }
+          
+          log('✅ All plugins triggered for:', coin.name);
+          
+          setIsLoading(false);
+        } else {
+          // Fallback if no trending data
+          setMessages([{
+            type: 'ai',
+            content: "Hey! Just scanned the crypto markets for you. What would you like to know about? I can help with live prices, trading insights, or anything Web3!"
+          }]);
+          setIsLoading(false);
+        }
+      } catch (error) {
+        logError('Failed to fetch trending data:', error);
+        // Fallback message on error
+        setMessages([{
+          type: 'ai',
+          content: "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!"
+        }]);
+        setIsLoading(false);
+      }
+    };
+    
+    initializeChatWithTrending();
   }, [])
 
 

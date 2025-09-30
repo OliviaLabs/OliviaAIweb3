@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { log, error as logError } from '../../utils/logger.js';
-import chainbaseLogo from '/download-1.png';
+import chainbaseLogo from '../../assets/download-1.png';
 
 // Chainbase Service
 const chainbaseService = {
@@ -170,28 +170,8 @@ const FloatingChainbaseBubble = ({ isOpen, onClose, title = 'Chainbase', content
   const [apyData, setApyData] = useState(null);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
-  useEffect(() => {
-    if (!isOpen || isDragging) return;
-
-    const interval = setInterval(() => {
-      setPosition(prev => {
-        // Dynamic bubble size based on expanded state
-        let bubbleSize = 140; // Base collapsed size
-        if (isExpanded) {
-          bubbleSize = 320; // Smaller expanded size
-        }
-        const bubbleHeight = bubbleSize;
-        
-        // Only float if not dragging and not at top
-        if (prev.y > 50) {
-          return { ...prev, y: prev.y - 1 }; // Smooth continuous float
-        }
-        return prev;
-      });
-    }, 16);
-
-    return () => clearInterval(interval);
-  }, [isOpen, isDragging, isExpanded]);
+  // Remove auto-floating
+  useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
 
   useEffect(() => {
     if (isOpen) {
@@ -406,14 +386,14 @@ const FloatingChainbaseBubble = ({ isOpen, onClose, title = 'Chainbase', content
   if (!isOpen) return null;
   
   // Dynamic bubble size based on content length and expanded state
-  let bubbleSize = 140; // Base collapsed size
+  let bubbleSize = 70;
   let bubbleWidth = bubbleSize;
   let bubbleHeight = bubbleSize;
   
   if (isExpanded) {
-    // Bigger to fit all content including chain selector
-    bubbleWidth = 340;
-    bubbleHeight = 380;
+    bubbleSize = 160;
+    bubbleWidth = bubbleSize;
+    bubbleHeight = bubbleSize;
   }
 
   const bubble = (

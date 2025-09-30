@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { Coins, Database, Loader } from 'lucide-react';
 import { useAccount } from 'wagmi';
-import alchemyLogo from '../../assets/alchemy-logo.jpg';
+import alchemyLogo from '../../assets/alchemy-logo.png';
 
 const FloatingAlchemyBubble = ({ 
   isOpen, 
@@ -301,10 +301,8 @@ const FloatingAlchemyBubble = ({
   if (!isOpen) return null;
 
   // Dynamic bubble size
-  let bubbleSize = 140;
-  if (isExpanded) {
-    bubbleSize = 400; // Larger to accommodate all tokens
-  }
+  let bubbleSize = 70;
+  if (isExpanded) bubbleSize = 160;
   
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;

@@ -2,7 +2,7 @@ import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import changeNowLogo from './change now .png';
+import changeNowLogo from '../../assets/changenow.jpeg';
 import { log, error as logError } from '../../utils/logger.js';
 
 // OpenAI Trading Parameter Extraction Service
@@ -41,81 +41,16 @@ const FloatingChangeNowBubble = ({ isOpen, onClose, title = 'ChangeNOW', content
   const [isExpanded, setIsExpanded] = useState(false);
   const [lastClickTime, setLastClickTime] = useState(0);
 
-  useEffect(() => {
-    if (!isOpen || isDragging) return;
-
-    const interval = setInterval(() => {
-      setPosition(prev => {
-        // Dynamic bubble size based on expanded state
-        let bubbleSize = 140; // Base collapsed size
-        if (isExpanded) {
-          bubbleSize = 380; // Expanded size for content
-        }
-        const margin = 20;
-        
-        // Simple upward floating 
-        let newY = prev.y - 3; // Even faster upward movement (3x speed)
-        let newX = prev.x;
-        
-        // Get all bubbles for collision detection
-        const allBubbles = Array.from(document.querySelectorAll('[data-bubble]'));
-        const otherBubbles = allBubbles.filter(b => b.getAttribute('data-bubble-id') !== bubbleId);
-        
-        // Collision detection and avoidance
-        otherBubbles.forEach(otherBubble => {
-          const otherRect = otherBubble.getBoundingClientRect();
-          const otherCenterX = otherRect.left + otherRect.width / 2;
-          const otherCenterY = otherRect.top + otherRect.height / 2;
-          
-          const currentCenterX = newX + bubbleSize / 2;
-          const currentCenterY = newY + bubbleSize / 2;
-          
-          const dx = currentCenterX - otherCenterX;
-          const dy = currentCenterY - otherCenterY;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          
-          const minDistance = bubbleSize + 20; // Minimum distance between bubbles
-          
-          if (distance < minDistance && distance > 0) {
-            // Calculate push force based on overlap
-            const overlap = minDistance - distance;
-            const pushForce = overlap; // Stronger push
-            
-            // Normalize the direction vector
-            const pushX = (dx / distance) * pushForce;
-            const pushY = (dy / distance) * pushForce;
-            
-            // Apply the push (move away from other bubble)
-            newX += pushX;
-            newY += pushY;
-          }
-        });
-        
-        // SOLID BOUNDARIES - final enforcement (can't be pushed past)
-        const maxX = window.innerWidth - bubbleSize - margin;
-        const minX = margin;
-        newX = Math.max(minX, Math.min(maxX, newX));
-        
-        // Keep within screen bounds but allow natural floating to top
-        newY = Math.max(margin, newY);
-        newY = Math.min(window.innerHeight - bubbleSize - margin, newY);
-        
-        return { x: newX, y: newY };
-      });
-    }, 50); // Animation interval
-
-    return () => clearInterval(interval);
-  }, [isOpen, isDragging, isExpanded, bubbleId]);
+  // Remove auto-floating
+  useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded, bubbleId]);
 
   // Create pop particles and add them to main swarm
   const createPopEffect = () => {
     if (!addParticlesToSwarm) return;
     
     // Dynamic bubble size based on expanded state
-    let bubbleSize = 140; // Base collapsed size
-    if (isExpanded) {
-      bubbleSize = 380; // Expanded size for content
-    }
+    let bubbleSize = 70;
+    if (isExpanded) bubbleSize = 160;
     const bubbleCenter = {
       x: position.x + bubbleSize / 2, // Actual bubble center
       y: position.y + bubbleSize / 2  // Actual bubble center
@@ -207,10 +142,8 @@ const FloatingChangeNowBubble = ({ isOpen, onClose, title = 'ChangeNOW', content
   if (!isOpen) return null;
 
   // Dynamic bubble size based on expanded state
-  let bubbleSize = 140; // Base collapsed size
-  if (isExpanded) {
-    bubbleSize = 380; // Expanded size for content
-  }
+  let bubbleSize = 70;
+  if (isExpanded) bubbleSize = 160;
 
   const bubble = (
     <div
@@ -266,50 +199,30 @@ const FloatingChangeNowBubble = ({ isOpen, onClose, title = 'ChangeNOW', content
           ) : (
             <div className="text-white w-full h-full flex flex-col items-center justify-center text-center">
               {!isExpanded ? (
-                // Collapsed: Central icon with title below in spherical layout
                 <div className="flex flex-col items-center justify-center">
-                  {/* Central ChangeNOW Icon */}
-                  <div className="relative mb-3">
-                    <div className="w-10 h-10 rounded-full overflow-hidden border-4 border-orange-400 shadow-2xl shadow-orange-500/60 bg-gradient-to-br from-orange-400/30 to-orange-600/40 hover:border-orange-300 transition-all duration-300 hover:shadow-orange-400/80 hover:scale-105 group">
-                      <img 
-                        src={changeNowLogo} 
-                        alt="ChangeNOW Logo" 
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      />
-                      {/* Inner circular glow */}
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-orange-400/10 to-orange-300/20"></div>
+                  <div className="relative mb-2">
+                    <div className="w-5 h-5 rounded-full overflow-hidden border-2 border-orange-400 shadow-lg bg-gradient-to-br from-orange-400/30 to-orange-600/40">
+                      <img src={changeNowLogo} alt="ChangeNOW" className="w-full h-full object-cover" />
                     </div>
-                    {/* Pulsing outer ring */}
-                    <div className="absolute inset-0 rounded-full border-2 border-orange-300/40 animate-ping" style={{animationDuration: '3s'}}></div>
                   </div>
-                  
-                  {/* Circular text layout */}
                   <div className="text-center">
-                    <div className="text-xs font-bold text-orange-300 drop-shadow-xl">{title}</div>
+                    <div className="text-[6px] font-bold text-orange-300">{title}</div>
                   </div>
                 </div>
               ) : (
-                // Expanded: Spherical layout with enhanced content
-                <div className="w-full h-full flex flex-col">
-                  {/* Header section with logo and title */}
-                  <div className="text-center mb-6">
-                    <div className="w-12 h-12 rounded-full overflow-hidden border-4 border-orange-400 shadow-2xl shadow-orange-500/60 bg-gradient-to-br from-orange-400/30 to-orange-600/40 mx-auto mb-2">
-                      <img 
-                        src={changeNowLogo} 
-                        alt="ChangeNOW Logo" 
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-orange-400/10 to-orange-300/20"></div>
+                // Expanded
+                <div className="w-full h-full flex flex-col p-2">
+                  <div className="text-center mb-1">
+                    <div className="w-6 h-6 rounded-full overflow-hidden border border-orange-400 shadow-lg bg-gradient-to-br from-orange-400/30 to-orange-600/40 mx-auto mb-1">
+                      <img src={changeNowLogo} alt="ChangeNOW" className="w-full h-full object-cover" />
                     </div>
-                    <div className="text-sm font-bold text-orange-300 drop-shadow-lg">{title}</div>
-                    <div className="text-xs text-white/70 font-medium">Crypto Exchange</div>
+                    <div className="text-[8px] font-bold text-orange-300">{title}</div>
                   </div>
                   
-                  {/* Central content area - improved text flow */}
-                  <div className="flex-1 px-6 py-4">
-                    <div className="text-center space-y-2">
+                  <div className="flex-1 px-2 overflow-y-auto">
+                    <div className="text-center space-y-1">
                       {typeof content === 'string' ? (
-                        <div className="text-sm text-white/90 leading-relaxed space-y-2">
+                        <div className="text-[7px] text-white/90 leading-tight space-y-1">
                           {content.split('\n\n').map((paragraph, index) => (
                             <p key={index} className="text-center">
                               {paragraph.split('\n').map((line, lineIndex) => (
@@ -322,7 +235,7 @@ const FloatingChangeNowBubble = ({ isOpen, onClose, title = 'ChangeNOW', content
                           ))}
                         </div>
                       ) : (
-                        <div className="font-mono text-xs text-orange-300 bg-black/30 p-3 rounded border border-orange-400/30">
+                        <div className="font-mono text-[6px] text-orange-300 bg-black/30 p-1 rounded border border-orange-400/30">
                           <pre className="whitespace-pre-wrap text-left">
                             {JSON.stringify(content, null, 2)}
                           </pre>
