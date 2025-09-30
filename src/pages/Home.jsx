@@ -18,7 +18,6 @@ import FloatingHederaBubble from '../components/ui/FloatingHederaBubble.jsx';
 import FloatingChangeNowBubble from '../components/ui/FloatingChangeNowBubble.jsx';
 import FloatingPortfolioBubble from '../components/ui/FloatingPortfolioBubble.jsx';
 import FloatingAlchemyBubble from '../components/ui/FloatingAlchemyBubble.jsx';
-import FloatingWebSearchBubble from '../components/ui/FloatingWebSearchBubble.jsx';
 import FloatingNewsBubble from '../components/ui/FloatingNewsBubble.jsx';
 import FloatingTwitterBubble from '../components/ui/FloatingTwitterBubble.jsx';
 import FloatingProtokolsBubble from '../components/ui/FloatingProtokolsBubble.jsx';
@@ -26,6 +25,14 @@ import FloatingZeroXBubble from '../components/ui/FloatingZeroXBubble.jsx';
 import FloatingOKXBubble from '../components/ui/FloatingOKXBubble.jsx';
 import FloatingTONCenterBubble from '../components/ui/FloatingTONCenterBubble.jsx';
 import FloatingChainbaseBubble from '../components/ui/FloatingChainbaseBubble.jsx';
+import FloatingLiquidityScoreBubble from '../components/ui/FloatingLiquidityScoreBubble.jsx';
+import FloatingVolatilityScoreBubble from '../components/ui/FloatingVolatilityScoreBubble.jsx';
+import FloatingMarketCapScoreBubble from '../components/ui/FloatingMarketCapScoreBubble.jsx';
+import FloatingRiskScoreBubble from '../components/ui/FloatingRiskScoreBubble.jsx';
+import FloatingSupplyBubble from '../components/ui/FloatingSupplyBubble.jsx';
+import FloatingBTCPriceBubble from '../components/ui/FloatingBTCPriceBubble.jsx';
+import FloatingPriceChange1hBubble from '../components/ui/FloatingPriceChange1hBubble.jsx';
+import FloatingPriceChange7dBubble from '../components/ui/FloatingPriceChange7dBubble.jsx';
 import InAppBrowser from '../components/ui/InAppBrowser.jsx';
 
 export default function Home() {
@@ -110,6 +117,66 @@ export default function Home() {
     const cached = apiCache.current.get(cacheKey) || {};
     apiCache.current.set(cacheKey, { ...cached, inFlight });
   }, []);
+  
+  // 🧠 CONVERSATIONAL MEMORY - Track everything to appear alive and aware
+  const conversationMemory = useRef({
+    mentionedTokens: new Set(), // All tokens ever mentioned
+    lastTokenMentioned: null, // Most recent token context
+    userInterests: [], // Topics user asks about
+    pluginUsagePattern: {}, // Which plugins trigger together
+    lastApiCalls: [], // Recent API responses
+    conversationFlow: [] // Sequence of topics discussed
+  });
+  
+  // Update memory when token is mentioned
+  const rememberToken = useCallback((tokenId, context = {}) => {
+    conversationMemory.current.mentionedTokens.add(tokenId);
+    conversationMemory.current.lastTokenMentioned = {
+      id: tokenId,
+      timestamp: Date.now(),
+      context: context
+    };
+    
+    // Track conversation flow
+    conversationMemory.current.conversationFlow.push({
+      type: 'token_mention',
+      token: tokenId,
+      timestamp: Date.now(),
+      context
+    });
+    
+    // Keep only last 20 flow items
+    if (conversationMemory.current.conversationFlow.length > 20) {
+      conversationMemory.current.conversationFlow.shift();
+    }
+    
+    log('🧠 Memory updated - Token remembered:', tokenId, context);
+  }, []);
+  
+  // Predict what user might ask next based on memory
+  const predictNextIntent = useCallback(() => {
+    const mem = conversationMemory.current;
+    const recentFlow = mem.conversationFlow.slice(-3);
+    
+    // If user just said "yes" or asked about a token, they probably want more details
+    if (mem.lastTokenMentioned && (Date.now() - mem.lastTokenMentioned.timestamp) < 60000) {
+      return {
+        type: 'token_deep_dive',
+        token: mem.lastTokenMentioned.id,
+        shouldPreload: ['price', 'news', 'social', 'stats']
+      };
+    }
+    
+    // If user asked about trending, they might ask about specific tokens next
+    if (recentFlow.some(item => item.context?.intent === 'trending')) {
+      return {
+        type: 'token_discovery',
+        shouldPreload: ['trending_details']
+      };
+    }
+    
+    return { type: 'general' };
+  }, []);
   // Multiple bubble instances - arrays instead of single states
   const [lurkyBubbles, setLurkyBubbles] = useState([])
   const [coinGeckoBubbles, setCoinGeckoBubbles] = useState([])
@@ -124,9 +191,18 @@ export default function Home() {
   const [portfolioBubbles, setPortfolioBubbles] = useState([])
   const [alchemyBubbles, setAlchemyBubbles] = useState([])
   const [webSearchBubbles, setWebSearchBubbles] = useState([])
-  const [newsBubbles, setNewsBubbles] = useState([])
   const [twitterBubbles, setTwitterBubbles] = useState([])
   const [protokolsBubbles, setProtokolsBubbles] = useState([])
+  
+  // New CoinStats score bubbles
+  const [liquidityScoreBubbles, setLiquidityScoreBubbles] = useState([])
+  const [volatilityScoreBubbles, setVolatilityScoreBubbles] = useState([])
+  const [marketCapScoreBubbles, setMarketCapScoreBubbles] = useState([])
+  const [riskScoreBubbles, setRiskScoreBubbles] = useState([])
+  const [supplyBubbles, setSupplyBubbles] = useState([])
+  const [btcPriceBubbles, setBtcPriceBubbles] = useState([])
+  const [priceChange1hBubbles, setPriceChange1hBubbles] = useState([])
+  const [priceChange7dBubbles, setPriceChange7dBubbles] = useState([])
 
   // Context awareness data for AI chat
   const [contextAwarenessData, setContextAwarenessData] = useState({
@@ -837,6 +913,7 @@ export default function Home() {
     const handleMessage = (data) => {
       log('📨 Received message:', data)
       console.log('📨 Home.jsx received message:', data)
+      console.log('📰 WebSearch plugin enabled?', isPluginEnabled('websearch'))
       
       if (data.type === 'stream_chunk') {
         log('📨 Processing stream_chunk:', data.data?.text)
@@ -852,6 +929,7 @@ export default function Home() {
         // Parse AI response for coin mentions
         parseAIResponseForCoins(finalResponse);
         
+        
         // Show input after response is complete
         setTimeout(() => {
           setShowInput(true)
@@ -864,6 +942,27 @@ export default function Home() {
         
         // Parse AI response for coin mentions
         parseAIResponseForCoins(response);
+        
+        // Create news bubble from AI response
+        if (isPluginEnabled('websearch')) {
+          const keywords = response.match(/\b[A-Z][a-z]+(?:[A-Z][a-z]+)*\b|\b[A-Z]{2,}\b/g) || [];
+          const searchTerms = keywords.slice(0, 3).join(' ') || 'crypto';
+          
+          setWebSearchBubbles(prev => [...prev, {
+            id: Date.now() + Math.random(),
+            title: `${searchTerms} News`,
+            content: `Websearch: "${searchTerms}"`,
+            loading: false
+          }]);
+          
+          const newsContext = { news_search_data: { query: searchTerms, keywords, timestamp: new Date().toISOString() } };
+          if (window.contextAwarenessData) {
+            window.contextAwarenessData = { ...window.contextAwarenessData, ...newsContext };
+          } else {
+            window.contextAwarenessData = newsContext;
+          }
+          setContextAwarenessData(prev => ({ ...prev, ...newsContext, last_updated: new Date().toISOString() }));
+        }
         
         // Show input after response
         setTimeout(() => {
@@ -878,6 +977,27 @@ export default function Home() {
         
         // Parse AI response for coin mentions
         parseAIResponseForCoins(response);
+        
+        // Create news bubble from AI response
+        if (isPluginEnabled('websearch')) {
+          const keywords = response.match(/\b[A-Z][a-z]+(?:[A-Z][a-z]+)*\b|\b[A-Z]{2,}\b/g) || [];
+          const searchTerms = keywords.slice(0, 3).join(' ') || 'crypto';
+          
+          setWebSearchBubbles(prev => [...prev, {
+            id: Date.now() + Math.random(),
+            title: `${searchTerms} News`,
+            content: `Websearch: "${searchTerms}"`,
+            loading: false
+          }]);
+          
+          const newsContext = { news_search_data: { query: searchTerms, keywords, timestamp: new Date().toISOString() } };
+          if (window.contextAwarenessData) {
+            window.contextAwarenessData = { ...window.contextAwarenessData, ...newsContext };
+          } else {
+            window.contextAwarenessData = newsContext;
+          }
+          setContextAwarenessData(prev => ({ ...prev, ...newsContext, last_updated: new Date().toISOString() }));
+        }
         
         // Show input after response
         setTimeout(() => {
@@ -1285,13 +1405,6 @@ export default function Home() {
     }
     
     console.log('🎯 User Intent:', userIntent);
-    console.log('📰 News/Search Detection:', { 
-      message, 
-      mentionsWebSearch, 
-      mentionsNews, 
-      websearchEnabled: isPluginEnabled('websearch'),
-      willCreateBubble: (mentionsWebSearch || mentionsNews) && isPluginEnabled('websearch')
-    });
     
     // Add user message to conversation
     setMessages(prev => [...prev, { type: 'user', content: message }])
@@ -1629,128 +1742,72 @@ export default function Home() {
       }, 1000) // 1 second delay before making API call
     }
 
-    // Handle web search bubble logic - create news bubble when:
-    // 1. News is explicitly mentioned, OR
-    // 2. A specific token is mentioned (to get latest news about that token), OR  
-    // 3. Trending is mentioned with news words
-    if ((mentionsWebSearch || mentionsNews || userIntent.specificToken || (userIntent.wantsTrending && /\b(news|update|breaking|latest)\b/i.test(message))) && isPluginEnabled('websearch')) {
-      // Use the specific token detected by userIntent
-      const targetToken = userIntent.specificToken;
+    // Handle Crypto News bubble - Actually search and show results
+    if (isPluginEnabled('websearch')) {
+      const targetToken = userIntent.specificToken || window.proactiveMentionedToken;
+      const keywords = message.match(/\b[A-Z][a-z]+(?:[A-Z][a-z]+)*\b|\b[A-Z]{2,}\b/g) || [];
+      const searchTerms = targetToken || keywords.slice(0, 3).join(' ') || 'crypto';
       
-      // Create new web search bubble instance
-      const newBubble = {
-        id: Date.now() + Math.random(), // Unique ID
-        title: targetToken ? `${targetToken.toUpperCase()} News` : 'Latest Crypto News',
-        content: targetToken ? `Searching for latest ${targetToken.toUpperCase()} news...` : 'Searching CryptoNews.com for latest articles...',
+      // Create bubble
+      const bubbleId = Date.now() + Math.random();
+      setWebSearchBubbles(prev => [...prev, {
+        id: bubbleId,
+        title: `${searchTerms} News`,
+        content: `Searching web for ${searchTerms}...`,
         loading: true
-      }
+      }]);
       
-      setWebSearchBubbles(prev => [...prev, newBubble])
-      ;(async () => {
+      // Actually search using DuckDuckGo API
+      (async () => {
         try {
-          // Extract search query - use specific token if available
-          let searchQuery;
-          if (targetToken) {
-            // Use the token for targeted news search
-            searchQuery = `${targetToken} latest news updates analysis`;
+          const searchUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(searchTerms + ' cryptocurrency')}&format=json&no_html=1&skip_disambig=1`;
+          const response = await fetch(searchUrl);
+          const data = await response.json();
+          
+          let resultText = '';
+          
+          if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+            data.RelatedTopics.slice(0, 8).forEach((topic, idx) => {
+              if (topic.Text) {
+                resultText += `${topic.Text}\n\n`;
+              }
+            });
+          } else if (data.Abstract) {
+            resultText = data.Abstract;
           } else {
-            searchQuery = message.replace(/\b(what's happening|latest news|current events|recent updates|what's going on|search for|find information|look up)\b/gi, '').trim() || 'latest crypto news';
+            resultText = `No web results found for "${searchTerms}". Olivia will use her knowledge to answer.`;
           }
           
-          // Use real crypto news content from CryptoNews.com
-          let searchText = targetToken ? 
-            `📰 Latest ${targetToken.toUpperCase()} News\n\n` : 
-            `📰 Latest Crypto Headlines\n\n`;
+          if (!resultText.trim()) {
+            resultText = `Searching for ${searchTerms}...`;
+          }
           
-          // Real-time crypto news headlines from CryptoNews.com
-          const cryptoNews = [
-            "🔥 Bitcoin Pushes Towards $118K as Fed Rate Cut Sparks Broad Crypto Rally",
-            "⚡ Fed Cuts Rates to 4.25% — Bitcoin & Crypto Market Reaction LIVE",
-            "🚀 CZ Binance Backs Aster to Challenge Hyperliquid – Token Hits $300M MC in 6 Hours", 
-            "📈 Solana Price Prediction: Helius Raises $500M for SOL Buys",
-            "🐕 Shiba Inu: Shytoshi Breaks Silence After $2.3 Million Exploit",
-            "💰 Bonk Price Prediction: Can BONK Become the Next $1 Meme Coin?",
-            "🏦 DBS, Franklin Templeton, Ripple Partner to Launch Tokenized Trading on XRP Ledger",
-            "⚠️ CZ Warns of Advanced North Korean Hackers Posing as Job Candidates",
-            "🇰🇷 South Korean Custodian BDACS Launches First Fiat-Backed Won Stablecoin",
-            "📊 Australia's ASIC Grants Relief for Stablecoin Intermediaries"
-          ];
+          // Update bubble with results
+          setWebSearchBubbles(prev => prev.map(b => 
+            b.id === bubbleId ? { ...b, content: resultText, loading: false } : b
+          ));
           
-          // Add current price data
-          searchText += "💹 Current Prices:\n";
-          searchText += "• Bitcoin: $117,302.25 (+0.73%)\n";
-          searchText += "• Ethereum: $4,596.22 (+2.38%)\n";
-          searchText += "• Solana: $246.70 (+5.15%)\n";
-          searchText += "• PEPE: $0.000011 (+5.40%)\n";
-          searchText += "• DOGE: $0.28 (+5.86%)\n\n";
-          
-          searchText += "🔥 Breaking Headlines:\n\n";
-          cryptoNews.forEach((headline, index) => {
-            searchText += `${index + 1}. ${headline}\n\n`;
-          });
-          
-          searchText += "📊 ETH Gas: 0.49 gwei";
-          
-          // Update the specific bubble with search results
-          setWebSearchBubbles(prev => prev.map(bubble => 
-            bubble.id === newBubble.id 
-              ? { ...bubble, content: searchText, loading: false }
-              : bubble
-          ))
-          
-          // 🧠 Update AI context with web search data
-          const webSearchContext = {
-            web_search_data: {
-              query: searchQuery,
-              results: cryptoNews.map((headline, index) => ({
-                title: headline,
-                snippet: headline,
-                index: index + 1
-              })),
-              timestamp: new Date().toISOString(),
-              source: 'CryptoNews.com'
-            }
+          // Update AI context with search results
+          const newsContext = {
+            websearch_results: data.RelatedTopics?.slice(0, 5).map(t => t.Text).join('. ') || data.Abstract || '',
+            websearch_query: searchTerms,
+            timestamp: new Date().toISOString()
           };
           
-          // Update global context for AI
           if (window.contextAwarenessData) {
-            window.contextAwarenessData = {
-              ...window.contextAwarenessData,
-              ...webSearchContext
-            };
+            window.contextAwarenessData = { ...window.contextAwarenessData, ...newsContext };
           } else {
-            window.contextAwarenessData = webSearchContext;
+            window.contextAwarenessData = newsContext;
           }
-          
-          // Also update local state to keep them in sync
-          setContextAwarenessData(prev => ({
-            ...prev,
-            ...webSearchContext,
-            last_updated: new Date().toISOString()
-          }));
-          
-          console.log('🧠 Updated AI context with web search data:', webSearchContext);
-          
+          setContextAwarenessData(prev => ({ ...prev, ...newsContext, last_updated: new Date().toISOString() }));
         } catch (error) {
-          console.error('Web search error:', error)
-          
-          let errorContent = '❌ Web Search Error\n\n'
-          if (error.message?.includes('fetch')) {
-            errorContent += `Network error\n\nCannot reach search API\nCheck internet connection`;
-          } else {
-            errorContent += `Service unavailable\n\nSearch API is currently down\nTry again later\n\nError: ${error.message || 'Unknown error'}`;
-          }
-          
-          // Update the specific bubble with error
-          setWebSearchBubbles(prev => prev.map(bubble => 
-            bubble.id === newBubble.id 
-              ? { ...bubble, content: errorContent, loading: false }
-              : bubble
-          ))
+          console.error('Web search error:', error);
+          setWebSearchBubbles(prev => prev.map(b => 
+            b.id === bubbleId ? { ...b, content: `Search error. Olivia will answer using her knowledge.`, loading: false } : b
+          ));
         }
-      })()
+      })();
     }
-
 
     // Handle Twitter bubble logic - now intent-based!
     if ((userIntent.wantsTwitter || (userIntent.specificToken && userIntent.primaryIntent === 'TOKEN_INFO')) && isPluginEnabled('twitter')) {
@@ -3252,8 +3309,18 @@ export default function Home() {
   }
 
   // Auto-initialize the chat on component mount with dynamic trending token message
+  const hasInitialized = useRef(false);
+  
   useEffect(() => {
+    // Prevent double initialization (React StrictMode runs useEffect twice)
+    if (hasInitialized.current) {
+      log('⚠️ Already initialized, skipping duplicate');
+      return;
+    }
+    
     log('🚀 Home.jsx: Auto-initializing chat with trending data');
+    hasInitialized.current = true;
+    
     setIsLoading(true) // Show loading while fetching trending data
     setShowInput(true) // Show input immediately
     setUserInput('')
@@ -3318,6 +3385,7 @@ export default function Home() {
             content: proactiveMessage
           }]);
           
+          
           // 🚀 CRITICAL: Pre-trigger ALL relevant plugins for this token so data is ready
           log('🔥 AUTO-TRIGGERING ALL PLUGINS FOR:', coin.name, coin.symbol);
           
@@ -3333,7 +3401,7 @@ export default function Home() {
           
           window.proactiveMentionedToken = tokenInfo;
           
-          // 🧠 REGISTER TOKEN IN DYNAMIC REGISTRY
+          // 🧠 REGISTER TOKEN IN DYNAMIC REGISTRY & MEMORY
           registerToken({
             id: coin.id,
             symbol: coin.symbol,
@@ -3341,34 +3409,60 @@ export default function Home() {
             rank: coin.market_cap_rank
           }, 'CoinGecko_Trending');
           
+          // Remember this token in conversational memory
+          rememberToken(coin.id, {
+            source: 'proactive_mention',
+            intent: 'introduce_trending',
+            rank: coin.market_cap_rank,
+            priceChange: priceChange
+          });
+          
           // Update context awareness immediately
           window.contextAwarenessData = window.contextAwarenessData || {};
           window.contextAwarenessData.proactive_token = tokenInfo;
           
           // 1. CoinGecko - Price & Market Data
           if (isPluginEnabled('coingecko')) {
-            log('📊 CoinGecko: Fetching data for', coin.id);
-            const fetchCoinGeckoData = async () => {
-              try {
-                const data = await coingeckoService.getCoinDetails(coin.id);
-                const bubbleContent = `${coin.name} (${coin.symbol.toUpperCase()})\nPrice: $${data.market_data?.current_price?.usd?.toLocaleString() || 'N/A'}\n24h: ${priceChange?.toFixed(2)}%\nMarket Cap: ${marketCapRaw >= 1e9 ? `$${(marketCapRaw / 1e9).toFixed(2)}B` : `$${(marketCapRaw / 1e6).toFixed(2)}M`}\nVolume: $${(data.market_data?.total_volume?.usd / 1e6)?.toFixed(2)}M`;
-                
-                // Store in context
-                window.contextAwarenessData.market_data = window.contextAwarenessData.market_data || {};
-                window.contextAwarenessData.market_data[coin.symbol.toLowerCase()] = data.market_data;
-                
-                setCoinGeckoBubbles(prev => [...prev, {
-                  id: `coingecko-${Date.now()}`,
-                  isOpen: true,
-                  content: bubbleContent,
-                  loading: false,
-                  title: `${coin.name} Market Data`
-                }]);
-              } catch (err) {
-                logError('CoinGecko fetch failed:', err);
+            log('📊 CoinGecko: Checking if bubble exists for', coin.id);
+            // Check if bubble already exists for this token
+            setCoinGeckoBubbles(prev => {
+              const exists = prev.some(b => b.title?.includes(coin.name));
+              if (exists) {
+                log('📊 CoinGecko bubble already exists, skipping');
+                return prev;
               }
-            };
-            fetchCoinGeckoData();
+              
+              log('📊 CoinGecko: Fetching data for', coin.id);
+              const bubbleId = `coingecko-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+              
+              // Fetch data async
+              (async () => {
+                try {
+                  const data = await coingeckoService.getCoinDetails(coin.id);
+                  const bubbleContent = `${coin.name} (${coin.symbol.toUpperCase()})\nPrice: $${data.market_data?.current_price?.usd?.toLocaleString() || 'N/A'}\n24h: ${priceChange?.toFixed(2)}%\nMarket Cap: ${marketCapRaw >= 1e9 ? `$${(marketCapRaw / 1e9).toFixed(2)}B` : `$${(marketCapRaw / 1e6).toFixed(2)}M`}\nVolume: $${(data.market_data?.total_volume?.usd / 1e6)?.toFixed(2)}M`;
+                  
+                  // Store in context
+                  window.contextAwarenessData.market_data = window.contextAwarenessData.market_data || {};
+                  window.contextAwarenessData.market_data[coin.symbol.toLowerCase()] = data.market_data;
+                  
+                  // Update bubble with data
+                  setCoinGeckoBubbles(prev => prev.map(b => 
+                    b.id === bubbleId ? { ...b, content: bubbleContent, loading: false } : b
+                  ));
+                } catch (err) {
+                  logError('CoinGecko fetch failed:', err);
+                }
+              })();
+              
+              // Return immediately with loading bubble
+              return [...prev, {
+                id: bubbleId,
+                isOpen: true,
+                content: `Loading ${coin.name} data...`,
+                loading: true,
+                title: `${coin.name} Market Data`
+              }];
+            });
           }
           
           // 2. Twitter/X - Social mentions for ticker
@@ -3393,21 +3487,6 @@ export default function Home() {
             };
             fetchTwitterData();
           }
-          
-          // 3. News/WebSearch - Latest news
-          if (isPluginEnabled('websearch')) {
-            log('📰 WebSearch: Looking for news about', coin.name);
-            const searchQuery = `${coin.name} ${coin.symbol} cryptocurrency news latest`;
-            setWebSearchBubbles(prev => [...prev, {
-              id: `websearch-${Date.now()}`,
-              isOpen: true,
-              content: `Searching for latest news on ${coin.name}...`,
-              loading: true,
-              title: `${coin.name} News`,
-              searchQuery: searchQuery
-            }]);
-          }
-          
           // 4. CoinStats - Additional market data
           if (isPluginEnabled('coinstats')) {
             log('📊 CoinStats: Fetching for', coin.symbol);
@@ -3801,25 +3880,12 @@ export default function Home() {
         />
       ))}
       
-      {/* Render all Web Search bubble instances - only if plugin enabled */}
-      {isPluginEnabled('websearch') && webSearchBubbles.map(bubble => (
-        <FloatingWebSearchBubble
-          key={bubble.id}
-          isOpen={true}
-          onClose={() => setWebSearchBubbles(prev => prev.filter(b => b.id !== bubble.id))}
-          title={bubble.title}
-          content={bubble.content}
-          loading={bubble.loading}
-          addParticlesToSwarm={addParticlesToSwarm}
-        />
-      ))}
-      
-      {/* Render all News bubble instances - only if plugin enabled */}
-        {isPluginEnabled('news') && newsBubbles.map(bubble => (
+      {/* Render all Crypto News bubble instances - only if plugin enabled */}
+        {isPluginEnabled('websearch') && webSearchBubbles.map(bubble => (
           <FloatingNewsBubble
             key={bubble.id}
             isOpen={true}
-            onClose={() => setNewsBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+            onClose={() => setWebSearchBubbles(prev => prev.filter(b => b.id !== bubble.id))}
             title={bubble.title}
             content={bubble.content}
             loading={bubble.loading}

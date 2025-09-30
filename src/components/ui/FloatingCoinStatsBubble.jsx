@@ -114,7 +114,7 @@ const FloatingCoinStatsBubble = ({ isOpen, onClose, title = 'CoinStats', content
   if (!isOpen) return null;
   
   // Dynamic bubble size based on content length and expanded state
-  let bubbleSize = 70;
+  let bubbleSize = 140;
   if (isExpanded) bubbleSize = 160;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
@@ -135,27 +135,18 @@ const FloatingCoinStatsBubble = ({ isOpen, onClose, title = 'CoinStats', content
       data-bubble="coinstats"
       data-bubble-id={bubbleId}
     >
-      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-2 border-blue-400 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: '0 0 30px #3b82f6, inset 0 0 20px rgba(59, 130, 246, 0.15)'}}>
+      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-0 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: '0 0 30px #3b82f6, inset 0 0 20px rgba(59, 130, 246, 0.15)'}}>
         {/* Enhanced neon blue glowing border effect */}
-        <div className="absolute inset-0 rounded-full border border-blue-300/60 animate-pulse" style={{boxShadow: '0 0 25px #3b82f6, 0 0 50px rgba(59, 130, 246, 0.3)'}}></div>
+        <div className="absolute inset-0 rounded-full border-0/60 animate-pulse" style={{boxShadow: '0 0 25px #3b82f6, 0 0 50px rgba(59, 130, 246, 0.3)'}}></div>
         
         {/* Ambient glow overlay */}
         <div className="absolute inset-0 rounded-full bg-gradient-to-t from-blue-500/5 via-transparent to-blue-400/10 animate-pulse" style={{animationDuration: '3s'}}></div>
-
-        {/* Enhanced close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-1 right-1 text-white hover:text-red-400 w-5 h-5 rounded-full bg-black/50 hover:bg-red-500/20 transition-all duration-300 text-xs font-bold flex items-center justify-center border border-blue-400/50 hover:border-red-400/70 z-20 hover:shadow-lg hover:shadow-red-400/30"
-          aria-label="Close"
-        >
-          ×
-        </button>
         
         {/* Spherical Content Area */}
         <div className="absolute inset-4 flex items-center justify-center">
           {loading ? (
             <div className="text-white font-medium animate-pulse text-center flex flex-col items-center">
-              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-blue-400 shadow-lg shadow-blue-500/40 mb-2 bg-black/20">
+              <div className="w-10 h-10 rounded-full overflow-hidden border-0 shadow-none bg-transparent shadow-blue-500/40 mb-2 bg-transparent">
                 <img 
                   src={coinstatsLogo} 
                   alt="CoinStats Logo" 
@@ -172,26 +163,14 @@ const FloatingCoinStatsBubble = ({ isOpen, onClose, title = 'CoinStats', content
           ) : (
             <div className="w-full h-full flex items-center justify-center text-center relative">
               {!isExpanded ? (
-                // Collapsed: Central icon with title below in spherical layout
+                // Collapsed: Just icon
                 <div className="flex flex-col items-center justify-center">
-                  {/* Central CoinStats Icon */}
-                  <div className="relative mb-3">
-                    <div className="w-10 h-10 rounded-full overflow-hidden border-4 border-blue-400 shadow-2xl shadow-blue-500/60 bg-gradient-to-br from-blue-400/30 to-blue-600/40 hover:border-blue-300 transition-all duration-300 hover:shadow-blue-400/80 hover:scale-105 group">
-                      <img 
-                        src={coinstatsLogo} 
-                        alt="CoinStats Logo" 
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      />
-                      {/* Inner circular glow */}
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-blue-400/10 to-blue-300/20"></div>
-                    </div>
-                    {/* Pulsing outer ring */}
-                    <div className="absolute inset-0 rounded-full border-2 border-blue-300/40 animate-ping" style={{animationDuration: '3s'}}></div>
-                  </div>
-                  
-                  {/* Circular text layout */}
-                  <div className="text-center">
-                    <div className="text-xs font-bold text-blue-300 drop-shadow-xl">{title}</div>
+                  <div className="w-10 h-10">
+                    <img 
+                      src={coinstatsLogo} 
+                      alt="CoinStats Logo" 
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 </div>
               ) : (
@@ -199,7 +178,7 @@ const FloatingCoinStatsBubble = ({ isOpen, onClose, title = 'CoinStats', content
                 <div className="w-full h-full relative flex flex-col items-center p-6">
                   {/* Top section - Icon and title in circular arc */}
                   <div className="absolute top-2 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
-                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-blue-400 shadow-lg shadow-blue-500/40 bg-gradient-to-br from-blue-400/20 to-blue-600/30 mb-2">
+                    <div className="w-12 h-12 rounded-full overflow-hidden border-0 shadow-none bg-transparent shadow-blue-500/40 bg-transparent">
                       <img 
                         src={coinstatsLogo} 
                         alt="CoinStats Logo" 
@@ -227,7 +206,7 @@ const FloatingCoinStatsBubble = ({ isOpen, onClose, title = 'CoinStats', content
                           ))}
                         </div>
                       ) : (
-                        <div className="font-mono text-xs text-blue-300 bg-black/30 p-3 rounded border border-blue-400/30">
+                        <div className="font-mono text-xs text-blue-300 bg-black/30 p-3 rounded border-0/30">
                           <pre className="whitespace-pre-wrap text-left">
                             {JSON.stringify(content, null, 2)}
                           </pre>

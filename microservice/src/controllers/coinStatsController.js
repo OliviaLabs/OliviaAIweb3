@@ -98,7 +98,10 @@ export class CoinStatsController {
       }
 
       const response = await coinStatsAxios.get(`/coins/${coinId}`, {
-        params: { currency }
+        params: { 
+          currency,
+          includeRiskScore: 'true'
+        }
       });
 
       res.json({

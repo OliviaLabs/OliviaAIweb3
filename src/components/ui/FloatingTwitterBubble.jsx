@@ -140,7 +140,7 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
   if (!isOpen) return null;
   
   // Dynamic bubble size based on content length and expanded state
-  let bubbleSize = 70;
+  let bubbleSize = 140;
   if (isExpanded) bubbleSize = 160;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
@@ -168,21 +168,12 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
         
         {/* Ambient glow overlay */}
         <div className="absolute inset-0 rounded-full bg-gradient-to-t from-white/5 via-transparent to-white/10 animate-pulse" style={{animationDuration: '3s'}}></div>
-
-        {/* Enhanced close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-1 right-1 text-white hover:text-red-400 w-5 h-5 rounded-full bg-black/50 hover:bg-red-500/20 transition-all duration-300 text-xs font-bold flex items-center justify-center border border-white/40 hover:border-red-400/70 z-20 hover:shadow-lg hover:shadow-red-400/30"
-          aria-label="Close"
-        >
-          ×
-        </button>
         
         {/* Spherical Content Area */}
         <div className="absolute inset-4 flex items-center justify-center">
           {loading ? (
             <div className="text-white font-medium animate-pulse text-center flex flex-col items-center">
-              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/40 shadow-lg shadow-white/20 mb-2 bg-black/20">
+              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/40 shadow-lg shadow-white/20 mb-2 bg-transparent">
                 <img 
                   src={twitterIcon} 
                   alt="Twitter/X" 
@@ -199,26 +190,14 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
           ) : (
             <div className="w-full h-full flex items-center justify-center text-center relative">
               {!isExpanded ? (
-                // Collapsed: Central icon with title below in spherical layout
+                // Collapsed: Just icon
                 <div className="flex flex-col items-center justify-center">
-                  {/* Central Twitter Icon */}
-                  <div className="relative mb-3">
-                    <div className="w-10 h-10 rounded-full overflow-hidden border-4 border-white/40 shadow-2xl shadow-white/30 bg-gradient-to-br from-white/20 to-white/30 hover:border-white/60 transition-all duration-300 hover:shadow-white/50 hover:scale-105 group">
-                      <img 
-                        src={twitterIcon} 
-                        alt="Twitter/X" 
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      />
-                      {/* Inner circular glow */}
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-white/10 to-white/20"></div>
-                    </div>
-                    {/* Pulsing outer ring */}
-                    <div className="absolute inset-0 rounded-full border-2 border-white/30 animate-ping" style={{animationDuration: '3s'}}></div>
-                  </div>
-                  
-                  {/* Circular text layout */}
-                  <div className="text-center">
-                    <div className="text-xs font-bold text-white/90 drop-shadow-xl">{title}</div>
+                  <div className="w-10 h-10">
+                    <img 
+                      src={twitterIcon} 
+                      alt="Twitter/X" 
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 </div>
               ) : (
@@ -226,7 +205,7 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
                 <div className="w-full h-full relative flex flex-col items-center p-6">
                   {/* Top section - Icon and title in circular arc */}
                   <div className="absolute top-2 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
-                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/40 shadow-lg shadow-white/30 bg-gradient-to-br from-white/20 to-white/30 mb-2">
+                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/40 shadow-lg shadow-white/30 bg-transparent">
                       <img 
                         src={twitterIcon} 
                         alt="Twitter/X" 

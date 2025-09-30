@@ -309,7 +309,7 @@ const FloatingTONCenterBubble = ({ isOpen, onClose, title = 'TON Center', conten
 
   if (!isOpen) return null;
   
-  let bubbleSize = 70;
+  let bubbleSize = 140;
   if (isExpanded) bubbleSize = 160;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
@@ -327,27 +327,18 @@ const FloatingTONCenterBubble = ({ isOpen, onClose, title = 'TON Center', conten
       onMouseDown={handleMouseDown}
       onClick={handleClick}
     >
-      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-2 border-blue-400 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: '0 0 30px #0088cc, inset 0 0 20px rgba(0, 136, 204, 0.15)'}}>
+      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-0 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: '0 0 30px #0088cc, inset 0 0 20px rgba(0, 136, 204, 0.15)'}}>
         {/* Enhanced neon blue glowing border effect */}
-        <div className="absolute inset-0 rounded-full border border-blue-300/60 animate-pulse" style={{boxShadow: '0 0 25px #0088cc, 0 0 50px rgba(0, 136, 204, 0.3)'}}></div>
+        <div className="absolute inset-0 rounded-full border-0/60 animate-pulse" style={{boxShadow: '0 0 25px #0088cc, 0 0 50px rgba(0, 136, 204, 0.3)'}}></div>
         
         {/* Ambient glow overlay */}
         <div className="absolute inset-0 rounded-full bg-gradient-to-t from-blue-500/5 via-transparent to-blue-400/10 animate-pulse" style={{animationDuration: '3s'}}></div>
-
-        {/* Enhanced close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-1 right-1 text-white hover:text-red-400 w-5 h-5 rounded-full bg-black/50 hover:bg-red-500/20 transition-all duration-75 text-xs font-bold flex items-center justify-center border border-blue-400/50 hover:border-red-400/70 z-20 hover:shadow-lg hover:shadow-red-400/30 hover:scale-110 active:scale-95"
-          aria-label="Close"
-        >
-          ×
-        </button>
 
         {/* Spherical Content Area */}
         <div className="absolute inset-4 flex items-center justify-center">
           {loading && !tonPrice && !popularJettons.length ? (
             <div className="text-white font-medium animate-pulse text-center flex flex-col items-center">
-              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-blue-400 shadow-lg shadow-blue-500/40 mb-2 bg-black/20">
+              <div className="w-10 h-10 rounded-full overflow-hidden border-0 shadow-none bg-transparent shadow-blue-500/40 mb-2 bg-transparent">
                 <img 
                   src={tonLogo} 
                   alt="TON Logo" 
@@ -366,20 +357,16 @@ const FloatingTONCenterBubble = ({ isOpen, onClose, title = 'TON Center', conten
               {!isExpanded ? (
                 <div className="flex flex-col items-center justify-center">
                   <div className="relative mb-2">
-                    <div className="w-5 h-5 rounded-full overflow-hidden border-2 border-blue-400 shadow-lg bg-gradient-to-br from-blue-400/30 to-blue-600/40">
-                      <img src={tonLogo} alt="TON Logo" className="w-full h-full object-cover" />
+                    <div className="w-5 h-5 rounded-full overflow-hidden border-0 shadow-none bg-transparent bg-transparent">
+                      <img src={tonLogo} alt="TON Logo" className="w-full h-full object-cover" draggable={false} />
                     </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-[6px] font-bold text-blue-300">{title}</div>
-                    {tonPrice && <div className="text-[6px] text-white/70">${tonPrice.price}</div>}
                   </div>
                 </div>
             ) : (
               // Expanded
               <div className="w-full h-full flex flex-col p-2">
                 <div className="text-center mb-1">
-                  <div className="w-6 h-6 rounded-full overflow-hidden border border-blue-400 shadow-lg bg-gradient-to-br from-blue-400/30 to-blue-600/40 mx-auto mb-1">
+                  <div className="w-6 h-6 rounded-full overflow-hidden border-0 shadow-none bg-transparent bg-transparent">
                     <img 
                       src={tonLogo} 
                       alt="TON Logo" 
@@ -406,7 +393,7 @@ const FloatingTONCenterBubble = ({ isOpen, onClose, title = 'TON Center', conten
                         ))}
                       </div>
                     ) : (
-                      <div className="font-mono text-xs text-blue-300 bg-black/30 p-2 rounded border border-blue-400/30">
+                      <div className="font-mono text-xs text-blue-300 bg-black/30 p-2 rounded border-0/30">
                         <pre className="whitespace-pre-wrap text-left text-xs">
                           {JSON.stringify(content, null, 2)}
                         </pre>
@@ -443,7 +430,7 @@ const FloatingTONCenterBubble = ({ isOpen, onClose, title = 'TON Center', conten
                       {popularJettons.slice(0, 4).map((jetton, index) => (
                         <span 
                           key={index}
-                          className="bg-blue-500/20 text-blue-200 px-1.5 py-0.5 rounded-full text-xs border border-blue-400/30"
+                          className="bg-blue-500/20 text-blue-200 px-1.5 py-0.5 rounded-full text-xs border-0/30"
                         >
                           {jetton.symbol || jetton.name || 'Token'}
                         </span>

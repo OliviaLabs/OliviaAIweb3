@@ -88,9 +88,6 @@ const FloatingICPBubble = ({ isOpen, onClose, title = 'ICP Status', content = ''
   };
 
   const handleClick = (e) => {
-    // Don't toggle if clicking close button
-    if (e.target.getAttribute('aria-label') === 'Close') return;
-    
     // Check for double-click to pop
     const currentTime = Date.now();
     if (currentTime - lastClickTime < 300) {
@@ -160,7 +157,7 @@ const FloatingICPBubble = ({ isOpen, onClose, title = 'ICP Status', content = ''
   const theme = colors[status] || colors.error;
   
   // Dynamic bubble size based on content length and expanded state
-  let bubbleSize = 70; // Base collapsed size (half of original)
+  let bubbleSize = 140; // Base collapsed size (half of original)
   if (isExpanded) {
     // Fixed size for visual status display - no scrolling needed
     bubbleSize = 160; // Optimized size for icon-based content (half of original)
@@ -196,21 +193,12 @@ const FloatingICPBubble = ({ isOpen, onClose, title = 'ICP Status', content = ''
         {/* Ambient glow overlay */}
         <div className="absolute inset-0 rounded-full bg-gradient-to-t from-green-500/5 via-transparent to-green-400/10 animate-pulse" style={{animationDuration: '3s'}}></div>
 
-        {/* Enhanced close button */}
-        <button
-          onClick={onClose}
-          className="absolute text-white hover:text-red-400 rounded-full bg-black/50 hover:bg-red-500/20 transition-all duration-300 font-bold flex items-center justify-center border border-green-400/50 hover:border-red-400/70 z-20 hover:shadow-lg hover:shadow-red-400/30"
-          style={{top: `${scale * 4}px`, right: `${scale * 4}px`, width: `${scale * 20}px`, height: `${scale * 20}px`, fontSize: `${scale * 12}px`}}
-          aria-label="Close"
-        >
-          ×
-        </button>
         
         {/* Spherical Content Area */}
         <div className="absolute flex items-center justify-center" style={{inset: `${scale * 16}px`}}>
           {loading ? (
             <div className="text-white font-medium animate-pulse text-center flex flex-col items-center">
-              <div className="rounded-full overflow-hidden border-green-400 shadow-lg shadow-green-500/40 bg-black/20" style={{width: `${scale * 40}px`, height: `${scale * 40}px`, border: `${Math.max(1, scale * 2)}px solid #4ade80`, marginBottom: `${scale * 8}px`}}>
+              <div className="rounded-full overflow-hidden border-green-400 shadow-lg shadow-green-500/40 bg-transparent" style={{width: `${scale * 40}px`, height: `${scale * 40}px`, border: `${Math.max(1, scale * 2)}px solid #4ade80`, marginBottom: `${scale * 8}px`}}>
                 <img 
                   src={icpLogo} 
                   alt="ICP Logo" 
@@ -227,26 +215,14 @@ const FloatingICPBubble = ({ isOpen, onClose, title = 'ICP Status', content = ''
           ) : (
             <div className="w-full h-full flex items-center justify-center text-center relative">
               {!isExpanded ? (
-                // Collapsed: Central icon with title below in spherical layout
+                // Collapsed: Just icon
                 <div className="flex flex-col items-center justify-center">
-                  {/* Central ICP Icon */}
-                  <div className="relative" style={{marginBottom: `${scale * 12}px`}}>
-                    <div className="rounded-full overflow-hidden border-green-400 shadow-2xl shadow-green-500/60 bg-gradient-to-br from-green-400/30 to-green-600/40 hover:border-green-300 transition-all duration-300 hover:shadow-green-400/80 hover:scale-105 group" style={{width: `${scale * 40}px`, height: `${scale * 40}px`, border: `${Math.max(2, scale * 4)}px solid #4ade80`}}>
-                      <img 
-                        src={icpLogo} 
-                        alt="ICP Logo" 
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      />
-                      {/* Inner circular glow */}
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-green-400/10 to-green-300/20"></div>
-                    </div>
-                    {/* Pulsing outer ring */}
-                    <div className="absolute inset-0 rounded-full border-green-300/40 animate-ping" style={{border: `${Math.max(1, scale * 2)}px solid rgba(134, 239, 172, 0.4)`, animationDuration: '3s'}}></div>
-                  </div>
-                  
-                  {/* Circular text layout */}
-                  <div className="text-center">
-                    <div className="font-bold text-green-300 drop-shadow-xl" style={{fontSize: `${scale * 12}px`}}>{title}</div>
+                  <div className="w-10 h-10">
+                    <img 
+                      src={icpLogo} 
+                      alt="ICP Logo" 
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 </div>
               ) : (
@@ -254,7 +230,7 @@ const FloatingICPBubble = ({ isOpen, onClose, title = 'ICP Status', content = ''
                 <div className="w-full h-full relative flex flex-col items-center p-3">
                   {/* Top section - Icon and title */}
                   <div className="absolute top-1 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
-                    <div className="w-6 h-6 rounded-full overflow-hidden border border-green-400 shadow-lg shadow-green-500/40 bg-gradient-to-br from-green-400/20 to-green-600/30 mb-1">
+                    <div className="w-6 h-6 rounded-full overflow-hidden border-0 shadow-none bg-transparent shadow-green-500/40 bg-transparent">
                       <img 
                         src={icpLogo} 
                         alt="ICP Logo" 

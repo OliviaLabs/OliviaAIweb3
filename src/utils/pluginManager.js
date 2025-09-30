@@ -125,14 +125,14 @@ export const AVAILABLE_PLUGINS = {
     category: 'Analytics',
     color: 'blue'
   },
-  news: {
-    id: 'news',
+  websearch: {
+    id: 'websearch',
     name: 'Crypto News',
     description: 'Latest cryptocurrency news and market updates',
-    detailedDescription: 'Stay informed with the latest cryptocurrency news, market analysis, and breaking updates from the crypto world. Get real-time news from top sources like CoinDesk, Cointelegraph, and CryptoSlate.',
+    detailedDescription: 'Get the latest cryptocurrency news, breaking updates, and market analysis. Stay informed about price movements, regulatory changes, and industry developments from top crypto news sources.',
     logo: newsIcon,
     category: 'News',
-    color: 'red'
+    color: 'green'
   },
   twitter: {
     id: 'twitter',
@@ -151,15 +151,6 @@ export const AVAILABLE_PLUGINS = {
     logo: kolsIcon,
     category: 'Analytics',
     color: 'purple'
-  },
-  websearch: {
-    id: 'websearch',
-    name: 'Crypto News',
-    description: 'Latest crypto news and market updates',
-    detailedDescription: 'Get the latest cryptocurrency news, breaking updates, and market analysis from CryptoNews.com and other trusted sources. Stay informed about price movements, regulatory changes, and industry developments.',
-    logo: newsIcon,
-    category: 'News',
-    color: 'orange'
   }
 };
 

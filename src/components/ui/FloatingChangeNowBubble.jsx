@@ -49,7 +49,7 @@ const FloatingChangeNowBubble = ({ isOpen, onClose, title = 'ChangeNOW', content
     if (!addParticlesToSwarm) return;
     
     // Dynamic bubble size based on expanded state
-    let bubbleSize = 70;
+    let bubbleSize = 140;
     if (isExpanded) bubbleSize = 160;
     const bubbleCenter = {
       x: position.x + bubbleSize / 2, // Actual bubble center
@@ -142,7 +142,7 @@ const FloatingChangeNowBubble = ({ isOpen, onClose, title = 'ChangeNOW', content
   if (!isOpen) return null;
 
   // Dynamic bubble size based on expanded state
-  let bubbleSize = 70;
+  let bubbleSize = 140;
   if (isExpanded) bubbleSize = 160;
 
   const bubble = (
@@ -162,27 +162,18 @@ const FloatingChangeNowBubble = ({ isOpen, onClose, title = 'ChangeNOW', content
       data-bubble="changenow"
       data-bubble-id={bubbleId}
     >
-      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-2 border-orange-400 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: '0 0 30px #fb923c, inset 0 0 20px rgba(251, 146, 60, 0.15)'}}>
+      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-0 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: '0 0 30px #fb923c, inset 0 0 20px rgba(251, 146, 60, 0.15)'}}>
         {/* Enhanced neon orange glowing border effect */}
-        <div className="absolute inset-0 rounded-full border border-orange-300/60 animate-pulse" style={{boxShadow: '0 0 25px #fb923c, 0 0 50px rgba(251, 146, 60, 0.3)'}}></div>
+        <div className="absolute inset-0 rounded-full border-0/60 animate-pulse" style={{boxShadow: '0 0 25px #fb923c, 0 0 50px rgba(251, 146, 60, 0.3)'}}></div>
         
         {/* Ambient glow overlay */}
         <div className="absolute inset-0 rounded-full bg-gradient-to-t from-orange-500/5 via-transparent to-orange-400/10 animate-pulse" style={{animationDuration: '3s'}}></div>
-
-        {/* Enhanced close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-1 right-1 text-white hover:text-red-400 w-5 h-5 rounded-full bg-black/50 hover:bg-red-500/20 transition-all duration-300 text-xs font-bold flex items-center justify-center border border-orange-400/50 hover:border-red-400/70 z-20 hover:shadow-lg hover:shadow-red-400/30"
-          aria-label="Close"
-        >
-          ×
-        </button>
         
         {/* Spherical Content Area */}
         <div className="absolute inset-4 flex items-center justify-center">
           {loading ? (
             <div className="text-white font-medium animate-pulse text-center flex flex-col items-center">
-              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-400 shadow-lg shadow-orange-500/40 mb-2 bg-black/20">
+              <div className="w-10 h-10 rounded-full overflow-hidden border-0 shadow-none bg-transparent shadow-orange-500/40 mb-2 bg-transparent">
                 <img 
                   src={changeNowLogo} 
                   alt="ChangeNOW Logo" 
@@ -201,20 +192,20 @@ const FloatingChangeNowBubble = ({ isOpen, onClose, title = 'ChangeNOW', content
               {!isExpanded ? (
                 <div className="flex flex-col items-center justify-center">
                   <div className="relative mb-2">
-                    <div className="w-5 h-5 rounded-full overflow-hidden border-2 border-orange-400 shadow-lg bg-gradient-to-br from-orange-400/30 to-orange-600/40">
-                      <img src={changeNowLogo} alt="ChangeNOW" className="w-full h-full object-cover" />
+                    <div className="w-5 h-5 rounded-full overflow-hidden border-0 shadow-none bg-transparent bg-transparent">
+                      <img src={changeNowLogo} alt="ChangeNOW" className="w-full h-full object-cover" draggable={false} />
                     </div>
                   </div>
                   <div className="text-center">
-                    <div className="text-[6px] font-bold text-orange-300">{title}</div>
+                    
                   </div>
                 </div>
               ) : (
                 // Expanded
                 <div className="w-full h-full flex flex-col p-2">
                   <div className="text-center mb-1">
-                    <div className="w-6 h-6 rounded-full overflow-hidden border border-orange-400 shadow-lg bg-gradient-to-br from-orange-400/30 to-orange-600/40 mx-auto mb-1">
-                      <img src={changeNowLogo} alt="ChangeNOW" className="w-full h-full object-cover" />
+                    <div className="w-6 h-6 rounded-full overflow-hidden border-0 shadow-none bg-transparent bg-transparent">
+                      <img src={changeNowLogo} alt="ChangeNOW" className="w-full h-full object-cover" draggable={false} />
                     </div>
                     <div className="text-[8px] font-bold text-orange-300">{title}</div>
                   </div>
@@ -235,7 +226,7 @@ const FloatingChangeNowBubble = ({ isOpen, onClose, title = 'ChangeNOW', content
                           ))}
                         </div>
                       ) : (
-                        <div className="font-mono text-[6px] text-orange-300 bg-black/30 p-1 rounded border border-orange-400/30">
+                        <div className="font-mono text-[6px] text-orange-300 bg-black/30 p-1 rounded border-0/30">
                           <pre className="whitespace-pre-wrap text-left">
                             {JSON.stringify(content, null, 2)}
                           </pre>
@@ -456,7 +447,7 @@ const FloatingChangeNowBubble = ({ isOpen, onClose, title = 'ChangeNOW', content
                           // Always open in new browser tab (not in-app browser)
                           window.open(url, '_blank', 'noopener,noreferrer');
                         }}
-                        className="relative z-50 pointer-events-auto px-8 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white text-sm font-bold rounded-full transition-all duration-300 shadow-2xl shadow-orange-500/40 hover:shadow-orange-400/60 hover:scale-105 border-2 border-orange-400/50 hover:border-orange-300 cursor-pointer active:scale-95"
+                        className="relative z-50 pointer-events-auto px-8 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white text-sm font-bold rounded-full transition-all duration-300 shadow-2xl shadow-orange-500/40 hover:shadow-orange-400/60 hover:scale-105 border-0/50 hover:border-orange-300 cursor-pointer active:scale-95"
                         style={{ touchAction: 'manipulation' }}
                       >
                         <span className="relative z-10">💱 Exchange Now</span>

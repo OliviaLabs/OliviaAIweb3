@@ -70,7 +70,7 @@ const FloatingHederaBubble = ({ isOpen, onClose, title = 'Hedera', content = '',
     if (!isOpen) return null;
 
   // Dynamic bubble size based on expanded state
-  let bubbleSize = 70;
+  let bubbleSize = 140;
   if (isExpanded) bubbleSize = 160;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
@@ -91,27 +91,18 @@ const FloatingHederaBubble = ({ isOpen, onClose, title = 'Hedera', content = '',
       data-bubble="hedera"
       data-bubble-id={bubbleId}
     >
-      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-2 border-green-400 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: '0 0 30px #4ade80, inset 0 0 20px rgba(74, 222, 128, 0.15)'}}>
+      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-0 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: '0 0 30px #4ade80, inset 0 0 20px rgba(74, 222, 128, 0.15)'}}>
         {/* Enhanced neon green glowing border effect */}
-        <div className="absolute inset-0 rounded-full border border-green-300/60 animate-pulse" style={{boxShadow: '0 0 25px #4ade80, 0 0 50px rgba(74, 222, 128, 0.3)'}}></div>
+        <div className="absolute inset-0 rounded-full border-0/60 animate-pulse" style={{boxShadow: '0 0 25px #4ade80, 0 0 50px rgba(74, 222, 128, 0.3)'}}></div>
         
         {/* Ambient glow overlay */}
         <div className="absolute inset-0 rounded-full bg-gradient-to-t from-green-500/5 via-transparent to-green-400/10 animate-pulse" style={{animationDuration: '3s'}}></div>
-
-        {/* Enhanced close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-1 right-1 text-white hover:text-red-400 w-5 h-5 rounded-full bg-black/50 hover:bg-red-500/20 transition-all duration-300 text-xs font-bold flex items-center justify-center border border-green-400/50 hover:border-red-400/70 z-20 hover:shadow-lg hover:shadow-red-400/30"
-          aria-label="Close"
-        >
-          ×
-        </button>
         
         {/* Spherical Content Area */}
         <div className="absolute inset-4 flex items-center justify-center">
           {loading ? (
             <div className="text-white font-medium animate-pulse text-center flex flex-col items-center">
-              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-green-400 shadow-lg shadow-green-500/40 mb-2 bg-black/20">
+              <div className="w-10 h-10 rounded-full overflow-hidden border-0 shadow-none bg-transparent shadow-green-500/40 mb-2 bg-transparent">
                 <img 
                   src={hederaLogo} 
                   alt="Hedera Logo" 
@@ -132,7 +123,7 @@ const FloatingHederaBubble = ({ isOpen, onClose, title = 'Hedera', content = '',
                 <div className="flex flex-col items-center justify-center">
                   {/* Central Hedera Icon */}
                   <div className="relative mb-3">
-                    <div className="w-10 h-10 rounded-full overflow-hidden border-4 border-green-400 shadow-2xl shadow-green-500/60 bg-gradient-to-br from-green-400/30 to-green-600/40 hover:border-green-300 transition-all duration-300 hover:shadow-green-400/80 hover:scale-105 group">
+                    <div className="w-10 h-10 rounded-full overflow-hidden border-0 shadow-2xl shadow-green-500/60 bg-transparent">
                       <img 
                         src={hederaLogo} 
                         alt="Hedera Logo" 
@@ -142,7 +133,7 @@ const FloatingHederaBubble = ({ isOpen, onClose, title = 'Hedera', content = '',
                       <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-green-400/10 to-green-300/20"></div>
                     </div>
                     {/* Pulsing outer ring */}
-                    <div className="absolute inset-0 rounded-full border-2 border-green-300/40 animate-ping" style={{animationDuration: '3s'}}></div>
+                    <div className="absolute inset-0 rounded-full border-0/40 animate-ping" style={{animationDuration: '3s'}}></div>
                   </div>
                   
                   {/* Circular text layout */}
@@ -155,7 +146,7 @@ const FloatingHederaBubble = ({ isOpen, onClose, title = 'Hedera', content = '',
                 <div className="w-full h-full flex flex-col">
                   {/* Header section with logo and title */}
                   <div className="text-center mb-6">
-                    <div className="w-12 h-12 rounded-full overflow-hidden border-4 border-green-400 shadow-2xl shadow-green-500/60 bg-gradient-to-br from-green-400/30 to-green-600/40 mx-auto mb-2">
+                    <div className="w-12 h-12 rounded-full overflow-hidden border-0 shadow-2xl shadow-green-500/60 bg-transparent">
                       <img 
                         src={hederaLogo} 
                         alt="Hedera Logo" 
@@ -184,7 +175,7 @@ const FloatingHederaBubble = ({ isOpen, onClose, title = 'Hedera', content = '',
                           ))}
                         </div>
                       ) : (
-                        <div className="font-mono text-xs text-green-300 bg-black/30 p-3 rounded border border-green-400/30">
+                        <div className="font-mono text-xs text-green-300 bg-black/30 p-3 rounded border-0/30">
                           <pre className="whitespace-pre-wrap text-left">
                             {JSON.stringify(content, null, 2)}
                           </pre>

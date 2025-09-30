@@ -301,11 +301,9 @@ const FloatingAlchemyBubble = ({
   if (!isOpen) return null;
 
   // Dynamic bubble size
-  let bubbleSize = 70;
-  if (isExpanded) bubbleSize = 160;
-  
-  const bubbleWidth = bubbleSize;
-  const bubbleHeight = bubbleSize;
+  const bubbleSize = 140;
+  const bubbleWidth = isExpanded ? Math.min(500, window.innerWidth - 40) : bubbleSize;
+  const bubbleHeight = isExpanded ? Math.min(400, window.innerHeight - 100) : bubbleSize;
   
   // Get raw numeric balance value
   const getRawBalance = (balance, decimals = 18) => {
@@ -366,27 +364,18 @@ const FloatingAlchemyBubble = ({
       data-bubble="alchemy"
       data-bubble-id={bubbleId}
     >
-      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-2 border-blue-400 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: '0 0 30px #4169E1, inset 0 0 20px rgba(65, 105, 225, 0.15)'}}>
+      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-0 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: '0 0 30px #4169E1, inset 0 0 20px rgba(65, 105, 225, 0.15)'}}>
         {/* Glowing border effect */}
-        <div className="absolute inset-0 rounded-full border border-blue-300/60 animate-pulse" style={{boxShadow: '0 0 25px #4169E1, 0 0 50px rgba(65, 105, 225, 0.3)'}}></div>
+        <div className="absolute inset-0 rounded-full border-0/60 animate-pulse" style={{boxShadow: '0 0 25px #4169E1, 0 0 50px rgba(65, 105, 225, 0.3)'}}></div>
         
         {/* Ambient glow overlay */}
         <div className="absolute inset-0 rounded-full bg-gradient-to-t from-blue-500/5 via-transparent to-blue-400/10 animate-pulse" style={{animationDuration: '3s'}}></div>
-
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-1 right-1 text-white hover:text-red-400 w-5 h-5 rounded-full bg-black/50 hover:bg-red-500/20 transition-all duration-300 text-xs font-bold flex items-center justify-center border border-blue-400/50 hover:border-red-400/70 z-20 hover:shadow-lg hover:shadow-red-400/30"
-          aria-label="Close"
-        >
-          ×
-        </button>
         
         {/* Content Area */}
         <div className="absolute inset-4 flex items-center justify-center">
           {loading || isLoadingTokens ? (
             <div className="text-white font-medium animate-pulse text-center flex flex-col items-center">
-              <Database className="w-10 h-10 text-blue-400 mb-2" />
+              <Database className="w-30 h-30 text-blue-400 mb-2" />
               <div className="flex items-center gap-1 justify-center mb-1">
                 <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
                 <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
@@ -400,7 +389,7 @@ const FloatingAlchemyBubble = ({
                 // Collapsed: Icon and title
                 <div className="flex flex-col items-center justify-center">
                   <div className="relative mb-3">
-                    <div className="w-10 h-10 rounded-full border-4 border-blue-400 shadow-2xl shadow-blue-500/60 bg-gradient-to-br from-blue-400/30 to-blue-600/40 hover:border-blue-300 transition-all duration-300 hover:shadow-blue-400/80 hover:scale-105 group overflow-hidden">
+                    <div className="w-30 h-30 rounded-full border-0 shadow-2xl shadow-blue-500/60 bg-transparent">
                       <img 
                         src={alchemyLogo} 
                         alt="Alchemy" 
@@ -408,7 +397,7 @@ const FloatingAlchemyBubble = ({
                       />
                       <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-blue-400/10 to-blue-300/20"></div>
                     </div>
-                    <div className="absolute inset-0 rounded-full border-2 border-blue-300/40 animate-ping" style={{animationDuration: '3s'}}></div>
+                    <div className="absolute inset-0 rounded-full border-0/40 animate-ping" style={{animationDuration: '3s'}}></div>
                   </div>
                   
                   <div className="text-center">

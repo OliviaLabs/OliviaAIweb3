@@ -171,7 +171,7 @@ const FloatingOKXBubble = ({ isOpen, onClose, title = 'OKX DEX', content = '', l
     const newX = e.clientX - dragOffset.x;
     const newY = e.clientY - dragOffset.y;
 
-    let bubbleSize = 70; // Halved
+    let bubbleSize = 140; // Halved
     if (isExpanded) bubbleSize = 160; // Halved
 
     setPosition({
@@ -299,7 +299,7 @@ const FloatingOKXBubble = ({ isOpen, onClose, title = 'OKX DEX', content = '', l
   if (!isOpen) return null;
 
   // Dynamic bubble size based on content length and expanded state
-  let bubbleSize = 70; // Base collapsed size (halved)
+  let bubbleSize = 140; // Base collapsed size (halved)
   if (isExpanded) {
     bubbleSize = 160; // Fixed expanded size
   }
@@ -322,27 +322,18 @@ const FloatingOKXBubble = ({ isOpen, onClose, title = 'OKX DEX', content = '', l
       onMouseDown={handleMouseDown}
       onClick={handleClick}
     >
-      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-2 border-blue-400 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: '0 0 30px #3b82f6, inset 0 0 20px rgba(59, 130, 246, 0.15)'}}>
+      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-0 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: '0 0 30px #3b82f6, inset 0 0 20px rgba(59, 130, 246, 0.15)'}}>
         {/* Enhanced neon blue glowing border effect */}
-        <div className="absolute inset-0 rounded-full border border-blue-300/60 animate-pulse" style={{boxShadow: '0 0 25px #3b82f6, 0 0 50px rgba(59, 130, 246, 0.3)'}}></div>
+        <div className="absolute inset-0 rounded-full border-0/60 animate-pulse" style={{boxShadow: '0 0 25px #3b82f6, 0 0 50px rgba(59, 130, 246, 0.3)'}}></div>
         
         {/* Ambient glow overlay */}
         <div className="absolute inset-0 rounded-full bg-gradient-to-t from-blue-500/5 via-transparent to-blue-400/10 animate-pulse" style={{animationDuration: '3s'}}></div>
-
-        {/* Enhanced close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-1 right-1 text-white hover:text-red-400 w-5 h-5 rounded-full bg-black/50 hover:bg-red-500/20 transition-all duration-300 text-xs font-bold flex items-center justify-center border border-blue-400/50 hover:border-red-400/70 z-20 hover:shadow-lg hover:shadow-red-400/30"
-          aria-label="Close"
-        >
-          ×
-        </button>
 
         {/* Spherical Content Area */}
         <div className="absolute inset-4 flex items-center justify-center">
           {loading ? (
             <div className="text-white font-medium animate-pulse text-center flex flex-col items-center">
-              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-blue-400 shadow-lg shadow-blue-500/40 mb-2 bg-black/20">
+              <div className="w-10 h-10 rounded-full overflow-hidden border-0 shadow-none bg-transparent shadow-blue-500/40 mb-2 bg-transparent">
                 <img 
                   src={okxLogo} 
                   alt="OKX Logo" 
@@ -380,7 +371,7 @@ const FloatingOKXBubble = ({ isOpen, onClose, title = 'OKX DEX', content = '', l
               // Expanded: Smaller text and icons to fit
               <div className="w-full h-full flex flex-col p-2">
                 <div className="text-center mb-1">
-                  <div className="w-6 h-6 rounded-full overflow-hidden border border-blue-400 shadow-lg shadow-blue-500/40 bg-gradient-to-br from-blue-400/30 to-blue-600/40 mx-auto mb-1">
+                  <div className="w-6 h-6 rounded-full overflow-hidden border-0 shadow-none bg-transparent shadow-blue-500/40 bg-transparent">
                     <img 
                       src={okxLogo} 
                       alt="OKX Logo" 
@@ -407,7 +398,7 @@ const FloatingOKXBubble = ({ isOpen, onClose, title = 'OKX DEX', content = '', l
                         ))}
                       </div>
                     ) : (
-                      <div className="font-mono text-xs text-blue-300 bg-black/30 p-2 rounded border border-blue-400/30">
+                      <div className="font-mono text-xs text-blue-300 bg-black/30 p-2 rounded border-0/30">
                         <pre className="whitespace-pre-wrap text-left text-xs">
                           {JSON.stringify(content, null, 2)}
                         </pre>
@@ -424,7 +415,7 @@ const FloatingOKXBubble = ({ isOpen, onClose, title = 'OKX DEX', content = '', l
                       {supportedChains.slice(0, 4).map((chain, index) => (
                         <span 
                           key={index}
-                          className="bg-blue-500/20 text-blue-200 px-1.5 py-0.5 rounded-full text-xs border border-blue-400/30"
+                          className="bg-blue-500/20 text-blue-200 px-1.5 py-0.5 rounded-full text-xs border-0/30"
                         >
                           {chain.name || chain.chainId}
                         </span>
@@ -436,7 +427,7 @@ const FloatingOKXBubble = ({ isOpen, onClose, title = 'OKX DEX', content = '', l
 
                 {/* Quote display */}
                 {quote && (
-                  <div className="mt-2 p-2 bg-blue-500/10 rounded border border-blue-400/30 text-xs">
+                  <div className="mt-2 p-2 bg-blue-500/10 rounded border-0/30 text-xs">
                     <div className="text-blue-300 font-semibold mb-1">OKX Quote:</div>
                     {quote.oliviaMessage && (
                       <div className="text-white/90 mb-2 italic">"{quote.oliviaMessage}"</div>

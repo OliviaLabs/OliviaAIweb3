@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
-import React, { useState, useEffect } from 'react';
-import coingeckoIcon from '../../assets/coingecko-icon.png';
+import React, { useState, useEffect, useRef } from 'react';
+import newsIcon from '../../assets/OLIVIA NEWS.png';
 
 const FloatingNewsBubble = ({ isOpen, onClose, title = 'Trending Tokens', content = '', loading = false, addParticlesToSwarm }) => {
   const bubbleId = useState(() => `news-${Date.now()}-${Math.random()}`)[0]; // Unique ID for this bubble instance
@@ -15,6 +15,7 @@ const FloatingNewsBubble = ({ isOpen, onClose, title = 'Trending Tokens', conten
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isExpanded, setIsExpanded] = useState(false);
   const [lastClickTime, setLastClickTime] = useState(0);
+  const containerRef = useRef(null);
 
   // Remove auto-floating
   useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded, content]);
@@ -109,11 +110,10 @@ const FloatingNewsBubble = ({ isOpen, onClose, title = 'Trending Tokens', conten
 
   if (!isOpen) return null;
 
-  // Dynamic bubble size - match other bubbles exactly
-  let bubbleSize = 70;
-  if (isExpanded) bubbleSize = 160;
-  const bubbleWidth = bubbleSize;
-  const bubbleHeight = bubbleSize;
+  // Dynamic bubble size - START AS CIRCLE
+  const bubbleSize = 140;
+  const bubbleWidth = isExpanded ? Math.min(600, window.innerWidth - 100) : bubbleSize;
+  const bubbleHeight = isExpanded ? Math.min(500, window.innerHeight - 150) : bubbleSize;
   
   const bubble = (
     <div 
@@ -131,75 +131,71 @@ const FloatingNewsBubble = ({ isOpen, onClose, title = 'Trending Tokens', conten
       data-bubble="news"
       data-bubble-id={bubbleId}
     >
-      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-2 border-green-400 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: '0 0 30px #4ade80, inset 0 0 20px rgba(74, 222, 128, 0.15)'}}>
+      <div className={`w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-0 shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm ${isExpanded ? 'rounded-3xl' : 'rounded-full'}`} style={{boxShadow: '0 0 30px #4ade80, inset 0 0 20px rgba(74, 222, 128, 0.15)'}}>
         {/* Enhanced neon green glowing border effect */}
-        <div className="absolute inset-0 rounded-full border border-green-300/60 animate-pulse" style={{boxShadow: '0 0 25px #4ade80, 0 0 50px rgba(74, 222, 128, 0.3)'}}></div>
+        <div className={`absolute inset-0 border-0/60 animate-pulse ${isExpanded ? 'rounded-3xl' : 'rounded-full'}`} style={{boxShadow: '0 0 25px #4ade80, 0 0 50px rgba(74, 222, 128, 0.3)'}}></div>
         
         {/* Ambient glow overlay */}
-        <div className="absolute inset-0 rounded-full bg-gradient-to-t from-green-500/5 via-transparent to-green-400/10 animate-pulse" style={{animationDuration: '3s'}}></div>
-
-        {/* Enhanced close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-1 right-1 text-white hover:text-red-400 w-5 h-5 rounded-full bg-black/50 hover:bg-red-500/20 transition-all duration-300 text-xs font-bold flex items-center justify-center border border-green-400/50 hover:border-red-400/70 z-20 hover:shadow-lg hover:shadow-red-400/30"
-          aria-label="Close"
-        >
-          ×
-        </button>
+        <div className={`absolute inset-0 bg-gradient-to-t from-green-500/5 via-transparent to-green-400/10 animate-pulse ${isExpanded ? 'rounded-3xl' : 'rounded-full'}`} style={{animationDuration: '3s'}}></div>
         
         {/* Spherical Content Area */}
         <div className="absolute inset-4 flex items-center justify-center">
           {loading ? (
             <div className="text-white font-medium animate-pulse text-center flex flex-col items-center">
-              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-green-400 shadow-lg shadow-green-500/40 mb-2 bg-black/20">
+              <div className="w-10 h-10 rounded-full overflow-hidden border-0 shadow-none bg-transparent shadow-green-500/40 mb-1 bg-transparent">
                 <img 
-                  src={coingeckoIcon} 
-                  alt="CoinGecko" 
+                  src={newsIcon} 
+                  alt="News" 
                   className="w-full h-full object-cover opacity-50"
                 />
               </div>
               <div className="flex items-center gap-1 justify-center mb-1">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                <div className="w-1 h-1 bg-green-400 rounded-full animate-bounce"></div>
+                <div className="w-1 h-1 bg-green-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                <div className="w-1 h-1 bg-green-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
               </div>
-              <div className="text-xs font-semibold text-green-400">Loading...</div>
+              
             </div>
           ) : (
             <div className="w-full h-full flex items-center justify-center text-center relative">
               {!isExpanded ? (
                 <div className="flex flex-col items-center justify-center">
                   <div className="relative mb-2">
-                    <div className="w-5 h-5 rounded-full overflow-hidden border-2 border-green-400 shadow-lg bg-gradient-to-br from-green-400/30 to-green-600/40">
-                      <img src={coingeckoIcon} alt="News" className="w-full h-full object-cover" />
+                    <div className="w-10 h-10 rounded-full overflow-hidden border-0 shadow-none bg-transparent bg-transparent">
+                      <img src={newsIcon} alt="News" className="w-full h-full object-cover" draggable={false} />
                     </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-[6px] font-bold text-green-300">{title}</div>
                   </div>
                 </div>
               ) : (
                 // Expanded
-                <div className="w-full h-full flex flex-col p-2">
-                  <div className="text-center mb-1">
-                    <div className="w-6 h-6 rounded-full overflow-hidden border border-green-400 shadow-lg bg-gradient-to-br from-green-400/20 to-green-600/30 mx-auto mb-1">
-                      <img src={coingeckoIcon} alt="News" className="w-full h-full object-cover" />
+                <div className="w-full h-full flex flex-col p-8">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-green-400/30 shadow-lg bg-black/40">
+                      <img src={newsIcon} alt="News" className="w-full h-full object-cover" draggable={false} />
                     </div>
-                    <div className="text-[8px] font-bold text-green-300">{title}</div>
+                    <div className="text-2xl font-bold text-green-300">{title}</div>
                   </div>
                   
-                  <div className="flex-1 px-2 overflow-y-auto">
-                    <div className="text-center space-y-1">
+                  <div className="flex-1 overflow-y-auto custom-scrollbar pr-4">
+                    <div className="text-left space-y-4">
                       {typeof content === 'string' ? (
-                        <div className="text-[7px] text-white/90 leading-tight space-y-1">
-                          {content.split('\n').map((line, index) => (
-                            <div key={index} className={line.startsWith('**') ? 'font-bold text-green-300' : ''}>
+                        <div className="text-base text-white/90 leading-relaxed space-y-3">
+                          {content.split('\n').filter(line => line.trim()).map((line, index) => (
+                            <div key={index} className={line.startsWith('**') ? 'font-bold text-green-300 text-lg' : ''}>
                               {line.replace(/\*\*/g, '')}
                             </div>
                           ))}
                         </div>
+                      ) : Array.isArray(content) ? (
+                        <div className="space-y-4">
+                          {content.map((item, index) => (
+                            <div key={index} className="text-base text-white/90 leading-relaxed border-l-4 border-green-400/30 pl-4 py-2">
+                              {typeof item === 'string' ? item : JSON.stringify(item, null, 2)}
+                            </div>
+                          ))}
+                        </div>
                       ) : (
-                        <div className="text-[7px] text-white/90">{content}</div>
+                        <div className="text-base text-white/90 font-mono whitespace-pre-wrap">{JSON.stringify(content, null, 2)}</div>
                       )}
                     </div>
                   </div>

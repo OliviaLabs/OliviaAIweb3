@@ -128,7 +128,7 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
   if (!isOpen) return null;
   
   // Dynamic bubble size based on content length and expanded state
-  let bubbleSize = 70;
+  let bubbleSize = 140;
   if (isExpanded) bubbleSize = 160;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
@@ -146,27 +146,18 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
       onMouseDown={handleMouseDown}
       onClick={handleClick}
     >
-      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-2 border-purple-400 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: '0 0 30px #a855f7, inset 0 0 20px rgba(168, 85, 247, 0.15)'}}>
+      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-0 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: '0 0 30px #a855f7, inset 0 0 20px rgba(168, 85, 247, 0.15)'}}>
         {/* Enhanced neon purple glowing border effect */}
-        <div className="absolute inset-0 rounded-full border border-purple-300/60 animate-pulse" style={{boxShadow: '0 0 25px #a855f7, 0 0 50px rgba(168, 85, 247, 0.3)'}}></div>
+        <div className="absolute inset-0 rounded-full border-0/60 animate-pulse" style={{boxShadow: '0 0 25px #a855f7, 0 0 50px rgba(168, 85, 247, 0.3)'}}></div>
         
         {/* Ambient glow overlay */}
         <div className="absolute inset-0 rounded-full bg-gradient-to-t from-purple-500/5 via-transparent to-purple-400/10 animate-pulse" style={{animationDuration: '3s'}}></div>
-
-        {/* Enhanced close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-1 right-1 text-white hover:text-red-400 w-5 h-5 rounded-full bg-black/50 hover:bg-red-500/20 transition-all duration-300 text-xs font-bold flex items-center justify-center border border-purple-400/50 hover:border-red-400/70 z-20 hover:shadow-lg hover:shadow-red-400/30"
-          aria-label="Close"
-        >
-          ×
-        </button>
 
         {/* Spherical Content Area */}
         <div className="absolute inset-4 flex items-center justify-center">
           {loading ? (
             <div className="text-white font-medium animate-pulse text-center flex flex-col items-center">
-              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-purple-400 shadow-lg shadow-purple-500/40 mb-2 bg-black/20">
+              <div className="w-10 h-10 rounded-full overflow-hidden border-0 shadow-none bg-transparent shadow-purple-500/40 mb-2 bg-transparent">
                 <img 
                   src={zeroXLogo} 
                   alt="0x Protocol Logo" 
@@ -183,26 +174,14 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
           ) : (
             <div className="text-white w-full h-full flex flex-col items-center justify-center text-center">
               {!isExpanded ? (
-                // Collapsed: Central icon with title below in spherical layout
+                // Collapsed: Just icon
                 <div className="flex flex-col items-center justify-center">
-                  {/* Central 0x Icon */}
-                  <div className="relative mb-3">
-                    <div className="w-10 h-10 rounded-full overflow-hidden border-4 border-purple-400 shadow-2xl shadow-purple-500/60 bg-gradient-to-br from-purple-400/30 to-purple-600/40 hover:border-purple-300 transition-all duration-300 hover:shadow-purple-400/80 hover:scale-105 group">
-                      <img 
-                        src={zeroXLogo} 
-                        alt="0x Protocol Logo" 
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      />
-                      {/* Inner circular glow */}
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-purple-400/10 to-purple-300/20"></div>
-                    </div>
-                    {/* Pulsing outer ring */}
-                    <div className="absolute inset-0 rounded-full border-2 border-purple-300/40 animate-ping" style={{animationDuration: '3s'}}></div>
-                  </div>
-                  
-                  {/* Circular text layout */}
-                  <div className="text-center">
-                    <div className="text-xs font-bold text-purple-300 drop-shadow-xl">{title}</div>
+                  <div className="w-10 h-10">
+                    <img 
+                      src={zeroXLogo} 
+                      alt="0x Protocol Logo" 
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 </div>
             ) : (
@@ -210,7 +189,7 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
               <div className="w-full h-full flex flex-col">
                 {/* Header section with logo and title */}
                 <div className="text-center mb-6">
-                  <div className="w-12 h-12 rounded-full overflow-hidden border-4 border-purple-400 shadow-2xl shadow-purple-500/60 bg-gradient-to-br from-purple-400/30 to-purple-600/40 mx-auto mb-2">
+                  <div className="w-12 h-12 rounded-full overflow-hidden border-0 shadow-2xl shadow-purple-500/60 bg-transparent">
                     <img 
                       src={zeroXLogo} 
                       alt="0x Protocol Logo" 
@@ -239,7 +218,7 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
                         ))}
                       </div>
                     ) : (
-                      <div className="font-mono text-xs text-purple-300 bg-black/30 p-2 rounded border border-purple-400/30">
+                      <div className="font-mono text-xs text-purple-300 bg-black/30 p-2 rounded border-0/30">
                         <pre className="whitespace-pre-wrap text-left text-xs">
                           {JSON.stringify(content, null, 2)}
                         </pre>
@@ -347,7 +326,7 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
                           window.open(url, '_blank');
                         }
                       }}
-                      className="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-bold text-sm rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 border border-purple-400/50"
+                      className="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-bold text-sm rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 border-0/50"
                     >
                       🔄 Swap on Matcha
                     </button>

@@ -136,9 +136,9 @@ const FloatingCoinGeckoBubble = ({ isOpen, onClose, title = 'CoinGecko', content
 
   if (!isOpen) return null;
   
-  // Dynamic bubble size based on content length and expanded state
-  let bubbleSize = 70;
-  if (isExpanded) bubbleSize = 160;
+  // Bubble ALWAYS stays circular - never bigger than screen
+  const maxSize = Math.min(300, window.innerWidth - 40, window.innerHeight - 100);
+  const bubbleSize = isExpanded ? maxSize : 140;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
   
@@ -159,89 +159,65 @@ const FloatingCoinGeckoBubble = ({ isOpen, onClose, title = 'CoinGecko', content
       data-bubble="coingecko"
       data-bubble-id={bubbleId}
     >
-      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-2 border-green-400 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: '0 0 30px #4ade80, inset 0 0 20px rgba(74, 222, 128, 0.15)'}}>
+      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-0 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: '0 0 30px #4ade80, inset 0 0 20px rgba(74, 222, 128, 0.15)'}}>
         {/* Enhanced neon green glowing border effect */}
-        <div className="absolute inset-0 rounded-full border border-green-300/60 animate-pulse" style={{boxShadow: '0 0 25px #4ade80, 0 0 50px rgba(74, 222, 128, 0.3)'}}></div>
+        <div className="absolute inset-0 rounded-full border-0/60 animate-pulse" style={{boxShadow: '0 0 25px #4ade80, 0 0 50px rgba(74, 222, 128, 0.3)'}}></div>
         
         {/* Ambient glow overlay */}
         <div className="absolute inset-0 rounded-full bg-gradient-to-t from-green-500/5 via-transparent to-green-400/10 animate-pulse" style={{animationDuration: '3s'}}></div>
-
-        {/* Enhanced close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-1 right-1 text-white hover:text-red-400 w-5 h-5 rounded-full bg-black/50 hover:bg-red-500/20 transition-all duration-300 text-xs font-bold flex items-center justify-center border border-green-400/50 hover:border-red-400/70 z-20 hover:shadow-lg hover:shadow-red-400/30"
-          aria-label="Close"
-        >
-          ×
-        </button>
         
         {/* Spherical Content Area */}
         <div className="absolute inset-4 flex items-center justify-center">
           {loading ? (
             <div className="text-white font-medium animate-pulse text-center flex flex-col items-center">
-              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-green-400 shadow-lg shadow-green-500/40 mb-2 bg-black/20">
+              <div className="w-10 h-10 rounded-full overflow-hidden border-0 shadow-none bg-transparent shadow-green-500/40 mb-1 bg-transparent">
                 <img 
                   src={coingeckoIcon} 
                   alt="CoinGecko" 
                   className="w-full h-full object-cover opacity-50"
+                  draggable={false}
                 />
               </div>
               <div className="flex items-center gap-1 justify-center mb-1">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                <div className="w-1 h-1 bg-green-400 rounded-full animate-bounce"></div>
+                <div className="w-1 h-1 bg-green-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                <div className="w-1 h-1 bg-green-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
               </div>
-              <div className="text-xs font-semibold text-green-400">Loading...</div>
+              
             </div>
           ) : (
             <div className="w-full h-full flex items-center justify-center text-center relative">
               {!isExpanded ? (
                 <div className="flex flex-col items-center justify-center">
                   <div className="relative mb-2">
-                    <div className="w-5 h-5 rounded-full overflow-hidden border-2 border-green-400 shadow-lg bg-gradient-to-br from-green-400/30 to-green-600/40">
-                      <img src={coingeckoIcon} alt="CoinGecko" className="w-full h-full object-cover" />
+                    <div className="w-20 h-20 rounded-full overflow-hidden border-0 shadow-none bg-transparent">
+                      <img src={coingeckoIcon} alt="CoinGecko" className="w-full h-full object-cover pointer-events-none" draggable={false} />
                     </div>
                   </div>
                   <div className="text-center">
-                    <div className="text-[6px] font-bold text-green-300">{title}</div>
+                    
                   </div>
                 </div>
               ) : (
-                // Expanded
-                <div className="w-full h-full flex flex-col p-2">
-                  <div className="text-center mb-1">
-                    <div className="w-6 h-6 rounded-full overflow-hidden border border-green-400 shadow-lg bg-gradient-to-br from-green-400/20 to-green-600/30 mx-auto mb-1">
-                      <img src={coingeckoIcon} alt="CoinGecko" className="w-full h-full object-cover" />
-                    </div>
-                    <div className="text-[8px] font-bold text-green-300">{title}</div>
-                  </div>
-                  
-                  <div className="flex-1 px-2 overflow-y-auto">
-                    <div className="text-center space-y-1">
+                // Expanded - NO ICON, just text
+                <div className="w-full h-full flex flex-col justify-center p-4">
+                  <div className="flex-1 overflow-y-auto">
+                    <div className="text-center space-y-2">
                       {typeof content === 'string' ? (
-                        <div className="text-[7px] text-white/90 leading-tight space-y-1">
+                        <div className="text-sm text-white leading-relaxed">
                           {content.split('\n\n').map((paragraph, index) => (
-                            <p key={index} className="text-center">
-                              {paragraph.split('\n').map((line, lineIndex) => (
-                                <span key={lineIndex}>
-                                  {line}
-                                  {lineIndex < paragraph.split('\n').length - 1 && <br />}
-                                </span>
-                              ))}
+                            <p key={index} className="mb-2">
+                              {paragraph}
                             </p>
                           ))}
                         </div>
                       ) : (
-                        <div className="font-mono text-[6px] text-green-300 bg-black/30 p-1 rounded border border-green-400/30">
-                          <pre className="whitespace-pre-wrap text-left">
-                            {JSON.stringify(content, null, 2)}
-                          </pre>
+                        <div className="text-xs text-white/90">
+                          {JSON.stringify(content, null, 2)}
                         </div>
                       )}
                     </div>
                   </div>
-                  
-
                 </div>
               )}
             </div>
