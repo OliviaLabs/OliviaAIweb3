@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect } from 'react';
+import useFloatToTop from '../../hooks/useFloatToTop';
 import ReactMarkdown from 'react-markdown';
 import hederaLogo from '../../assets/hedera-logo.png';
 
@@ -16,8 +17,9 @@ const FloatingHederaBubble = ({ isOpen, onClose, title = 'Hedera', content = '',
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Remove auto-floating
+  // Remove auto-floating (replaced by universal float hook)
   useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
+  useFloatToTop({ isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, speed: 0.6 });
 
   const handleMouseDown = (e) => {
     if (e.target.getAttribute('aria-label') === 'Close') return;
@@ -69,9 +71,9 @@ const FloatingHederaBubble = ({ isOpen, onClose, title = 'Hedera', content = '',
 
     if (!isOpen) return null;
 
-  // Dynamic bubble size based on expanded state
-  let bubbleSize = 140;
-  if (isExpanded) bubbleSize = 160;
+  // Bubble ALWAYS stays circular - never bigger than screen (match ICP/CoinGecko)
+  const maxSize = Math.min(300, window.innerWidth - 40, window.innerHeight - 100);
+  const bubbleSize = isExpanded ? maxSize : 140;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
   
@@ -84,7 +86,8 @@ const FloatingHederaBubble = ({ isOpen, onClose, title = 'Hedera', content = '',
         width: `${bubbleWidth}px`,
         height: `${bubbleHeight}px`,
         zIndex: 2147483644, // Lower than others
-        willChange: isDragging ? 'transform' : 'auto'
+        willChange: isDragging ? 'transform' : 'auto',
+        transition: isDragging ? 'none' : 'top 4800ms linear'
       }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
@@ -142,8 +145,8 @@ const FloatingHederaBubble = ({ isOpen, onClose, title = 'Hedera', content = '',
                   </div>
                 </div>
               ) : (
-                // Expanded: Spherical layout with enhanced content
-                <div className="w-full h-full flex flex-col">
+                // Expanded: Centered content with consistent padding
+                <div className="w-full h-full flex flex-col justify-center items-center px-4 pt-6 pb-4">
                   {/* Header section with logo and title */}
                   <div className="text-center mb-6">
                     <div className="w-12 h-12 rounded-full overflow-hidden border-0 shadow-2xl shadow-green-500/60 bg-transparent">
@@ -158,8 +161,8 @@ const FloatingHederaBubble = ({ isOpen, onClose, title = 'Hedera', content = '',
                     <div className="text-xs text-white/70 font-medium">Hashgraph Network</div>
                   </div>
                   
-                  {/* Central content area - no scrollbar, proper text layout */}
-                  <div className="flex-1 px-6 py-4">
+                  {/* Central content area - scrollable and centered */}
+                  <div className="flex-1 px-6 py-4 overflow-y-auto flex items-center justify-center">
                     <div className="text-center space-y-3">
                       {typeof content === 'string' ? (
                         <div className="text-sm text-white/90 leading-relaxed space-y-2">

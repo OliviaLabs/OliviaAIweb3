@@ -31,26 +31,29 @@ export const twitterService = {
         console.log('🐦 First tweet structure:', JSON.stringify(data.timeline[0], null, 2));
       }
       
-      // Process the response to extract relevant tweet data
+      // Process the response to extract relevant tweet data (robust to multiple schemas)
       let tweets = [];
-      if (data.timeline && Array.isArray(data.timeline)) {
-        tweets = data.timeline.map(tweet => ({
-          id: tweet.id_str || tweet.id,
-          text: tweet.full_text || tweet.text,
-          user: {
-            username: tweet.user?.screen_name || tweet.author?.username || 'anonymous',
-            name: tweet.user?.name || tweet.author?.name || 'Anonymous User',
-            profile_image_url: tweet.user?.profile_image_url_https || tweet.author?.profile_image_url
-          },
-          created_at: tweet.created_at,
-          favorite_count: tweet.favorite_count || tweet.public_metrics?.like_count || 0,
-          retweet_count: tweet.retweet_count || tweet.public_metrics?.retweet_count || 0,
-          reply_count: tweet.reply_count || tweet.public_metrics?.reply_count || 0,
-          url: tweet.user?.screen_name ? 
-            `https://twitter.com/${tweet.user.screen_name}/status/${tweet.id_str || tweet.id}` :
-            `https://twitter.com/i/status/${tweet.id_str || tweet.id}`
-        }));
-      }
+      const rawTimeline = Array.isArray(data.timeline) ? data.timeline
+                        : Array.isArray(data.tweets) ? data.tweets
+                        : [];
+
+      tweets = rawTimeline.map(t => {
+        const id = t.id_str || t.id || t.tweet_id || t.tweet?.id_str || t.tweet?.id;
+        const text = t.full_text || t.text || t.tweet?.full_text || t.tweet?.text || '';
+        const username = t.user?.screen_name || t.author?.username || t.screen_name || t.user_info?.screen_name || 'anonymous';
+        const name = t.user?.name || t.author?.name || t.user_info?.name || username;
+        const profile_image_url = t.user?.profile_image_url_https || t.author?.profile_image_url || t.user_info?.avatar || t.user?.profile_image_url || '';
+        const favorite_count = t.favorite_count || t.favorites || t.public_metrics?.like_count || 0;
+        const retweet_count = t.retweet_count || t.retweets || t.public_metrics?.retweet_count || 0;
+        const reply_count = t.reply_count || t.replies || t.public_metrics?.reply_count || 0;
+        const created_at = t.created_at || t.tweet?.created_at;
+        const finalUser = { username, name, profile_image_url };
+        const url = username && id
+          ? `https://twitter.com/${username}/status/${id}`
+          : id ? `https://twitter.com/i/status/${id}` : undefined;
+
+        return { id, text, user: finalUser, created_at, favorite_count, retweet_count, reply_count, url };
+      }).filter(x => x.id && x.text);
 
       console.log(`🐦 Found ${tweets.length} tweets for query: "${query}"`);
 
@@ -74,6 +77,17 @@ export const twitterService = {
       return await this.searchTweets('cryptocurrency', 'Top');
     } catch (error) {
       console.error('Twitter trending crypto error:', error);
+      throw error;
+    }
+  },
+
+  // Convenience wrapper for tickers like $BTC, $ETH
+  async searchTicker(ticker) {
+    try {
+      const q = ticker?.startsWith('$') ? ticker : `$${ticker}`;
+      return await this.searchTweets(q, 'Latest');
+    } catch (error) {
+      console.error('Twitter searchTicker error:', error);
       throw error;
     }
   }

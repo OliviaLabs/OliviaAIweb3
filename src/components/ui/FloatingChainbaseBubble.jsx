@@ -163,6 +163,10 @@ const FloatingChainbaseBubble = ({ isOpen, onClose, title = 'Chainbase', content
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isExpanded, setIsExpanded] = useState(false);
   const [lastClickTime, setLastClickTime] = useState(0);
+  const positionRef = useState(position)[0];
+  const draggingRef = useState(isDragging)[0];
+  const expandedRef = useState(isExpanded)[0];
+  const floatedRef = useRef(false);
   const [supportedChains, setSupportedChains] = useState([]);
   const [selectedChain, setSelectedChain] = useState('1'); // Ethereum by default
   const [chainData, setChainData] = useState(null);
@@ -172,6 +176,25 @@ const FloatingChainbaseBubble = ({ isOpen, onClose, title = 'Chainbase', content
 
   // Remove auto-floating
   useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
+
+  // Gentle float-up on mount until top barrier
+  useEffect(() => {
+    if (!isOpen || floatedRef.current) return;
+    let rafId;
+    const topBarrier = 20;
+    const step = () => {
+      if (isDragging || isExpanded) return;
+      const y = position.y;
+      if (y <= topBarrier) {
+        floatedRef.current = true;
+        return;
+      }
+      setPosition(prev => ({ x: prev.x, y: Math.max(topBarrier, prev.y - 0.6) }));
+      rafId = requestAnimationFrame(step);
+    };
+    rafId = requestAnimationFrame(step);
+    return () => { if (rafId) cancelAnimationFrame(rafId); };
+  }, [isOpen, isDragging, isExpanded, position]);
 
   useEffect(() => {
     if (isOpen) {
@@ -385,16 +408,11 @@ const FloatingChainbaseBubble = ({ isOpen, onClose, title = 'Chainbase', content
 
   if (!isOpen) return null;
   
-  // Dynamic bubble size based on content length and expanded state
-  let bubbleSize = 140;
-  let bubbleWidth = bubbleSize;
-  let bubbleHeight = bubbleSize;
-  
-  if (isExpanded) {
-    bubbleSize = 160;
-    bubbleWidth = bubbleSize;
-    bubbleHeight = bubbleSize;
-  }
+  // Bubble ALWAYS stays circular - never bigger than screen (match ICP/CoinGecko)
+  const maxSize = Math.min(300, window.innerWidth - 40, window.innerHeight - 100);
+  const bubbleSize = isExpanded ? maxSize : 140;
+  const bubbleWidth = bubbleSize;
+  const bubbleHeight = bubbleSize;
 
   const bubble = (
     <div 
@@ -461,8 +479,8 @@ const FloatingChainbaseBubble = ({ isOpen, onClose, title = 'Chainbase', content
                   </div>
                 </div>
             ) : (
-              // Expanded: Spherical layout with enhanced content
-              <div className="w-full h-full flex flex-col">
+              // Expanded: Centered content with consistent padding
+              <div className="w-full h-full flex flex-col justify-center items-center px-4 pt-6 pb-4">
                 {/* Header section with logo and title */}
                 <div className="text-center mb-3">
                   <div className="w-12 h-12 rounded-full overflow-hidden border-0 shadow-2xl shadow-green-500/60 bg-transparent">
@@ -478,7 +496,7 @@ const FloatingChainbaseBubble = ({ isOpen, onClose, title = 'Chainbase', content
                 </div>
                 
                 {/* Central content area - improved text flow */}
-                <div className="flex-1 px-3 py-2 overflow-y-auto max-h-[150px]">
+                <div className="flex-1 px-3 py-2 overflow-y-auto max-h-[150px] flex items-center justify-center">
                   <div className="text-center space-y-1">
                     {typeof content === 'string' ? (
                       <div className="text-xs text-white/90 leading-tight space-y-1">

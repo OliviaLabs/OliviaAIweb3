@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect } from 'react';
+import useFloatToTop from '../../hooks/useFloatToTop';
 import { Bitcoin } from 'lucide-react';
 
 const FloatingBTCPriceBubble = ({ isOpen, onClose, title = 'BTC Price', priceBtc = 0, tokenName = '', addParticlesToSwarm }) => {
@@ -15,6 +16,7 @@ const FloatingBTCPriceBubble = ({ isOpen, onClose, title = 'BTC Price', priceBtc
   const [lastClickTime, setLastClickTime] = useState(0);
 
   useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
+  useFloatToTop({ isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, speed: 0.6 });
 
   const createPopEffect = () => {
     const bubbleSize = isExpanded ? 160 : 140;
@@ -76,7 +78,9 @@ const FloatingBTCPriceBubble = ({ isOpen, onClose, title = 'BTC Price', priceBtc
 
   if (!isOpen) return null;
   
-  const bubbleSize = isExpanded ? 160 : 140;
+  // Bubble ALWAYS stays circular - never bigger than screen (match ICP/CoinGecko)
+  const maxSize = Math.min(300, window.innerWidth - 40, window.innerHeight - 100);
+  const bubbleSize = isExpanded ? maxSize : 140;
   const scoreColor = '#f7931a'; // bitcoin orange
   
   const bubble = (
@@ -88,7 +92,8 @@ const FloatingBTCPriceBubble = ({ isOpen, onClose, title = 'BTC Price', priceBtc
         width: `${bubbleSize}px`,
         height: `${bubbleSize}px`,
         zIndex: 2147483636,
-        willChange: isDragging ? 'transform' : 'auto'
+        willChange: isDragging ? 'transform' : 'auto',
+        transition: isDragging ? 'none' : 'top 2400ms linear'
       }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
@@ -110,14 +115,14 @@ const FloatingBTCPriceBubble = ({ isOpen, onClose, title = 'BTC Price', priceBtc
               
             </div>
           ) : (
-            <div className="w-full h-full flex flex-col p-2">
+            <div className="w-full h-full flex flex-col justify-center items-center px-4 pt-6 pb-4">
               <div className="text-center mb-1">
                 <div className="w-10 h-10 rounded-full border-0 shadow-none bg-transparent mx-auto mb-1 flex items-center justify-center" style={{backgroundColor: `${scoreColor}20`}}>
                   <Bitcoin size={24} style={{color: scoreColor}} />
                 </div>
                 <div className="text-[8px] font-bold" style={{color: scoreColor}}>{tokenName}</div>
               </div>
-              <div className="flex-1 px-2 overflow-y-auto">
+              <div className="flex-1 px-2 overflow-y-auto flex items-center justify-center">
                 <div className="text-center space-y-1">
                   <div className="text-[12px] font-bold" style={{color: scoreColor}}>
                     {priceBtc.toFixed(8)} BTC

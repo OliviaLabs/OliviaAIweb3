@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect } from 'react';
+import useFloatToTop from '../../hooks/useFloatToTop';
 import ReactMarkdown from 'react-markdown';
 import { log, error as logError } from '../../utils/logger.js';
 import tonLogo from '../../assets/ton.png';
@@ -156,8 +157,9 @@ const FloatingTONCenterBubble = ({ isOpen, onClose, title = 'TON Center', conten
   const [popularJettons, setPopularJettons] = useState([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
-  // Remove auto-floating
+  // Remove auto-floating (replaced by universal float hook)
   useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
+  useFloatToTop({ isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, speed: 0.6 });
 
   useEffect(() => {
     let mounted = true;
@@ -309,8 +311,9 @@ const FloatingTONCenterBubble = ({ isOpen, onClose, title = 'TON Center', conten
 
   if (!isOpen) return null;
   
-  let bubbleSize = 140;
-  if (isExpanded) bubbleSize = 160;
+  // Bubble ALWAYS stays circular - never bigger than screen (match ICP/CoinGecko)
+  const maxSize = Math.min(300, window.innerWidth - 40, window.innerHeight - 100);
+  const bubbleSize = isExpanded ? maxSize : 140;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
 
@@ -322,7 +325,8 @@ const FloatingTONCenterBubble = ({ isOpen, onClose, title = 'TON Center', conten
         top: `${position.y}px`,
         zIndex: isExpanded ? 1001 : 1000,
         width: `${bubbleWidth}px`,
-        height: `${bubbleHeight}px`
+        height: `${bubbleHeight}px`,
+        transition: isDragging ? 'none' : 'top 4800ms linear'
       }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
@@ -363,8 +367,8 @@ const FloatingTONCenterBubble = ({ isOpen, onClose, title = 'TON Center', conten
                   </div>
                 </div>
             ) : (
-              // Expanded
-              <div className="w-full h-full flex flex-col p-2">
+              // Expanded: Centered content with consistent padding
+              <div className="w-full h-full flex flex-col justify-center items-center px-4 pt-6 pb-4">
                 <div className="text-center mb-1">
                   <div className="w-6 h-6 rounded-full overflow-hidden border-0 shadow-none bg-transparent bg-transparent">
                     <img 
@@ -377,7 +381,7 @@ const FloatingTONCenterBubble = ({ isOpen, onClose, title = 'TON Center', conten
                   <div className="text-[8px] font-bold text-blue-300">{title}</div>
                 </div>
                 
-                <div className="flex-1 px-2 overflow-y-auto">
+                <div className="flex-1 px-2 overflow-y-auto flex items-center justify-center">
                   <div className="text-center space-y-1">
                     {typeof content === 'string' ? (
                       <div className="text-[7px] text-white/90 leading-tight space-y-1">

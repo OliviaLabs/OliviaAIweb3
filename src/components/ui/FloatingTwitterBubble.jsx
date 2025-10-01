@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect, useRef } from 'react';
+import useFloatToTop from '../../hooks/useFloatToTop';
 import twitterIcon from '../../assets/x-icon.png';
 
 const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content = '', loading = false, addParticlesToSwarm }) => {
@@ -19,6 +20,8 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
 
   // Remove auto-floating movement
   useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
+  // Gentle float to top with barrier, like other bubbles
+  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs: 80, bubbleWidth: 140, gap: 4, margin: 8 });
 
   // Create pop particles and add them to main swarm
   const createPopEffect = () => {
@@ -139,9 +142,9 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
 
   if (!isOpen) return null;
   
-  // Dynamic bubble size based on content length and expanded state
-  let bubbleSize = 140;
-  if (isExpanded) bubbleSize = 160;
+  // Larger expanded bubble for readability, still clamped to viewport
+  const maxSize = Math.min(420, window.innerWidth - 40, window.innerHeight - 100);
+  const bubbleSize = isExpanded ? maxSize : 140;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
   
@@ -155,7 +158,8 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
         width: `${bubbleWidth}px`,
         height: `${bubbleHeight}px`,
         zIndex: 2147483646, // Slightly lower than Lurky
-        willChange: isDragging ? 'transform' : 'auto'
+        willChange: isDragging ? 'transform' : 'auto',
+        transition: isDragging ? 'none' : 'top 4800ms linear'
       }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
@@ -202,7 +206,7 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
                 </div>
               ) : (
                 // Expanded: Spherical content organization
-                <div className="w-full h-full relative flex flex-col items-center p-6">
+                <div className="w-full h-full relative flex flex-col items-center px-4 pt-6 pb-4">
                   {/* Top section - Icon and title in circular arc */}
                   <div className="absolute top-2 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
                     <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/40 shadow-lg shadow-white/30 bg-transparent">
@@ -216,30 +220,54 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
                     <div className="text-xs text-white/70 font-medium">Social Media</div>
                   </div>
                   
-                  {/* Central content area - no scrollbar, proper text layout */}
-                  <div className="flex-1 px-6 py-4 mt-24">
-                    <div className="text-center space-y-3">
-                      {typeof content === 'string' ? (
-                        <div className="text-sm text-white/90 leading-relaxed space-y-2">
-                          {content.split('\n\n').map((paragraph, index) => (
-                            <p key={index} className="text-center">
-                              {paragraph.split('\n').map((line, lineIndex) => (
-                                <span key={lineIndex}>
-                                  {line}
-                                  {lineIndex < paragraph.split('\n').length - 1 && <br />}
-                                </span>
-                              ))}
-                            </p>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="font-mono text-xs text-white/80 bg-black/30 p-3 rounded border border-white/30">
-                          <pre className="whitespace-pre-wrap text-left">
-                            {JSON.stringify(content, null, 2)}
-                          </pre>
-                        </div>
-                      )}
-                    </div>
+                  {/* Central content area - scrollable tweets or fallback */}
+                  <div className="flex-1 px-3 pt-24 pb-3 overflow-y-auto w-full">
+                    {Array.isArray(content) && content.length > 0 ? (
+                      <div className="space-y-2.5">
+                        {content.slice(0, 10).map((tweet) => (
+                          <a
+                            key={tweet.id}
+                            href={tweet.url || '#'}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block rounded-md border border-white/15 bg-white/5 p-2.5 text-left hover:bg-white/10 transition-colors"
+                          >
+                            <div className="flex items-start gap-2">
+                              <img
+                                src={tweet.user?.profile_image_url || ''}
+                                alt={tweet.user?.username || ''}
+                                className="w-5 h-5 rounded-full object-cover bg-white/20 flex-shrink-0"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                              />
+                              <div className="min-w-0">
+                                <div className="text-[11px] text-white/80 truncate">
+                                  {tweet.user?.name || tweet.user?.username || 'User'}
+                                  {tweet.user?.username ? (
+                                    <span className="text-white/50"> @{tweet.user.username}</span>
+                                  ) : null}
+                                </div>
+                                <div className="text-[12px] text-white/90 break-words leading-tight mt-0.5">
+                                  {(tweet.text || '').length > 200 ? `${tweet.text.slice(0, 200)}…` : (tweet.text || '')}
+                                </div>
+                                <div className="text-[10px] text-white/50 mt-1">
+                                  ❤ {tweet.favorite_count || 0}  ↻ {tweet.retweet_count || 0}  💬 {tweet.reply_count || 0}
+                                </div>
+                              </div>
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center space-y-2">
+                        {typeof content === 'string' ? (
+                          <div className="text-[12px] text-white/90 leading-tight">
+                            {content}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-white/60">No tweets found.</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   
 

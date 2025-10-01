@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect, useRef } from 'react';
+import useFloatToTop from '../../hooks/useFloatToTop';
 import ReactMarkdown from 'react-markdown';
 import { CheckCircle, AlertCircle, Loader, Wifi, WifiOff, Shield, User } from 'lucide-react';
 import icpLogo from '../../assets/icp-logo.png';
@@ -21,6 +22,8 @@ const FloatingICPBubble = ({ isOpen, onClose, title = 'ICP Status', content = ''
 
   // Remove auto-floating
   useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
+
+  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs: 80, bubbleWidth: 140, gap: 4, margin: 8 });
 
   // Create pop particles and add them to main swarm
   const createPopEffect = () => {
@@ -156,18 +159,14 @@ const FloatingICPBubble = ({ isOpen, onClose, title = 'ICP Status', content = ''
 
   const theme = colors[status] || colors.error;
   
-  // Dynamic bubble size based on content length and expanded state
-  let bubbleSize = 140; // Base collapsed size (half of original)
-  if (isExpanded) {
-    // Fixed size for visual status display - no scrolling needed
-    bubbleSize = 160; // Optimized size for icon-based content (half of original)
-  }
-  
+  // Bubble ALWAYS stays circular - never bigger than screen (match CoinGecko)
+  const maxSize = Math.min(300, window.innerWidth - 40, window.innerHeight - 100);
+  const bubbleSize = isExpanded ? maxSize : 140;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
   
-  // Scale factor for all internal elements (0.5 = half size)
-  const scale = bubbleSize / 140; // Original was 140px
+  // Scale factor for any size-based elements
+  const scale = bubbleSize / 140;
   
   const bubble = (
     <div 
@@ -179,55 +178,55 @@ const FloatingICPBubble = ({ isOpen, onClose, title = 'ICP Status', content = ''
         width: `${bubbleWidth}px`,
         height: `${bubbleHeight}px`,
         zIndex: 2147483645, // Lower than others
-        willChange: isDragging ? 'transform' : 'auto'
+        willChange: isDragging ? 'transform' : 'auto',
+        transition: isDragging ? 'none' : 'top 4800ms linear'
       }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       data-bubble="icp"
       data-bubble-id={bubbleId}
     >
-      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{border: `${Math.max(1, scale * 2)}px solid #4ade80`, boxShadow: `0 0 ${scale * 30}px #4ade80, inset 0 0 ${scale * 20}px rgba(74, 222, 128, 0.15)`}}>
+      <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-0 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: '0 0 30px #4ade80, inset 0 0 20px rgba(74, 222, 128, 0.15)'}}>
         {/* Enhanced neon green glowing border effect */}
-        <div className="absolute inset-0 rounded-full animate-pulse" style={{border: `${Math.max(0.5, scale)}px solid rgba(134, 239, 172, 0.6)`, boxShadow: `0 0 ${scale * 25}px #4ade80, 0 0 ${scale * 50}px rgba(74, 222, 128, 0.3)`}}></div>
+        <div className="absolute inset-0 rounded-full border-0/60 animate-pulse" style={{boxShadow: '0 0 25px #4ade80, 0 0 50px rgba(74, 222, 128, 0.3)'}}></div>
         
         {/* Ambient glow overlay */}
         <div className="absolute inset-0 rounded-full bg-gradient-to-t from-green-500/5 via-transparent to-green-400/10 animate-pulse" style={{animationDuration: '3s'}}></div>
 
         
         {/* Spherical Content Area */}
-        <div className="absolute flex items-center justify-center" style={{inset: `${scale * 16}px`}}>
+        <div className="absolute inset-4 flex items-center justify-center">
           {loading ? (
             <div className="text-white font-medium animate-pulse text-center flex flex-col items-center">
-              <div className="rounded-full overflow-hidden border-green-400 shadow-lg shadow-green-500/40 bg-transparent" style={{width: `${scale * 40}px`, height: `${scale * 40}px`, border: `${Math.max(1, scale * 2)}px solid #4ade80`, marginBottom: `${scale * 8}px`}}>
+              <div className="w-10 h-10 rounded-full overflow-hidden border-0 shadow-none bg-transparent shadow-green-500/40 mb-1 bg-transparent">
                 <img 
                   src={icpLogo} 
                   alt="ICP Logo" 
                   className="w-full h-full object-cover opacity-50"
                 />
               </div>
-              <div className="flex items-center justify-center" style={{gap: `${scale * 4}px`, marginBottom: `${scale * 4}px`}}>
-                <div className="bg-green-400 rounded-full animate-bounce" style={{width: `${scale * 8}px`, height: `${scale * 8}px`}}></div>
-                <div className="bg-green-400 rounded-full animate-bounce" style={{width: `${scale * 8}px`, height: `${scale * 8}px`, animationDelay: '0.1s'}}></div>
-                <div className="bg-green-400 rounded-full animate-bounce" style={{width: `${scale * 8}px`, height: `${scale * 8}px`, animationDelay: '0.2s'}}></div>
+              <div className="flex items-center gap-1 justify-center mb-1">
+                <div className="w-1 h-1 bg-green-400 rounded-full animate-bounce"></div>
+                <div className="w-1 h-1 bg-green-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                <div className="w-1 h-1 bg-green-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
               </div>
-              <div className="font-semibold text-green-400" style={{fontSize: `${scale * 12}px`}}>Loading...</div>
             </div>
           ) : (
             <div className="w-full h-full flex items-center justify-center text-center relative">
               {!isExpanded ? (
                 // Collapsed: Just icon
                 <div className="flex flex-col items-center justify-center">
-                  <div className="w-10 h-10">
+                  <div className="w-20 h-20 rounded-full overflow-hidden border-0 shadow-none bg-transparent">
                     <img 
                       src={icpLogo} 
                       alt="ICP Logo" 
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover pointer-events-none"
                     />
                   </div>
                 </div>
               ) : (
                 // Expanded: Smaller text and icons to fit
-                <div className="w-full h-full relative flex flex-col items-center p-3">
+                <div className="w-full h-full relative flex flex-col justify-center items-center px-4 pt-6 pb-4">
                   {/* Top section - Icon and title */}
                   <div className="absolute top-1 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
                     <div className="w-6 h-6 rounded-full overflow-hidden border-0 shadow-none bg-transparent shadow-green-500/40 bg-transparent">
@@ -237,12 +236,12 @@ const FloatingICPBubble = ({ isOpen, onClose, title = 'ICP Status', content = ''
                         className="w-full h-full object-cover"
                       />
                     </div>
-                    <div className="text-[8px] font-bold text-green-300">{title}</div>
+                    <div className="text-xs font-bold text-green-300">{title}</div>
                   </div>
                   
                   {/* Content */}
-                  <div className="flex-1 mt-16 px-2">
-                    <div className="text-center space-y-1">
+                  <div className="flex-1 pt-12 px-2 overflow-y-auto flex items-center justify-center">
+                    <div className="text-center space-y-2 leading-relaxed">
                       {(() => {
                         if (typeof content !== 'string') return null;
                         
@@ -263,7 +262,7 @@ const FloatingICPBubble = ({ isOpen, onClose, title = 'ICP Status', content = ''
                               ) : (
                                 <Loader className="w-3 h-3 text-yellow-400 animate-spin" />
                               )}
-                              <span className={`font-bold text-[8px] ${isConnected ? 'text-green-400' : isError ? 'text-red-400' : 'text-yellow-400'}`}>
+                              <span className={`font-bold text-xs ${isConnected ? 'text-green-400' : isError ? 'text-red-400' : 'text-yellow-400'}`}>
                                 {isConnected ? 'Connected' : isError ? 'Error' : 'Connecting'}
                               </span>
                             </div>
@@ -275,7 +274,7 @@ const FloatingICPBubble = ({ isOpen, onClose, title = 'ICP Status', content = ''
                               ) : (
                                 <WifiOff className="w-2 h-2 text-orange-400" />
                               )}
-                              <span className={`text-[7px] ${backendActive ? 'text-green-300' : 'text-orange-300'}`}>
+                              <span className={`text-xs ${backendActive ? 'text-green-300' : 'text-orange-300'}`}>
                                 Backend: {backendActive ? 'Active' : 'Offline'}
                               </span>
                             </div>
@@ -283,7 +282,7 @@ const FloatingICPBubble = ({ isOpen, onClose, title = 'ICP Status', content = ''
                             {/* Auth */}
                             <div className="flex items-center justify-center gap-1">
                               <Shield className={`w-2 h-2 ${isAuthenticated ? 'text-green-400' : 'text-blue-400'}`} />
-                              <span className={`text-[7px] ${isAuthenticated ? 'text-green-300' : 'text-blue-300'}`}>
+                              <span className={`text-xs ${isAuthenticated ? 'text-green-300' : 'text-blue-300'}`}>
                                 Auth: {isAuthenticated ? 'Yes' : 'No'}
                               </span>
                             </div>
@@ -292,7 +291,7 @@ const FloatingICPBubble = ({ isOpen, onClose, title = 'ICP Status', content = ''
                             {hasPrincipal && (
                               <div className="flex items-center justify-center gap-1">
                                 <User className="w-2 h-2 text-blue-400" />
-                                <span className="text-[7px] text-blue-300">
+                                <span className="text-xs text-blue-300">
                                   Principal: Yes
                                 </span>
                               </div>

@@ -1846,52 +1846,53 @@ export default function Home() {
         try {
           console.log(`🐦 Twitter search query: "${searchQuery}"`);
           
-          // Call Twitter API
-          const data = await twitterService.searchTweets(searchQuery, 'Latest');
-          
-          // Format for bubble - compact view, NO EMOJIS, sorted by engagement
-          let twitterText = `Twitter/X: ${searchQuery}\n\n`;
-          
-          if (data.success && data.tweets && data.tweets.length > 0) {
-            // Sort tweets by engagement (likes + retweets) descending
-            const sortedTweets = data.tweets.sort((a, b) => {
-              const engagementA = (a.favorite_count || 0) + (a.retweet_count || 0);
-              const engagementB = (b.favorite_count || 0) + (b.retweet_count || 0);
-              return engagementB - engagementA;
-            });
-            
-            // Show top 3 tweets in compact format
-            sortedTweets.slice(0, 3).forEach((tweet, index) => {
-              const username = tweet.user?.username || 'user';
-              const text = tweet.text || '';
-              // Truncate long tweets
-              const shortText = text.length > 80 ? text.substring(0, 77) + '...' : text;
-              
-              twitterText += `${index + 1}. @${username}\n`;
-              twitterText += `${shortText}\n`;
-              twitterText += `${tweet.favorite_count || 0} likes | ${tweet.retweet_count || 0} RT\n\n`;
-            });
-            
-            if (data.tweets.length > 3) {
-              twitterText += `--- Click to see ${data.tweets.length - 3} more tweets ---`;
+          // Robust search: try multiple query variants and search types
+          const rawToken = userIntent.specificToken || '';
+          const tokenUpper = rawToken ? rawToken.toUpperCase() : '';
+          const candidates = Array.from(new Set([
+            searchQuery,
+            rawToken && `$${tokenUpper}`,
+            rawToken && `#${rawToken}`,
+            rawToken && `${rawToken} crypto -telegram -airdrop -giveaway`,
+            rawToken && `${rawToken} price -telegram -airdrop -giveaway`,
+          ].filter(Boolean)));
+          const searchTypes = ['Latest', 'Top'];
+
+          let bestResult = null;
+          for (const q of candidates) {
+            for (const st of searchTypes) {
+              try {
+                const d = await twitterService.searchTweets(q, st);
+                if (d && Array.isArray(d.tweets) && d.tweets.length > 0) {
+                  bestResult = { data: d, query: q, type: st };
+                  break;
+                }
+              } catch (e) {}
             }
-          } else {
-            twitterText += 'No tweets found. Try a different search term.';
+            if (bestResult) break;
           }
-          
-          // Update the specific bubble with Twitter results
-          setTwitterBubbles(prev => prev.map(bubble => 
-            bubble.id === newBubble.id 
-              ? { ...bubble, content: twitterText, loading: false }
-              : bubble
-          ))
+
+          if (!bestResult) {
+            const fallbackText = `Twitter/X: ${searchQuery}\n\nNo tweets found. Try searching $${tokenUpper || 'BTC'}, #${rawToken || 'bitcoin'}, or different keywords.`;
+            setTwitterBubbles(prev => prev.map(bubble => 
+              bubble.id === newBubble.id 
+                ? { ...bubble, content: fallbackText, loading: false }
+                : bubble
+            ))
+          } else {
+            setTwitterBubbles(prev => prev.map(bubble => 
+              bubble.id === newBubble.id 
+                ? { ...bubble, title: `Twitter/X • ${bestResult.query}`, content: bestResult.data.tweets, loading: false }
+                : bubble
+            ))
+          }
           
           // 🧠 Update AI context with Twitter data (ALL tweets for AI)
           const twitterContext = {
             twitter_data: {
-              search_query: searchQuery,
-              tweets: data.tweets || [], // ALL tweets for AI
-              total_tweets: data.tweets?.length || 0,
+              search_query: (bestResult && bestResult.query) || searchQuery,
+              tweets: (bestResult && bestResult.data && bestResult.data.tweets) || [],
+              total_tweets: (bestResult && bestResult.data && bestResult.data.tweets && bestResult.data.tweets.length) || 0,
               timestamp: new Date().toISOString(),
               source: 'RapidAPI Twitter'
             }
@@ -3465,22 +3466,54 @@ export default function Home() {
             });
           }
           
-          // 2. Twitter/X - Social mentions for ticker
+          // 2. Twitter/X - Social mentions for ticker (always show tweets if any)
           if (isPluginEnabled('twitter')) {
             log('🐦 Twitter: Searching for $', coin.symbol);
             const fetchTwitterData = async () => {
               try {
-                const ticker = `$${coin.symbol.toUpperCase()}`;
-                const data = await twitterService.searchTicker(ticker);
-                const bubbleContent = data ? `Found ${data.mentions || 0} mentions of ${ticker}` : 'No social data available';
-                
-                setTwitterBubbles(prev => [...prev, {
-                  id: `twitter-${Date.now()}`,
-                  isOpen: true,
-                  content: bubbleContent,
-                  loading: false,
-                  title: `${ticker} Social Data`
-                }]);
+                const rawToken = coin.symbol || '';
+                const tokenUpper = rawToken.toUpperCase();
+                const candidates = Array.from(new Set([
+                  `$${tokenUpper}`,
+                  `#${rawToken}`,
+                  `${rawToken} crypto -telegram -airdrop -giveaway`,
+                  `${rawToken} price -telegram -airdrop -giveaway`,
+                ]));
+                const searchTypes = ['Latest', 'Top'];
+
+                let bestResult = null;
+                for (const q of candidates) {
+                  for (const st of searchTypes) {
+                    try {
+                      const d = await twitterService.searchTweets(q, st);
+                      if (d && Array.isArray(d.tweets) && d.tweets.length > 0) {
+                        bestResult = { data: d, query: q, type: st };
+                        break;
+                      }
+                    } catch (e) {}
+                  }
+                  if (bestResult) break;
+                }
+
+                const bubbleId = `twitter-${Date.now()}`;
+                if (!bestResult) {
+                  const fallbackText = `Twitter/X: $${tokenUpper}\n\nNo tweets found. Try searching $${tokenUpper}, #${rawToken}, or different keywords.`;
+                  setTwitterBubbles(prev => [...prev, {
+                    id: bubbleId,
+                    isOpen: true,
+                    content: fallbackText,
+                    loading: false,
+                    title: `Twitter/X • $${tokenUpper}`
+                  }]);
+                } else {
+                  setTwitterBubbles(prev => [...prev, {
+                    id: bubbleId,
+                    isOpen: true,
+                    content: bestResult.data.tweets,
+                    loading: false,
+                    title: `Twitter/X • ${bestResult.query}`
+                  }]);
+                }
               } catch (err) {
                 logError('Twitter fetch failed:', err);
               }

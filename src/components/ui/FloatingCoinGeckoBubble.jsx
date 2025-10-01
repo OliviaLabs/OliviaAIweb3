@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect, useRef } from 'react';
+import useFloatToTop from '../../hooks/useFloatToTop';
 import coingeckoIcon from '../../assets/coingecko-icon.png';
 
 const FloatingCoinGeckoBubble = ({ isOpen, onClose, title = 'CoinGecko', content = '', loading = false, addParticlesToSwarm }) => {
@@ -19,6 +20,8 @@ const FloatingCoinGeckoBubble = ({ isOpen, onClose, title = 'CoinGecko', content
 
   // Remove auto-floating
   useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
+
+  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs: 80, bubbleWidth: 140, gap: 4, margin: 8 });
 
   // Create pop particles and add them to main swarm, always close
   const createPopEffect = () => {
@@ -152,7 +155,8 @@ const FloatingCoinGeckoBubble = ({ isOpen, onClose, title = 'CoinGecko', content
         width: `${bubbleWidth}px`,
         height: `${bubbleHeight}px`,
         zIndex: 2147483646, // Slightly lower than Lurky
-        willChange: isDragging ? 'transform' : 'auto'
+        willChange: isDragging ? 'transform' : 'auto',
+        transition: isDragging ? 'none' : 'top 4800ms linear'
       }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
@@ -200,8 +204,8 @@ const FloatingCoinGeckoBubble = ({ isOpen, onClose, title = 'CoinGecko', content
                 </div>
               ) : (
                 // Expanded - NO ICON, just text
-                <div className="w-full h-full flex flex-col justify-center p-4">
-                  <div className="flex-1 overflow-y-auto">
+                <div className="w-full h-full flex flex-col justify-center items-center px-4 pt-6 pb-4">
+                  <div className="flex-1 overflow-y-auto flex items-center justify-center">
                     <div className="text-center space-y-2">
                       {typeof content === 'string' ? (
                         <div className="text-sm text-white leading-relaxed">

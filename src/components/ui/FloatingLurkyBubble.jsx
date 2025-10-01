@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import ReactMarkdown from 'react-markdown';
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect, useRef } from 'react';
+import useFloatToTop from '../../hooks/useFloatToTop';
 import lurkyCharacter from '../../assets/lurky-character.png';
 
 const FloatingLurkyBubble = ({ isOpen, onClose, title = 'Lurky', content = '', loading = false, addParticlesToSwarm }) => {
@@ -18,8 +19,9 @@ const FloatingLurkyBubble = ({ isOpen, onClose, title = 'Lurky', content = '', l
   const [lastClickTime, setLastClickTime] = useState(0);
   const containerRef = useRef(null);
 
-  // Remove auto-floating
+  // Remove auto-floating (replaced by universal float hook)
   useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
+  useFloatToTop({ isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, speed: 0.6 });
 
   // Create pop particles and add them to main swarm
   const createPopEffect = () => {
@@ -132,9 +134,9 @@ const FloatingLurkyBubble = ({ isOpen, onClose, title = 'Lurky', content = '', l
 
   if (!isOpen) return null;
   
-  // Dynamic bubble size based on content length and expanded state
-  let bubbleSize = 140;
-  if (isExpanded) bubbleSize = 160;
+  // Bubble ALWAYS stays circular - never bigger than screen (match ICP/CoinGecko)
+  const maxSize = Math.min(300, window.innerWidth - 40, window.innerHeight - 100);
+  const bubbleSize = isExpanded ? maxSize : 140;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
   
@@ -148,7 +150,8 @@ const FloatingLurkyBubble = ({ isOpen, onClose, title = 'Lurky', content = '', l
         width: `${bubbleWidth}px`,
         height: `${bubbleHeight}px`,
         zIndex: 2147483640, // Lowered to give priority to dropdowns
-        willChange: isDragging ? 'transform' : 'auto'
+        willChange: isDragging ? 'transform' : 'auto',
+        transition: isDragging ? 'none' : 'top 2400ms linear'
       }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
@@ -206,8 +209,8 @@ const FloatingLurkyBubble = ({ isOpen, onClose, title = 'Lurky', content = '', l
                   </div>
                 </div>
               ) : (
-                // Expanded: Spherical content organization
-                <div className="w-full h-full relative flex flex-col items-center p-6">
+                // Expanded: Centered content with consistent padding
+                <div className="w-full h-full relative flex flex-col justify-center items-center px-4 pt-6 pb-4">
                   {/* Top section - Icon and title in circular arc */}
                   <div className="absolute top-2 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
                     <div className="w-12 h-12 rounded-full overflow-hidden border-0 shadow-none bg-transparent shadow-green-500/40 bg-transparent">
@@ -221,8 +224,8 @@ const FloatingLurkyBubble = ({ isOpen, onClose, title = 'Lurky', content = '', l
                     <div className="text-xs text-white/70 font-medium">Agent Response</div>
                   </div>
                   
-                  {/* Central content area - no scrollbar, proper text layout */}
-                  <div className="flex-1 px-6 py-4 mt-24">
+                  {/* Central content area - scrollable and centered */}
+                  <div className="flex-1 px-6 py-4 mt-24 overflow-y-auto flex items-center justify-center">
                     <div className="text-center space-y-3">
                       {typeof content === 'string' ? (
                         <div className="text-sm text-white/90 leading-relaxed space-y-2">
