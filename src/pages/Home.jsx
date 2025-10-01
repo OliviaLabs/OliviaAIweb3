@@ -791,14 +791,14 @@ export default function Home() {
           }]);
           (async () => {
             try {
+              // Single API call - use coin ID if available, otherwise just search
               let data = null;
-              // Prefer exact CoinStats id from validation when available
               if (coinData?.id) {
                 data = await coinstatsService.getCoin(coinData.id);
               } else {
+                // Just search, don't make a second getCoin call
                 const search = await coinstatsService.searchCoins(coinData?.symbol || searchTerm);
-                const first = Array.isArray(search) ? search[0] : null;
-                data = first?.id ? await coinstatsService.getCoin(first.id) : search;
+                data = Array.isArray(search) ? search[0] : search;
               }
               setCoinstatsBubbles(prev => prev.map(b => b.id === bubbleId
                 ? { ...b, content: data, loading: false }
@@ -1410,17 +1410,9 @@ export default function Home() {
           }]);
           (async () => {
             try {
-              let data = null;
-              try {
-                if (coinData?.id) {
-                  data = await coinstatsService.getCoin(coinData.id);
-                }
-              } catch (_) {}
-              if (!data) {
-                const search = await coinstatsService.searchCoins(coinData?.symbol || searchTerm);
-                const first = Array.isArray(search) ? search[0] : null;
-                data = first?.id ? await coinstatsService.getCoin(first.id) : search;
-              }
+              // Use the search data we already have from validation (line 1390)
+              // Don't make extra API calls
+              let data = coinData;
               setCoinstatsBubbles(prev => prev.map(b => b.id === bubbleId ? { ...b, content: data, loading: false } : b));
               try {
                 const ctx = {
@@ -3819,7 +3811,7 @@ export default function Home() {
             };
             fetchTwitterData();
           }
-          // 4. CoinStats - Additional market data
+          // 4. CoinStats - Get data for the ONE coin mentioned in the AI greeting
           if (isPluginEnabled('coinstats')) {
             log('📊 CoinStats: Fetching for', coin.symbol);
             const fetchCoinStatsData = async () => {
@@ -3847,36 +3839,27 @@ export default function Home() {
                     : b
                   ));
                 } else {
-                  // No data from CoinStats - use CoinGecko coin data as fallback
-                  console.log('📊[CoinStats] No data, using CoinGecko coin data for metrics');
-                  setCoinstatsBubbles(prev => prev.filter(b => b.id !== bubbleId));
-                  
-                  // Map CoinGecko data to CoinStats format for metric bubbles
-                  data = {
-                    marketCap: coin.market_cap,
-                    volume: coin.total_volume,
-                    priceChange1d: coin.price_change_percentage_24h,
-                    priceChange7d: coin.price_change_percentage_7d_in_currency,
-                    price: coin.current_price,
-                    circulatingSupply: coin.circulating_supply,
-                    totalSupply: coin.total_supply,
-                    name: coin.name,
-                    symbol: coin.symbol
-                  };
-                  console.log('📊[CoinStats] Using CoinGecko fallback data:', data);
+                  // NO FALLBACK - if CoinStats fails, we need to know
+                  console.error('📊[CoinStats] FAILED - No data returned');
+                  setCoinstatsBubbles(prev => prev.map(b => b.id === bubbleId
+                    ? { ...b, content: '❌ CoinStats failed - no data', loading: false }
+                    : b
+                  ));
+                  // Don't create metric bubbles without data
+                  return;
                 }
                 
-                // 🧠 Update AI context with data (CoinStats or CoinGecko fallback)
+                // 🧠 Update AI context with CoinStats data ONLY
                 if (data && Object.keys(data).length > 0 && !data.error) {
                   try {
                     const ctx = {
                       token: coin.symbol || coin.name,
-                      price: data?.price ?? data?.priceUSD ?? data?.price_usd ?? data?.market_data?.current_price?.usd,
-                      change24h: data?.change24h ?? data?.priceChange1d ?? data?.market_data?.price_change_percentage_24h,
-                      marketCap: data?.marketCap ?? data?.market_cap ?? data?.market_data?.market_cap?.usd,
-                      volume: data?.volume24h ?? data?.volume ?? data?.market_data?.total_volume?.usd,
+                      price: data?.price ?? data?.priceUSD ?? data?.price_usd,
+                      change24h: data?.change24h ?? data?.priceChange1d,
+                      marketCap: data?.marketCap ?? data?.market_cap,
+                      volume: data?.volume24h ?? data?.volume,
                       timestamp: new Date().toISOString(),
-                      source: data.marketCap ? 'CoinStats API' : 'CoinGecko API (fallback)'
+                      source: 'CoinStats API'
                     };
                     if (window.contextAwarenessData) {
                       window.contextAwarenessData.coinstats_data = ctx;
@@ -3904,13 +3887,14 @@ export default function Home() {
                   const safeNumber = (v) => typeof v === 'number' && isFinite(v) ? v : undefined;
                   const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 
-                  const marketCap = safeNumber(data?.marketCap ?? data?.market_cap ?? data?.market_data?.market_cap?.usd);
-                  const volume24h = safeNumber(data?.volume24h ?? data?.volume ?? data?.market_data?.total_volume?.usd);
-                  const change1h = safeNumber(data?.priceChange1h ?? data?.price_change_1h ?? data?.market_data?.price_change_percentage_1h_in_currency?.usd);
-                  const change24h = safeNumber(data?.change24h ?? data?.priceChange1d ?? data?.market_data?.price_change_percentage_24h);
-                  const change7d = safeNumber(data?.priceChange7d ?? data?.price_change_7d ?? data?.market_data?.price_change_percentage_7d);
-                  const availableSupply = safeNumber(data?.availableSupply ?? data?.circulatingSupply ?? data?.market_data?.circulating_supply);
-                  const totalSupply = safeNumber(data?.totalSupply ?? data?.market_data?.total_supply);
+                  // Extract CoinStats data ONLY
+                  const marketCap = safeNumber(data?.marketCap ?? data?.market_cap);
+                  const volume24h = safeNumber(data?.volume24h ?? data?.volume);
+                  const change1h = safeNumber(data?.priceChange1h ?? data?.price_change_1h);
+                  const change24h = safeNumber(data?.change24h ?? data?.priceChange1d);
+                  const change7d = safeNumber(data?.priceChange7d ?? data?.price_change_7d);
+                  const availableSupply = safeNumber(data?.availableSupply ?? data?.circulatingSupply);
+                  const totalSupply = safeNumber(data?.totalSupply);
                   console.log(`🎯[Metric Bubbles] Extracted values: marketCap=${marketCap}, volume24h=${volume24h}, change1h=${change1h}, change24h=${change24h}, change7d=${change7d}, availableSupply=${availableSupply}, totalSupply=${totalSupply}`);
 
                   // Liquidity score
