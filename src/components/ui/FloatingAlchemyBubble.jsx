@@ -386,22 +386,14 @@ const FloatingAlchemyBubble = ({
           ) : (
             <div className="w-full h-full flex items-center justify-center text-center relative">
               {!isExpanded ? (
-                // Collapsed: Icon and title
+                // Collapsed: Unified 80px circular icon
                 <div className="flex flex-col items-center justify-center">
-                  <div className="relative mb-3">
-                    <div className="w-30 h-30 rounded-full border-0 shadow-2xl shadow-blue-500/60 bg-transparent">
-                      <img 
-                        src={alchemyLogo} 
-                        alt="Alchemy" 
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      />
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-blue-400/10 to-blue-300/20"></div>
-                    </div>
-                    <div className="absolute inset-0 rounded-full border-0/40 animate-ping" style={{animationDuration: '3s'}}></div>
-                  </div>
-                  
-                  <div className="text-center">
-                    <div className="text-xs font-bold text-blue-300 drop-shadow-xl">Portfolio</div>
+                  <div className="w-20 h-20 rounded-full overflow-hidden border-0 shadow-none bg-transparent">
+                    <img 
+                      src={alchemyLogo} 
+                      alt="Alchemy" 
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 </div>
               ) : (

@@ -352,21 +352,14 @@ const FloatingOKXBubble = ({ isOpen, onClose, title = 'OKX DEX', content = '', l
           ) : (
             <div className="text-white w-full h-full flex flex-col items-center justify-center text-center">
               {!isExpanded ? (
-                // Collapsed: Central icon with title below
+                // Collapsed: Unified 80px circular icon
                 <div className="flex flex-col items-center justify-center">
-                  <div className="relative" style={{marginBottom: `${scale * 12}px`}}>
-                    <div className="rounded-full overflow-hidden border-blue-400 shadow-2xl shadow-blue-500/60 bg-gradient-to-br from-blue-400/30 to-blue-600/40 hover:border-blue-300 transition-all duration-300 hover:shadow-blue-400/80 hover:scale-105 group" style={{width: `${scale * 40}px`, height: `${scale * 40}px`, border: `${Math.max(2, scale * 4)}px solid #3b82f6`}}>
-                      <img 
-                        src={okxLogo} 
-                        alt="OKX Logo" 
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      />
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-blue-400/10 to-blue-300/20"></div>
-                    </div>
-                    <div className="absolute inset-0 rounded-full border-blue-300/40 animate-ping" style={{border: `${Math.max(1, scale * 2)}px solid rgba(147, 197, 253, 0.4)`, animationDuration: '3s'}}></div>
-                  </div>
-                  <div className="text-center">
-                    <div className="font-bold text-blue-300 drop-shadow-xl" style={{fontSize: `${scale * 12}px`}}>{title}</div>
+                  <div className="w-20 h-20 rounded-full overflow-hidden border-0 shadow-none bg-transparent">
+                    <img 
+                      src={okxLogo} 
+                      alt="OKX Logo" 
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 </div>
             ) : (

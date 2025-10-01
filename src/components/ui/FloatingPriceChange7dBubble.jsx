@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import useFloatToTop from '../../hooks/useFloatToTop';
 
 const FloatingPriceChange7dBubble = ({ isOpen, onClose, title = '7d Change', change = 0, tokenName = '', addParticlesToSwarm }) => {
   const bubbleId = useState(() => `price7d-${Date.now()}-${Math.random()}`)[0];
@@ -14,10 +15,23 @@ const FloatingPriceChange7dBubble = ({ isOpen, onClose, title = '7d Change', cha
   const [isExpanded, setIsExpanded] = useState(false);
   const [lastClickTime, setLastClickTime] = useState(0);
 
-  useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
+  useFloatToTop({
+    id: bubbleId,
+    isOpen,
+    isDragging,
+    isExpanded,
+    position,
+    setPosition,
+    topBarrier: 20,
+    speed: 0.2,
+    delayMs: 0,
+    bubbleWidth: 140,
+    gap: 4,
+    margin: 8
+  });
 
   const createPopEffect = () => {
-    const bubbleSize = isExpanded ? 160 : 140;
+    const bubbleSize = isExpanded ? 280 : 140;
     const bubbleCenter = { x: position.x + bubbleSize / 2, y: position.y + bubbleSize / 2 };
     if (addParticlesToSwarm) {
       const newParticles = Array.from({ length: 8 }, (_, i) => {
@@ -76,7 +90,7 @@ const FloatingPriceChange7dBubble = ({ isOpen, onClose, title = '7d Change', cha
 
   if (!isOpen) return null;
   
-  const bubbleSize = isExpanded ? 160 : 140;
+  const bubbleSize = isExpanded ? 280 : 140;
   const isPositive = change >= 0;
   const scoreColor = isPositive ? '#10b981' : '#ef4444';
   const Icon = isPositive ? TrendingUp : TrendingDown;
@@ -112,19 +126,19 @@ const FloatingPriceChange7dBubble = ({ isOpen, onClose, title = '7d Change', cha
               
             </div>
           ) : (
-            <div className="w-full h-full flex flex-col p-2">
-              <div className="text-center mb-1">
-                <div className="w-10 h-10 rounded-full border-0 shadow-none bg-transparent mx-auto mb-1 flex items-center justify-center" style={{backgroundColor: `${scoreColor}20`}}>
-                  <Icon size={24} style={{color: scoreColor}} />
+            <div className="w-full h-full flex flex-col p-4">
+              <div className="text-center mb-2">
+                <div className="w-16 h-16 rounded-full border-0 shadow-none bg-transparent mx-auto mb-2 flex items-center justify-center" style={{backgroundColor: `${scoreColor}20`}}>
+                  <Icon size={36} style={{color: scoreColor}} />
                 </div>
-                <div className="text-[8px] font-bold" style={{color: scoreColor}}>{tokenName}</div>
+                <div className="text-[12px] font-bold" style={{color: scoreColor}}>{tokenName}</div>
               </div>
-              <div className="flex-1 px-2 overflow-y-auto">
-                <div className="text-center space-y-1">
-                  <div className="text-[12px] font-bold" style={{color: scoreColor}}>
+              <div className="flex-1 px-4 overflow-y-auto flex items-center justify-center">
+                <div className="text-center space-y-3">
+                  <div className="text-[28px] font-bold" style={{color: scoreColor}}>
                     {isPositive ? '+' : ''}{change.toFixed(2)}%
                   </div>
-                  <p className="text-[7px] text-white/90">Last 7 days</p>
+                  <p className="text-[16px] text-white/90 font-semibold">Last 7 days</p>
                 </div>
               </div>
             </div>

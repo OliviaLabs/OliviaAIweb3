@@ -359,11 +359,10 @@ const FloatingTONCenterBubble = ({ isOpen, onClose, title = 'TON Center', conten
           ) : (
             <div className="text-white w-full h-full flex flex-col items-center justify-center text-center">
               {!isExpanded ? (
+                // Collapsed: Unified 80px circular icon
                 <div className="flex flex-col items-center justify-center">
-                  <div className="relative mb-2">
-                    <div className="w-5 h-5 rounded-full overflow-hidden border-0 shadow-none bg-transparent bg-transparent">
-                      <img src={tonLogo} alt="TON Logo" className="w-full h-full object-cover" draggable={false} />
-                    </div>
+                  <div className="w-20 h-20 rounded-full overflow-hidden border-0 shadow-none bg-transparent">
+                    <img src={tonLogo} alt="TON Logo" className="w-full h-full object-cover" draggable={false} />
                   </div>
                 </div>
             ) : (

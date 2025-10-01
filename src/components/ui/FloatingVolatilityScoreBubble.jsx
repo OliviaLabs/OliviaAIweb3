@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect } from 'react';
 import { Activity } from 'lucide-react';
+import useFloatToTop from '../../hooks/useFloatToTop';
 
 const FloatingVolatilityScoreBubble = ({ isOpen, onClose, title = 'Volatility Score', score = 0, tokenName = '', addParticlesToSwarm }) => {
   const bubbleId = useState(() => `volatility-${Date.now()}-${Math.random()}`)[0];
@@ -15,7 +16,20 @@ const FloatingVolatilityScoreBubble = ({ isOpen, onClose, title = 'Volatility Sc
   const [isExpanded, setIsExpanded] = useState(false);
   const [lastClickTime, setLastClickTime] = useState(0);
 
-  useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
+  useFloatToTop({
+    id: bubbleId,
+    isOpen,
+    isDragging,
+    isExpanded,
+    position,
+    setPosition,
+    topBarrier: 20,
+    speed: 0.2,
+    delayMs: 0,
+    bubbleWidth: 140,
+    gap: 4,
+    margin: 8
+  });
 
   const createPopEffect = () => {
     let bubbleSize = 140;
@@ -98,7 +112,7 @@ const FloatingVolatilityScoreBubble = ({ isOpen, onClose, title = 'Volatility Sc
   if (!isOpen) return null;
   
   let bubbleSize = 140;
-  if (isExpanded) bubbleSize = 160;
+  if (isExpanded) bubbleSize = 280;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
   
@@ -145,20 +159,19 @@ const FloatingVolatilityScoreBubble = ({ isOpen, onClose, title = 'Volatility Sc
                 </div>
               </div>
             ) : (
-              <div className="w-full h-full flex flex-col p-2">
-                <div className="text-center mb-1">
-                  <div className="w-10 h-10 rounded-full overflow-hidden border-0 shadow-none bg-transparent mx-auto mb-1 flex items-center justify-center" style={{backgroundColor: `${scoreColor}20`}}>
-                    <Activity size={24} style={{color: scoreColor}} />
+              <div className="w-full h-full flex flex-col p-4">
+                <div className="text-center mb-2">
+                  <div className="w-16 h-16 rounded-full overflow-hidden border-0 shadow-none bg-transparent mx-auto mb-2 flex items-center justify-center" style={{backgroundColor: `${scoreColor}20`}}>
+                    <Activity size={36} style={{color: scoreColor}} />
                   </div>
-                  <div className="text-[8px] font-bold" style={{color: scoreColor}}>{tokenName}</div>
+                  <div className="text-[12px] font-bold" style={{color: scoreColor}}>{tokenName}</div>
                 </div>
                 
-                <div className="flex-1 px-2 overflow-y-auto">
-                  <div className="text-center space-y-1">
-                    <div className="text-[7px] text-white/90 leading-tight space-y-1">
-                      <div className="text-[12px] font-bold mb-1" style={{color: scoreColor}}>{score.toFixed(1)}/100</div>
-                      <p className="text-center">Volatility indicates how stable the token's price is over time.</p>
-                      <p className="text-center mt-1">
+                <div className="flex-1 px-4 overflow-y-auto flex items-center justify-center">
+                  <div className="text-center space-y-3">
+                    <div className="text-white/90 leading-tight space-y-3">
+                      <div className="text-[28px] font-bold mb-3" style={{color: scoreColor}}>{score.toFixed(1)}/100</div>
+                      <p className="text-center text-[16px] font-semibold" style={{color: scoreColor}}>
                         {score <= 30 && "Low volatility - Stable price"}
                         {score > 30 && score <= 60 && "Moderate volatility"}
                         {score > 60 && "High volatility - Price swings"}

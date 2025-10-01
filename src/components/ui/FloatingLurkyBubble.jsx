@@ -186,26 +186,14 @@ const FloatingLurkyBubble = ({ isOpen, onClose, title = 'Lurky', content = '', l
           ) : (
             <div className="w-full h-full flex items-center justify-center text-center relative">
               {!isExpanded ? (
-                // Collapsed: Central icon with title below in spherical layout
+                // Collapsed: Unified 80px circular icon
                 <div className="flex flex-col items-center justify-center">
-                  {/* Central Lurky Icon */}
-                  <div className="relative mb-3">
-                    <div className="w-10 h-10 rounded-full overflow-hidden border-0 shadow-2xl shadow-green-500/60 bg-transparent">
-                      <img 
-                        src={lurkyCharacter} 
-                        alt="Lurky Character" 
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      />
-                      {/* Inner circular glow */}
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent via-green-400/10 to-green-300/20"></div>
-                    </div>
-                    {/* Pulsing outer ring */}
-                    <div className="absolute inset-0 rounded-full border-0/40 animate-ping" style={{animationDuration: '3s'}}></div>
-                  </div>
-                  
-                  {/* Circular text layout */}
-                  <div className="text-center">
-                    <div className="text-xs font-bold text-green-300 drop-shadow-xl">{title}</div>
+                  <div className="w-20 h-20 rounded-full overflow-hidden border-0 shadow-none bg-transparent">
+                    <img 
+                      src={lurkyCharacter} 
+                      alt="Lurky Character" 
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 </div>
               ) : (

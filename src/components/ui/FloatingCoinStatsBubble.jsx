@@ -167,13 +167,13 @@ const FloatingCoinStatsBubble = ({ isOpen, onClose, title = 'CoinStats', content
           ) : (
             <div className="w-full h-full flex items-center justify-center text-center relative">
               {!isExpanded ? (
-                // Collapsed: Just icon
+                // Collapsed: Unified 80px circular icon
                 <div className="flex flex-col items-center justify-center">
-                  <div className="w-10 h-10">
+                  <div className="w-20 h-20 rounded-full overflow-hidden border-0 shadow-none bg-transparent">
                     <img 
                       src={coinstatsLogo} 
                       alt="CoinStats Logo" 
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover pointer-events-none"
                     />
                   </div>
                 </div>
@@ -193,8 +193,8 @@ const FloatingCoinStatsBubble = ({ isOpen, onClose, title = 'CoinStats', content
                     <div className="text-xs text-white/70 font-medium">Market Data</div>
                   </div>
                   
-                  {/* Central content area - scrollable with top padding under header */}
-                  <div className="flex-1 px-6 pb-4 pt-24 overflow-y-auto">
+                  {/* Central content area - no scrolling, with safe top padding under header */}
+                  <div className="flex-1 px-6 pb-4 pt-24 overflow-hidden">
                     <div className="text-center space-y-3">
                       {typeof content === 'string' ? (
                         <div className="text-sm text-white/90 leading-relaxed space-y-2">
@@ -210,10 +210,65 @@ const FloatingCoinStatsBubble = ({ isOpen, onClose, title = 'CoinStats', content
                           ))}
                         </div>
                       ) : (
-                        <div className="font-mono text-xs text-blue-300 bg-black/30 p-3 rounded border-0/30">
-                          <pre className="whitespace-pre-wrap text-left">
-                            {JSON.stringify(content, null, 2)}
-                          </pre>
+                        <div className="text-white/90">
+                          {(() => {
+                            const coin = content || {};
+                            const iconUrl = coin.icon || coin.image || coin.logo;
+                            const name = coin.name || coin.title || coin.coin || 'Unknown';
+                            const symbol = (coin.symbol || coin.ticker || '').toUpperCase();
+                            const price = coin.price ?? coin.priceUSD ?? coin.price_usd ?? coin.market_data?.current_price?.usd;
+                            const change24h = coin.change24h ?? coin.priceChange1d ?? coin.market_data?.price_change_percentage_24h;
+                            const marketCap = coin.marketCap ?? coin.market_cap ?? coin.market_data?.market_cap?.usd;
+                            const volume24h = coin.volume24h ?? coin.volume ?? coin.market_data?.total_volume?.usd;
+
+                            const fmtUsd = (v) => {
+                              if (v == null || isNaN(v)) return 'N/A';
+                              const n = Number(v);
+                              if (n < 1) return `$${n.toFixed(6)}`;
+                              if (n < 1000) return `$${n.toFixed(2)}`;
+                              if (n < 1e6) return `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+                              if (n < 1e9) return `$${(n/1e6).toFixed(2)}M`;
+                              return `$${(n/1e9).toFixed(2)}B`;
+                            };
+                            const fmtPct = (v) => {
+                              if (v == null || isNaN(v)) return 'N/A';
+                              const n = Number(v);
+                              const sign = n > 0 ? '+' : '';
+                              return `${sign}${n.toFixed(2)}%`;
+                            };
+
+                            return (
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-center gap-2">
+                                  {iconUrl ? (
+                                    <img src={iconUrl} alt={name} className="w-6 h-6 rounded-full object-cover" />
+                                  ) : null}
+                                  <div className="text-sm font-semibold text-blue-300 truncate">
+                                    {name}{symbol ? ` (${symbol})` : ''}
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div className="bg-white/5 rounded p-2 text-left">
+                                    <div className="text-white/60">Price</div>
+                                    <div className="font-semibold">{fmtUsd(price)}</div>
+                                  </div>
+                                  <div className="bg-white/5 rounded p-2 text-left">
+                                    <div className="text-white/60">24h</div>
+                                    <div className={`font-semibold ${Number(change24h) > 0 ? 'text-green-400' : 'text-red-400'}`}>{fmtPct(change24h)}</div>
+                                  </div>
+                                  <div className="bg-white/5 rounded p-2 text-left">
+                                    <div className="text-white/60">Market Cap</div>
+                                    <div className="font-semibold">{fmtUsd(marketCap)}</div>
+                                  </div>
+                                  <div className="bg-white/5 rounded p-2 text-left">
+                                    <div className="text-white/60">Volume 24h</div>
+                                    <div className="font-semibold">{fmtUsd(volume24h)}</div>
+                                  </div>
+                                </div>
+                                <div className="text-[10px] text-white/50 text-center">Powered by CoinStats</div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>

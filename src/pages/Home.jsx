@@ -30,7 +30,6 @@ import FloatingVolatilityScoreBubble from '../components/ui/FloatingVolatilitySc
 import FloatingMarketCapScoreBubble from '../components/ui/FloatingMarketCapScoreBubble.jsx';
 import FloatingRiskScoreBubble from '../components/ui/FloatingRiskScoreBubble.jsx';
 import FloatingSupplyBubble from '../components/ui/FloatingSupplyBubble.jsx';
-import FloatingBTCPriceBubble from '../components/ui/FloatingBTCPriceBubble.jsx';
 import FloatingPriceChange1hBubble from '../components/ui/FloatingPriceChange1hBubble.jsx';
 import FloatingPriceChange7dBubble from '../components/ui/FloatingPriceChange7dBubble.jsx';
 import InAppBrowser from '../components/ui/InAppBrowser.jsx';
@@ -200,9 +199,10 @@ export default function Home() {
   const [marketCapScoreBubbles, setMarketCapScoreBubbles] = useState([])
   const [riskScoreBubbles, setRiskScoreBubbles] = useState([])
   const [supplyBubbles, setSupplyBubbles] = useState([])
-  const [btcPriceBubbles, setBtcPriceBubbles] = useState([])
   const [priceChange1hBubbles, setPriceChange1hBubbles] = useState([])
   const [priceChange7dBubbles, setPriceChange7dBubbles] = useState([])
+
+  // Removed random metric bubble seeding: metric bubbles are created only for extracted tokens
 
   // Context awareness data for AI chat
   const [contextAwarenessData, setContextAwarenessData] = useState({
@@ -777,6 +777,180 @@ export default function Home() {
       const { searchTerm, coinData } = tokenResult;
       log(`🚀 Creating bubble for validated token: ${searchTerm} -> ${coinData.name}`);
       
+      // Always create CoinStats bubble when a token/ticker is detected
+      if (isPluginEnabled('coinstats')) {
+        const existingCoinstats = coinstatsBubbles.find(b => (b.title || '').toLowerCase().includes(searchTerm.toLowerCase()));
+        if (!existingCoinstats) {
+          const bubbleId = `coinstats-${Date.now()}-${Math.random()}`;
+          setCoinstatsBubbles(prev => [...prev, {
+            id: bubbleId,
+            isOpen: true,
+            title: `${searchTerm.toUpperCase()} Stats`,
+            content: `Loading CoinStats for ${searchTerm}...`,
+            loading: true
+          }]);
+          (async () => {
+            try {
+              let data = null;
+              // Prefer exact CoinStats id from validation when available
+              if (coinData?.id) {
+                data = await coinstatsService.getCoin(coinData.id);
+              } else {
+                const search = await coinstatsService.searchCoins(coinData?.symbol || searchTerm);
+                const first = Array.isArray(search) ? search[0] : null;
+                data = first?.id ? await coinstatsService.getCoin(first.id) : search;
+              }
+              setCoinstatsBubbles(prev => prev.map(b => b.id === bubbleId
+                ? { ...b, content: data, loading: false }
+                : b
+              ));
+              // Push to AI context
+              try {
+                const ctx = {
+                  token: coinData?.symbol || searchTerm,
+                  price: data?.price ?? data?.priceUSD ?? data?.price_usd ?? data?.market_data?.current_price?.usd,
+                  change24h: data?.change24h ?? data?.priceChange1d ?? data?.market_data?.price_change_percentage_24h,
+                  marketCap: data?.marketCap ?? data?.market_cap ?? data?.market_data?.market_cap?.usd,
+                  volume: data?.volume24h ?? data?.volume ?? data?.market_data?.total_volume?.usd,
+                  timestamp: new Date().toISOString(),
+                  source: 'CoinStats API'
+                };
+                if (window.contextAwarenessData) {
+                  window.contextAwarenessData.coinstats_data = ctx;
+                } else {
+                  window.contextAwarenessData = { coinstats_data: ctx };
+                }
+                setContextAwarenessData(prev => ({ ...prev, coinstats_data: ctx, last_updated: new Date().toISOString() }));
+              } catch (_) {}
+
+              // Create metric bubbles for this token using CoinStats data (avoid duplicates)
+              console.log(`🎯[Metric Bubbles] ENTRY POINT - About to create metrics, coinData:`, coinData, `searchTerm:`, searchTerm);
+              try {
+                const tokenNameUpper = (coinData?.symbol || searchTerm || '').toUpperCase();
+                const nameForTitle = data?.name || coinData?.name || tokenNameUpper;
+                console.log(`🎯[Metric Bubbles] Starting creation for ${tokenNameUpper}, data:`, data);
+
+                const safeNumber = (v) => typeof v === 'number' && isFinite(v) ? v : undefined;
+                const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+                const marketCap = safeNumber(data?.marketCap ?? data?.market_cap ?? data?.market_data?.market_cap?.usd);
+                const volume24h = safeNumber(data?.volume24h ?? data?.volume ?? data?.market_data?.total_volume?.usd);
+                const change1h = safeNumber(data?.priceChange1h ?? data?.price_change_1h ?? data?.market_data?.price_change_percentage_1h_in_currency?.usd);
+                const change24h = safeNumber(data?.change24h ?? data?.priceChange1d ?? data?.market_data?.price_change_percentage_24h);
+                const change7d = safeNumber(data?.priceChange7d ?? data?.price_change_7d ?? data?.market_data?.price_change_percentage_7d);
+                const availableSupply = safeNumber(data?.availableSupply ?? data?.circulatingSupply ?? data?.market_data?.circulating_supply);
+                const totalSupply = safeNumber(data?.totalSupply ?? data?.market_data?.total_supply);
+                console.log(`🎯[Metric Bubbles] Extracted values: marketCap=${marketCap}, volume24h=${volume24h}, change1h=${change1h}, change24h=${change24h}, change7d=${change7d}, availableSupply=${availableSupply}, totalSupply=${totalSupply}`);
+                // Removed BTC bubble: we no longer compute or create BTC price bubble
+
+                // Liquidity score: ratio of volume to market cap scaled
+                if (marketCap && volume24h) {
+                  const liqScore = clamp((volume24h / marketCap) * 100, 0, 100);
+                  console.log(`✅[Liquidity] Creating bubble for ${tokenNameUpper}, score=${liqScore.toFixed(2)}`);
+                  setLiquidityScoreBubbles(prev => [...prev, {
+                    id: `liq-${Date.now()}-${Math.random()}`,
+                    title: `${nameForTitle} Liquidity`,
+                    tokenName: tokenNameUpper,
+                    score: liqScore
+                  }]);
+                } else {
+                  console.log(`⚠️[Liquidity] Missing data for ${tokenNameUpper}: marketCap=${!!marketCap}, volume24h=${!!volume24h}`);
+                }
+
+                // Volatility score: based on 24h % change magnitude
+                if (change24h !== undefined) {
+                  const volScore = clamp(Math.abs(change24h) * 2, 0, 100);
+                  console.log(`✅[Volatility] Creating bubble for ${tokenNameUpper}, score=${volScore.toFixed(2)}`);
+                  setVolatilityScoreBubbles(prev => [...prev, {
+                    id: `vol-${Date.now()}-${Math.random()}`,
+                    title: `${nameForTitle} Volatility`,
+                    tokenName: tokenNameUpper,
+                    score: volScore
+                  }]);
+                }
+
+                // Market Cap score: larger cap → higher score
+                if (marketCap) {
+                  let mcapScore = 20;
+                  if (marketCap >= 10e9) mcapScore = 90;
+                  else if (marketCap >= 1e9) mcapScore = 70;
+                  else if (marketCap >= 1e8) mcapScore = 50;
+                  console.log(`✅[MarketCap] Creating bubble for ${tokenNameUpper}, score=${mcapScore}`);
+                  setMarketCapScoreBubbles(prev => [...prev, {
+                    id: `mcap-${Date.now()}-${Math.random()}`,
+                    title: `${nameForTitle} Market Cap`,
+                    tokenName: tokenNameUpper,
+                    score: mcapScore
+                  }]);
+                }
+
+                // Risk score: small cap + high volatility → higher risk
+                if (change24h !== undefined) {
+                  let mcapComponent = 20;
+                  if (marketCap >= 10e9) mcapComponent = 90;
+                  else if (marketCap >= 1e9) mcapComponent = 70;
+                  else if (marketCap >= 1e8) mcapComponent = 50;
+                  const volScore = clamp(Math.abs(change24h) * 2, 0, 100);
+                  const riskScore = clamp(100 - mcapComponent + volScore / 2, 0, 100);
+                  console.log(`✅[Risk] Creating bubble for ${tokenNameUpper}, score=${riskScore.toFixed(2)}`);
+                  setRiskScoreBubbles(prev => [...prev, {
+                    id: `risk-${Date.now()}-${Math.random()}`,
+                    title: `${nameForTitle} Risk`,
+                    tokenName: tokenNameUpper,
+                    score: riskScore
+                  }]);
+                }
+
+                // Supply bubble
+                if (availableSupply || totalSupply) {
+                  console.log(`✅[Supply] Creating bubble for ${tokenNameUpper}, available=${availableSupply}, total=${totalSupply}`);
+                  setSupplyBubbles(prev => [...prev, {
+                    id: `supply-${Date.now()}-${Math.random()}`,
+                    title: `${nameForTitle} Supply`,
+                    tokenName: tokenNameUpper,
+                    symbol: tokenNameUpper,
+                    availableSupply: availableSupply || 0,
+                    totalSupply: totalSupply || 0
+                  }]);
+                }
+
+                // BTC bubble intentionally removed per product decision
+
+                // Price change 1h bubble
+                if (change1h !== undefined) {
+                  console.log(`✅[1h Change] Creating bubble for ${tokenNameUpper}, change=${change1h.toFixed(2)}%`);
+                  setPriceChange1hBubbles(prev => [...prev, {
+                    id: `pc1h-${Date.now()}-${Math.random()}`,
+                    title: `${nameForTitle} 1h Change`,
+                    tokenName: tokenNameUpper,
+                    change: change1h
+                  }]);
+                }
+
+                // Price change 7d bubble
+                if (change7d !== undefined) {
+                  console.log(`✅[7d Change] Creating bubble for ${tokenNameUpper}, change=${change7d.toFixed(2)}%`);
+                  setPriceChange7dBubbles(prev => [...prev, {
+                    id: `pc7d-${Date.now()}-${Math.random()}`,
+                    title: `${nameForTitle} 7d Change`,
+                    tokenName: tokenNameUpper,
+                    change: change7d
+                  }]);
+                }
+              } catch (e) {
+                console.warn('Metric bubble creation skipped due to data gaps:', e);
+              }
+            } catch (err) {
+              logError('CoinStats (detected token) fetch failed:', err);
+              setCoinstatsBubbles(prev => prev.map(b => b.id === bubbleId
+                ? { ...b, content: `Failed to fetch CoinStats data.\n${err?.message || 'Unknown error'}`, loading: false }
+                : b
+              ));
+            }
+          })();
+        }
+      }
+
       // Create CoinGecko bubble for tokens mentioned by AI
       if (isPluginEnabled('coingecko')) {
         // Map token names to CoinGecko IDs (comprehensive mapping)
@@ -1195,6 +1369,131 @@ export default function Home() {
     if (!userInput.trim()) return
 
     const message = userInput.trim()
+    // Immediate token extraction on user message (pre-AI) to trigger CoinStats + metric bubbles
+    try {
+      // Simple immediate extraction for $TICKER and capitalized tokens in parentheses
+      const localExtractPotentialTokens = (text) => {
+        const found = new Set();
+        const dollarMatches = text.match(/\$[A-Za-z0-9]{2,10}/g) || [];
+        dollarMatches.forEach(t => found.add(t.replace('$','').toLowerCase()));
+        const parenMatches = text.match(/\(([A-Za-z0-9]{2,15})\)/g) || [];
+        parenMatches.forEach(m => {
+          const t = m.replace(/[()]/g, '');
+          if (t.length >= 2) found.add(t.toLowerCase());
+        });
+        return Array.from(found).slice(0, 4);
+      };
+      const immediateTokens = localExtractPotentialTokens(message);
+      if (immediateTokens.length && isPluginEnabled('coinstats')) {
+        const validationPromises = immediateTokens.map(async (token) => {
+          try {
+            const searchData = await coinstatsService.searchCoins(token);
+            if (searchData && searchData.length > 0) {
+              return { isValid: true, searchTerm: token, coinData: searchData[0] };
+            }
+            return { isValid: false };
+          } catch (_) {
+            return { isValid: false };
+          }
+        });
+        const validationResults = await Promise.all(validationPromises);
+        const validNow = validationResults.filter(r => r.isValid);
+        for (const tokenResult of validNow.slice(0, 4)) {
+          const { searchTerm, coinData } = tokenResult;
+          const bubbleId = `coinstats-${Date.now()}-${Math.random()}`;
+          setCoinstatsBubbles(prev => [...prev, {
+            id: bubbleId,
+            isOpen: true,
+            title: `${searchTerm.toUpperCase()} Stats`,
+            content: `Loading CoinStats for ${searchTerm}...`,
+            loading: true
+          }]);
+          (async () => {
+            try {
+              let data = null;
+              try {
+                if (coinData?.id) {
+                  data = await coinstatsService.getCoin(coinData.id);
+                }
+              } catch (_) {}
+              if (!data) {
+                const search = await coinstatsService.searchCoins(coinData?.symbol || searchTerm);
+                const first = Array.isArray(search) ? search[0] : null;
+                data = first?.id ? await coinstatsService.getCoin(first.id) : search;
+              }
+              setCoinstatsBubbles(prev => prev.map(b => b.id === bubbleId ? { ...b, content: data, loading: false } : b));
+              try {
+                const ctx = {
+                  token: coinData?.symbol || searchTerm,
+                  price: data?.price ?? data?.priceUSD ?? data?.price_usd ?? data?.market_data?.current_price?.usd,
+                  change24h: data?.change24h ?? data?.priceChange1d ?? data?.market_data?.price_change_percentage_24h,
+                  marketCap: data?.marketCap ?? data?.market_cap ?? data?.market_data?.market_cap?.usd,
+                  volume: data?.volume24h ?? data?.volume ?? data?.market_data?.total_volume?.usd,
+                  timestamp: new Date().toISOString(),
+                  source: 'CoinStats API'
+                };
+                if (window.contextAwarenessData) {
+                  window.contextAwarenessData.coinstats_data = ctx;
+                } else {
+                  window.contextAwarenessData = { coinstats_data: ctx };
+                }
+                setContextAwarenessData(prev => ({ ...prev, coinstats_data: ctx, last_updated: new Date().toISOString() }));
+              } catch (_) {}
+
+              // Metric bubble creation (same rules as later path)
+              const tokenNameUpper = (coinData?.symbol || searchTerm || '').toUpperCase();
+              const nameForTitle = data?.name || coinData?.name || tokenNameUpper;
+              const safeNumber = (v) => typeof v === 'number' && isFinite(v) ? v : undefined;
+              const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+              const marketCap = safeNumber(data?.marketCap ?? data?.market_cap ?? data?.market_data?.market_cap?.usd);
+              const volume24h = safeNumber(data?.volume24h ?? data?.volume ?? data?.market_data?.total_volume?.usd);
+              const change1h = safeNumber(data?.priceChange1h ?? data?.price_change_1h ?? data?.market_data?.price_change_percentage_1h_in_currency?.usd);
+              const change24h = safeNumber(data?.change24h ?? data?.priceChange1d ?? data?.market_data?.price_change_percentage_24h);
+              const change7d = safeNumber(data?.priceChange7d ?? data?.price_change_7d ?? data?.market_data?.price_change_percentage_7d);
+              const availableSupply = safeNumber(data?.availableSupply ?? data?.circulatingSupply ?? data?.market_data?.circulating_supply);
+              const totalSupply = safeNumber(data?.totalSupply ?? data?.market_data?.total_supply);
+
+              if (marketCap && volume24h) {
+                const liqScore = clamp((volume24h / marketCap) * 100, 0, 100);
+                const exists = liquidityScoreBubbles.some(b => (b.title || '').toLowerCase().includes(tokenNameUpper.toLowerCase()));
+                if (!exists) setLiquidityScoreBubbles(prev => [...prev, { id: `liq-${Date.now()}-${Math.random()}`, title: `${nameForTitle} Liquidity`, tokenName: tokenNameUpper, score: liqScore }]);
+              }
+              if (change24h !== undefined) {
+                const volScore = clamp(Math.abs(change24h) * 2, 0, 100);
+                const exists = volatilityScoreBubbles.some(b => (b.title || '').toLowerCase().includes(tokenNameUpper.toLowerCase()));
+                if (!exists) setVolatilityScoreBubbles(prev => [...prev, { id: `vol-${Date.now()}-${Math.random()}`, title: `${nameForTitle} Volatility`, tokenName: tokenNameUpper, score: volScore }]);
+              }
+              if (marketCap) {
+                let mcapScore = 20; if (marketCap >= 10e9) mcapScore = 90; else if (marketCap >= 1e9) mcapScore = 70; else if (marketCap >= 1e8) mcapScore = 50;
+                const exists = marketCapScoreBubbles.some(b => (b.title || '').toLowerCase().includes(tokenNameUpper.toLowerCase()));
+                if (!exists) setMarketCapScoreBubbles(prev => [...prev, { id: `mcap-${Date.now()}-${Math.random()}`, title: `${nameForTitle} Market Cap`, tokenName: tokenNameUpper, score: mcapScore }]);
+              }
+              if (change24h !== undefined) {
+                let mcapComponent = 20; if (marketCap >= 10e9) mcapComponent = 90; else if (marketCap >= 1e9) mcapComponent = 70; else if (marketCap >= 1e8) mcapComponent = 50;
+                const volScore = clamp(Math.abs(change24h) * 2, 0, 100);
+                const riskScore = clamp(100 - mcapComponent + volScore / 2, 0, 100);
+                const exists = riskScoreBubbles.some(b => (b.title || '').toLowerCase().includes(tokenNameUpper.toLowerCase()));
+                if (!exists) setRiskScoreBubbles(prev => [...prev, { id: `risk-${Date.now()}-${Math.random()}`, title: `${nameForTitle} Risk`, tokenName: tokenNameUpper, score: riskScore }]);
+              }
+              if (availableSupply || totalSupply) {
+                const exists = supplyBubbles.some(b => (b.title || '').toLowerCase().includes(tokenNameUpper.toLowerCase()));
+                if (!exists) setSupplyBubbles(prev => [...prev, { id: `supply-${Date.now()}-${Math.random()}`, title: `${nameForTitle} Supply`, tokenName: tokenNameUpper, symbol: tokenNameUpper, availableSupply: availableSupply || 0, totalSupply: totalSupply || 0 }]);
+              }
+              if (change1h !== undefined) {
+                const exists = priceChange1hBubbles.some(b => (b.title || '').toLowerCase().includes(tokenNameUpper.toLowerCase()));
+                if (!exists) setPriceChange1hBubbles(prev => [...prev, { id: `pc1h-${Date.now()}-${Math.random()}`, title: `${nameForTitle} 1h Change`, tokenName: tokenNameUpper, change: change1h }]);
+              }
+              if (change7d !== undefined) {
+                const exists = priceChange7dBubbles.some(b => (b.title || '').toLowerCase().includes(tokenNameUpper.toLowerCase()));
+                if (!exists) setPriceChange7dBubbles(prev => [...prev, { id: `pc7d-${Date.now()}-${Math.random()}`, title: `${nameForTitle} 7d Change`, tokenName: tokenNameUpper, change: change7d }]);
+              }
+            } catch (err) {
+              setCoinstatsBubbles(prev => prev.map(b => b.id === bubbleId ? { ...b, content: `Failed to fetch CoinStats data.\n${err?.message || 'Unknown error'}`, loading: false } : b));
+            }
+          })();
+        }
+      }
+    } catch (_) {}
     
     // Build conversation history from messages state (needed for context reconstruction)
     // Include the current message in the history for context
@@ -3524,17 +3823,216 @@ export default function Home() {
           if (isPluginEnabled('coinstats')) {
             log('📊 CoinStats: Fetching for', coin.symbol);
             const fetchCoinStatsData = async () => {
+              const bubbleId = `coinstats-${Date.now()}`;
               try {
-                const data = await coinstatsService.getCoinData(coin.id);
+                // Show loading bubble immediately so we can see it on screen
                 setCoinstatsBubbles(prev => [...prev, {
-                  id: `coinstats-${Date.now()}`,
+                  id: bubbleId,
                   isOpen: true,
-                  content: JSON.stringify(data, null, 2),
-                  loading: false,
+                  content: `Loading CoinStats for ${coin.name}...`,
+                  loading: true,
                   title: `${coin.name} Stats`
                 }]);
+
+                console.log('📊[CoinStats] Fetching coin by id:', coin.id);
+                
+                // Single API call - no fallback search to avoid rate limits
+                let data = await coinstatsService.getCoin(coin.id);
+                
+                if (data) {
+                  console.log('📊[CoinStats] Success - displaying data');
+                  // We have data - show it in the bubble
+                  setCoinstatsBubbles(prev => prev.map(b => b.id === bubbleId
+                    ? { ...b, content: data, loading: false }
+                    : b
+                  ));
+                } else {
+                  // No data from CoinStats - use CoinGecko coin data as fallback
+                  console.log('📊[CoinStats] No data, using CoinGecko coin data for metrics');
+                  setCoinstatsBubbles(prev => prev.filter(b => b.id !== bubbleId));
+                  
+                  // Map CoinGecko data to CoinStats format for metric bubbles
+                  data = {
+                    marketCap: coin.market_cap,
+                    volume: coin.total_volume,
+                    priceChange1d: coin.price_change_percentage_24h,
+                    priceChange7d: coin.price_change_percentage_7d_in_currency,
+                    price: coin.current_price,
+                    circulatingSupply: coin.circulating_supply,
+                    totalSupply: coin.total_supply,
+                    name: coin.name,
+                    symbol: coin.symbol
+                  };
+                  console.log('📊[CoinStats] Using CoinGecko fallback data:', data);
+                }
+                
+                // 🧠 Update AI context with data (CoinStats or CoinGecko fallback)
+                if (data && Object.keys(data).length > 0 && !data.error) {
+                  try {
+                    const ctx = {
+                      token: coin.symbol || coin.name,
+                      price: data?.price ?? data?.priceUSD ?? data?.price_usd ?? data?.market_data?.current_price?.usd,
+                      change24h: data?.change24h ?? data?.priceChange1d ?? data?.market_data?.price_change_percentage_24h,
+                      marketCap: data?.marketCap ?? data?.market_cap ?? data?.market_data?.market_cap?.usd,
+                      volume: data?.volume24h ?? data?.volume ?? data?.market_data?.total_volume?.usd,
+                      timestamp: new Date().toISOString(),
+                      source: data.marketCap ? 'CoinStats API' : 'CoinGecko API (fallback)'
+                    };
+                    if (window.contextAwarenessData) {
+                      window.contextAwarenessData.coinstats_data = ctx;
+                    } else {
+                      window.contextAwarenessData = { coinstats_data: ctx };
+                    }
+                    setContextAwarenessData(prev => ({
+                      ...prev,
+                      coinstats_data: ctx,
+                      last_updated: new Date().toISOString()
+                    }));
+                    console.log('🧠 Updated AI context with CoinStats data:', ctx);
+                  } catch (e) {
+                    console.warn('Context update failed for CoinStats:', e);
+                  }
+                }
+
+                // Create metric bubbles for this token using CoinStats data
+                console.log(`🎯[Metric Bubbles] ENTRY POINT (AI path) - About to create metrics, coin:`, coin);
+                try {
+                  const tokenNameUpper = (coin?.symbol || coin?.name || '').toUpperCase();
+                  const nameForTitle = data?.name || coin?.name || tokenNameUpper;
+                  console.log(`🎯[Metric Bubbles] Starting creation for ${tokenNameUpper}, data:`, data);
+
+                  const safeNumber = (v) => typeof v === 'number' && isFinite(v) ? v : undefined;
+                  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+                  const marketCap = safeNumber(data?.marketCap ?? data?.market_cap ?? data?.market_data?.market_cap?.usd);
+                  const volume24h = safeNumber(data?.volume24h ?? data?.volume ?? data?.market_data?.total_volume?.usd);
+                  const change1h = safeNumber(data?.priceChange1h ?? data?.price_change_1h ?? data?.market_data?.price_change_percentage_1h_in_currency?.usd);
+                  const change24h = safeNumber(data?.change24h ?? data?.priceChange1d ?? data?.market_data?.price_change_percentage_24h);
+                  const change7d = safeNumber(data?.priceChange7d ?? data?.price_change_7d ?? data?.market_data?.price_change_percentage_7d);
+                  const availableSupply = safeNumber(data?.availableSupply ?? data?.circulatingSupply ?? data?.market_data?.circulating_supply);
+                  const totalSupply = safeNumber(data?.totalSupply ?? data?.market_data?.total_supply);
+                  console.log(`🎯[Metric Bubbles] Extracted values: marketCap=${marketCap}, volume24h=${volume24h}, change1h=${change1h}, change24h=${change24h}, change7d=${change7d}, availableSupply=${availableSupply}, totalSupply=${totalSupply}`);
+
+                  // Liquidity score
+                  if (marketCap && volume24h) {
+                    const liqScore = clamp((volume24h / marketCap) * 100, 0, 100);
+                    console.log(`✅[Liquidity] Creating bubble for ${tokenNameUpper}, score=${liqScore.toFixed(2)}`);
+                    setLiquidityScoreBubbles(prev => [...prev, {
+                      id: `liq-${Date.now()}-${Math.random()}`,
+                      title: `${nameForTitle} Liquidity`,
+                      tokenName: tokenNameUpper,
+                      score: liqScore
+                    }]);
+                  } else {
+                    console.log(`⚠️[Liquidity] Missing data for ${tokenNameUpper}: marketCap=${!!marketCap}, volume24h=${!!volume24h}`);
+                  }
+
+                  // Volatility score
+                  if (change24h !== undefined) {
+                    const volScore = clamp(Math.abs(change24h) * 2, 0, 100);
+                    console.log(`✅[Volatility] Creating bubble for ${tokenNameUpper}, score=${volScore.toFixed(2)}`);
+                    setVolatilityScoreBubbles(prev => [...prev, {
+                      id: `vol-${Date.now()}-${Math.random()}`,
+                      title: `${nameForTitle} Volatility`,
+                      tokenName: tokenNameUpper,
+                      score: volScore
+                    }]);
+                  }
+
+                  // Market Cap score
+                  if (marketCap) {
+                    let mcapScore = 20;
+                    if (marketCap >= 10e9) mcapScore = 90;
+                    else if (marketCap >= 1e9) mcapScore = 70;
+                    else if (marketCap >= 1e8) mcapScore = 50;
+                    console.log(`✅[MarketCap] Creating bubble for ${tokenNameUpper}, score=${mcapScore}`);
+                    setMarketCapScoreBubbles(prev => [...prev, {
+                      id: `mcap-${Date.now()}-${Math.random()}`,
+                      title: `${nameForTitle} Market Cap`,
+                      tokenName: tokenNameUpper,
+                      score: mcapScore
+                    }]);
+                  }
+
+                  // Risk score
+                  if (change24h !== undefined) {
+                    let mcapComponent = 20;
+                    if (marketCap >= 10e9) mcapComponent = 90;
+                    else if (marketCap >= 1e9) mcapComponent = 70;
+                    else if (marketCap >= 1e8) mcapComponent = 50;
+                    const volScore = clamp(Math.abs(change24h) * 2, 0, 100);
+                    const riskScore = clamp(100 - mcapComponent + volScore / 2, 0, 100);
+                    console.log(`✅[Risk] Creating bubble for ${tokenNameUpper}, score=${riskScore.toFixed(2)}`);
+                    setRiskScoreBubbles(prev => [...prev, {
+                      id: `risk-${Date.now()}-${Math.random()}`,
+                      title: `${nameForTitle} Risk`,
+                      tokenName: tokenNameUpper,
+                      score: riskScore
+                    }]);
+                  }
+
+                  // Supply bubble
+                  if (availableSupply || totalSupply) {
+                    console.log(`✅[Supply] Creating bubble for ${tokenNameUpper}, available=${availableSupply}, total=${totalSupply}`);
+                    setSupplyBubbles(prev => [...prev, {
+                      id: `supply-${Date.now()}-${Math.random()}`,
+                      title: `${nameForTitle} Supply`,
+                      tokenName: tokenNameUpper,
+                      symbol: tokenNameUpper,
+                      availableSupply: availableSupply || 0,
+                      totalSupply: totalSupply || 0
+                    }]);
+                  }
+
+                  // Price change 1h bubble
+                  if (change1h !== undefined) {
+                    console.log(`✅[1h Change] Creating bubble for ${tokenNameUpper}, change=${change1h.toFixed(2)}%`);
+                    setPriceChange1hBubbles(prev => [...prev, {
+                      id: `pc1h-${Date.now()}-${Math.random()}`,
+                      title: `${nameForTitle} 1h Change`,
+                      tokenName: tokenNameUpper,
+                      change: change1h
+                    }]);
+                  }
+
+                  // Price change 7d bubble
+                  if (change7d !== undefined) {
+                    console.log(`✅[7d Change] Creating bubble for ${tokenNameUpper}, change=${change7d.toFixed(2)}%`);
+                    setPriceChange7dBubbles(prev => [...prev, {
+                      id: `pc7d-${Date.now()}-${Math.random()}`,
+                      title: `${nameForTitle} 7d Change`,
+                      tokenName: tokenNameUpper,
+                      change: change7d
+                    }]);
+                  }
+                } catch (e) {
+                  console.warn('Metric bubble creation skipped due to error:', e);
+                }
+
               } catch (err) {
                 logError('CoinStats fetch failed:', err);
+                
+                // Determine error message
+                let errorContent = '❌ CoinStats Data Error\n\n';
+                const errorMsg = err?.message || String(err);
+                
+                if (errorMsg.includes('429') || errorMsg.includes('Rate Limited') || errorMsg.includes('rate limit')) {
+                  errorContent += `🔄 Rate Limit Reached\n\nCoinStats API is rate limited.\n\nData will automatically refresh from cache.\nPlease wait 2-3 minutes before requesting new data.\n\n💡 Tip: Cached data is served when available.`;
+                } else if (errorMsg.includes('fetch') || errorMsg.includes('Network')) {
+                  errorContent += `🌐 Network Error\n\nCannot reach CoinStats API.\nCheck your internet connection.`;
+                } else {
+                  errorContent += `⚠️ Service Unavailable\n\n${errorMsg}`;
+                }
+                
+                // Use bubbleId for reliable matching instead of title
+                setCoinstatsBubbles(prev => prev.map(b => b.id === bubbleId
+                  ? { 
+                      ...b, 
+                      content: errorContent, 
+                      loading: false 
+                    }
+                  : b
+                ));
               }
             };
             fetchCoinStatsData();
@@ -3783,6 +4281,95 @@ export default function Home() {
           title={bubble.title}
           content={bubble.content}
           loading={bubble.loading}
+          addParticlesToSwarm={addParticlesToSwarm}
+        />
+      ))}
+      
+      {/* Render CoinStats metric bubbles (separate lists) - only if plugin enabled */}
+      {isPluginEnabled('coinstats') && liquidityScoreBubbles.map(bubble => (
+        <FloatingLiquidityScoreBubble
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setLiquidityScoreBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          title={bubble.title}
+          tokenName={bubble.tokenName}
+          score={bubble.score}
+          addParticlesToSwarm={addParticlesToSwarm}
+        />
+      ))}
+
+      {isPluginEnabled('coinstats') && volatilityScoreBubbles.map(bubble => (
+        <FloatingVolatilityScoreBubble
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setVolatilityScoreBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          title={bubble.title}
+          tokenName={bubble.tokenName}
+          score={bubble.score}
+          addParticlesToSwarm={addParticlesToSwarm}
+        />
+      ))}
+
+      {isPluginEnabled('coinstats') && marketCapScoreBubbles.map(bubble => (
+        <FloatingMarketCapScoreBubble
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setMarketCapScoreBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          title={bubble.title}
+          tokenName={bubble.tokenName}
+          score={bubble.score}
+          addParticlesToSwarm={addParticlesToSwarm}
+        />
+      ))}
+
+      {isPluginEnabled('coinstats') && riskScoreBubbles.map(bubble => (
+        <FloatingRiskScoreBubble
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setRiskScoreBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          title={bubble.title}
+          tokenName={bubble.tokenName}
+          score={bubble.score}
+          addParticlesToSwarm={addParticlesToSwarm}
+        />
+      ))}
+
+      {isPluginEnabled('coinstats') && supplyBubbles.map(bubble => (
+        <FloatingSupplyBubble
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setSupplyBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          title={bubble.title}
+          tokenName={bubble.tokenName}
+          availableSupply={bubble.availableSupply}
+          totalSupply={bubble.totalSupply}
+          symbol={bubble.symbol}
+          addParticlesToSwarm={addParticlesToSwarm}
+        />
+      ))}
+
+      {/* BTC price bubble removed */}
+
+      {isPluginEnabled('coinstats') && priceChange1hBubbles.map(bubble => (
+        <FloatingPriceChange1hBubble
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setPriceChange1hBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          title={bubble.title}
+          tokenName={bubble.tokenName}
+          change={bubble.change}
+          addParticlesToSwarm={addParticlesToSwarm}
+        />
+      ))}
+
+      {isPluginEnabled('coinstats') && priceChange7dBubbles.map(bubble => (
+        <FloatingPriceChange7dBubble
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setPriceChange7dBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          title={bubble.title}
+          tokenName={bubble.tokenName}
+          change={bubble.change}
           addParticlesToSwarm={addParticlesToSwarm}
         />
       ))}

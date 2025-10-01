@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect } from 'react';
 import { Coins } from 'lucide-react';
+import useFloatToTop from '../../hooks/useFloatToTop';
 
 const FloatingSupplyBubble = ({ isOpen, onClose, title = 'Supply Info', availableSupply = 0, totalSupply = 0, tokenName = '', symbol = '', addParticlesToSwarm }) => {
   const bubbleId = useState(() => `supply-${Date.now()}-${Math.random()}`)[0];
@@ -15,7 +16,20 @@ const FloatingSupplyBubble = ({ isOpen, onClose, title = 'Supply Info', availabl
   const [isExpanded, setIsExpanded] = useState(false);
   const [lastClickTime, setLastClickTime] = useState(0);
 
-  useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
+  useFloatToTop({
+    id: bubbleId,
+    isOpen,
+    isDragging,
+    isExpanded,
+    position,
+    setPosition,
+    topBarrier: 20,
+    speed: 0.2,
+    delayMs: 0,
+    bubbleWidth: 140,
+    gap: 4,
+    margin: 8
+  });
 
   const createPopEffect = () => {
     let bubbleSize = 140;
@@ -98,7 +112,7 @@ const FloatingSupplyBubble = ({ isOpen, onClose, title = 'Supply Info', availabl
   if (!isOpen) return null;
   
   let bubbleSize = 140;
-  if (isExpanded) bubbleSize = 160;
+  if (isExpanded) bubbleSize = 280;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
   
@@ -147,20 +161,20 @@ const FloatingSupplyBubble = ({ isOpen, onClose, title = 'Supply Info', availabl
                 </div>
               </div>
             ) : (
-              <div className="w-full h-full flex flex-col p-2">
-                <div className="text-center mb-1">
-                  <div className="w-10 h-10 rounded-full overflow-hidden border-0 shadow-none bg-transparent mx-auto mb-1 flex items-center justify-center" style={{backgroundColor: `${scoreColor}20`}}>
-                    <Coins size={24} style={{color: scoreColor}} />
+              <div className="w-full h-full flex flex-col p-4">
+                <div className="text-center mb-2">
+                  <div className="w-16 h-16 rounded-full overflow-hidden border-0 shadow-none bg-transparent mx-auto mb-2 flex items-center justify-center" style={{backgroundColor: `${scoreColor}20`}}>
+                    <Coins size={36} style={{color: scoreColor}} />
                   </div>
-                  <div className="text-[8px] font-bold" style={{color: scoreColor}}>{tokenName}</div>
+                  <div className="text-[12px] font-bold" style={{color: scoreColor}}>{tokenName}</div>
                 </div>
                 
-                <div className="flex-1 px-2 overflow-y-auto">
-                  <div className="text-center space-y-1">
-                    <div className="text-[7px] text-white/90 leading-tight space-y-1">
-                      <p><span style={{color: scoreColor}}>Circulating:</span> {formatSupply(availableSupply)} {symbol}</p>
-                      <p><span style={{color: scoreColor}}>Total:</span> {formatSupply(totalSupply)} {symbol}</p>
-                      <p className="mt-1"><span style={{color: scoreColor}}>{circulationPercent}%</span> in circulation</p>
+                <div className="flex-1 px-4 overflow-y-auto flex items-center justify-center">
+                  <div className="text-center space-y-3">
+                    <div className="text-white/90 leading-tight space-y-2">
+                      <p className="text-[16px]"><span className="font-semibold" style={{color: scoreColor}}>Circulating:</span> {formatSupply(availableSupply)} {symbol}</p>
+                      <p className="text-[16px]"><span className="font-semibold" style={{color: scoreColor}}>Total:</span> {formatSupply(totalSupply)} {symbol}</p>
+                      <p className="text-[16px] mt-2"><span className="font-bold" style={{color: scoreColor}}>{circulationPercent}%</span> in circulation</p>
                     </div>
                   </div>
                 </div>

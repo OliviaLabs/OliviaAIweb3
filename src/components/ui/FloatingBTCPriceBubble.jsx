@@ -106,13 +106,11 @@ const FloatingBTCPriceBubble = ({ isOpen, onClose, title = 'BTC Price', priceBtc
         
         <div className="absolute inset-4 flex items-center justify-center">
           {!isExpanded ? (
+            // Collapsed: Unified 80px circular icon
             <div className="flex flex-col items-center justify-center">
-              <div className="relative mb-2">
-                <div className="w-8 h-8 rounded-full border-0 shadow-none bg-transparent flex items-center justify-center" style={{backgroundColor: `${scoreColor}20`}}>
-                  <Bitcoin size={20} style={{color: scoreColor}} />
-                </div>
+              <div className="w-20 h-20 rounded-full overflow-hidden border-0 shadow-none bg-transparent flex items-center justify-center" style={{backgroundColor: `${scoreColor}20`}}>
+                <Bitcoin size={40} style={{color: scoreColor}} />
               </div>
-              
             </div>
           ) : (
             <div className="w-full h-full flex flex-col justify-center items-center px-4 pt-6 pb-4">

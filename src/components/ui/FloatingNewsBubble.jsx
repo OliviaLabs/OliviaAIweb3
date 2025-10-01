@@ -110,10 +110,11 @@ const FloatingNewsBubble = ({ isOpen, onClose, title = 'Trending Tokens', conten
 
   if (!isOpen) return null;
 
-  // Dynamic bubble size - START AS CIRCLE
-  const bubbleSize = 140;
-  const bubbleWidth = isExpanded ? Math.min(600, window.innerWidth - 100) : bubbleSize;
-  const bubbleHeight = isExpanded ? Math.min(500, window.innerHeight - 150) : bubbleSize;
+  // Dynamic bubble size - keep spherical even when expanded
+  const maxSize = Math.min(420, window.innerWidth - 40, window.innerHeight - 100);
+  const bubbleSize = isExpanded ? maxSize : 140;
+  const bubbleWidth = bubbleSize;
+  const bubbleHeight = bubbleSize;
   
   const bubble = (
     <div 
@@ -131,12 +132,12 @@ const FloatingNewsBubble = ({ isOpen, onClose, title = 'Trending Tokens', conten
       data-bubble="news"
       data-bubble-id={bubbleId}
     >
-      <div className={`w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-0 shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm ${isExpanded ? 'rounded-3xl' : 'rounded-full'}`} style={{boxShadow: '0 0 30px #4ade80, inset 0 0 20px rgba(74, 222, 128, 0.15)'}}>
+      <div className={"w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-0 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm"} style={{boxShadow: '0 0 30px #4ade80, inset 0 0 20px rgba(74, 222, 128, 0.15)'}}>
         {/* Enhanced neon green glowing border effect */}
-        <div className={`absolute inset-0 border-0/60 animate-pulse ${isExpanded ? 'rounded-3xl' : 'rounded-full'}`} style={{boxShadow: '0 0 25px #4ade80, 0 0 50px rgba(74, 222, 128, 0.3)'}}></div>
+        <div className="absolute inset-0 rounded-full border-0/60 animate-pulse" style={{boxShadow: '0 0 25px #4ade80, 0 0 50px rgba(74, 222, 128, 0.3)'}}></div>
         
         {/* Ambient glow overlay */}
-        <div className={`absolute inset-0 bg-gradient-to-t from-green-500/5 via-transparent to-green-400/10 animate-pulse ${isExpanded ? 'rounded-3xl' : 'rounded-full'}`} style={{animationDuration: '3s'}}></div>
+        <div className="absolute inset-0 rounded-full bg-gradient-to-t from-green-500/5 via-transparent to-green-400/10 animate-pulse" style={{animationDuration: '3s'}}></div>
         
         {/* Spherical Content Area */}
         <div className="absolute inset-4 flex items-center justify-center">
@@ -161,41 +162,41 @@ const FloatingNewsBubble = ({ isOpen, onClose, title = 'Trending Tokens', conten
               {!isExpanded ? (
                 <div className="flex flex-col items-center justify-center">
                   <div className="relative mb-2">
-                    <div className="w-10 h-10 rounded-full overflow-hidden border-0 shadow-none bg-transparent bg-transparent">
+                    <div className="w-20 h-20 rounded-full overflow-hidden border-0 shadow-none bg-transparent">
                       <img src={newsIcon} alt="News" className="w-full h-full object-cover" draggable={false} />
                     </div>
                   </div>
                 </div>
               ) : (
                 // Expanded
-                <div className="w-full h-full flex flex-col p-8">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-green-400/30 shadow-lg bg-black/40">
+                <div className="w-full h-full flex flex-col px-4 pt-6 pb-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-8 h-8 rounded-full overflow-hidden border-0 shadow-none bg-black/20">
                       <img src={newsIcon} alt="News" className="w-full h-full object-cover" draggable={false} />
                     </div>
-                    <div className="text-2xl font-bold text-green-300">{title}</div>
+                    <div className="text-sm font-bold text-green-300">{title}</div>
                   </div>
                   
-                  <div className="flex-1 overflow-y-auto custom-scrollbar pr-4">
-                    <div className="text-left space-y-4">
+                  <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+                    <div className="text-left space-y-2">
                       {typeof content === 'string' ? (
-                        <div className="text-base text-white/90 leading-relaxed space-y-3">
+                        <div className="text-sm text-white/90 leading-relaxed space-y-2">
                           {content.split('\n').filter(line => line.trim()).map((line, index) => (
-                            <div key={index} className={line.startsWith('**') ? 'font-bold text-green-300 text-lg' : ''}>
+                            <div key={index} className={line.startsWith('**') ? 'font-bold text-green-300' : ''}>
                               {line.replace(/\*\*/g, '')}
                             </div>
                           ))}
                         </div>
                       ) : Array.isArray(content) ? (
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                           {content.map((item, index) => (
-                            <div key={index} className="text-base text-white/90 leading-relaxed border-l-4 border-green-400/30 pl-4 py-2">
+                            <div key={index} className="text-sm text-white/90 leading-relaxed border-l-4 border-green-400/30 pl-3 py-1.5">
                               {typeof item === 'string' ? item : JSON.stringify(item, null, 2)}
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <div className="text-base text-white/90 font-mono whitespace-pre-wrap">{JSON.stringify(content, null, 2)}</div>
+                        <div className="text-sm text-white/90 font-mono whitespace-pre-wrap">{JSON.stringify(content, null, 2)}</div>
                       )}
                     </div>
                   </div>

@@ -35,6 +35,7 @@ const FloatingPortfolioBubble = ({
   // Format portfolio data
   const [portfolioData, setPortfolioData] = useState(null);
   const [tokenBalances, setTokenBalances] = useState([]);
+  const fetchedOnceRef = useRef({ address: null, at: 0 });
   
 
   
@@ -196,11 +197,18 @@ const FloatingPortfolioBubble = ({
   
   // Fetch tokens automatically when wallet connects
   useEffect(() => {
-    if (isConnected && address && !tokenBalances.length && !isFetchingTokens) {
-      console.log('🚀 Auto-fetching tokens for connected wallet');
+    if (!isConnected || !address) return;
+    const now = Date.now();
+    const lastAddr = fetchedOnceRef.current.address;
+    const lastAt = fetchedOnceRef.current.at;
+    const isNewAddress = lastAddr !== address;
+    const isStale = now - lastAt > 60000; // 60s throttle
+    if ((isNewAddress || isStale) && !isFetchingTokens) {
+      fetchedOnceRef.current = { address, at: now };
+      console.log('🚀 Auto-fetching tokens for connected wallet (throttled)');
       fetchTokenBalances();
     }
-  }, [isConnected, address, tokenBalances.length, isFetchingTokens]);
+  }, [isConnected, address, isFetchingTokens]);
   
   useEffect(() => {
     if (nativeBalance && !balanceLoading) {
@@ -218,8 +226,13 @@ const FloatingPortfolioBubble = ({
       };
       setPortfolioData(formatted);
       
-      // Fetch ERC-20 token balances
-      fetchTokenBalances();
+      // Avoid hammering: only fetch if we have no tokens and haven't fetched recently
+      const now = Date.now();
+      const lastAt = fetchedOnceRef.current.at;
+      if (!tokenBalances.length && now - lastAt > 60000 && !isFetchingTokens) {
+        fetchedOnceRef.current = { address, at: now };
+        fetchTokenBalances();
+      }
       
       // Update AI context with wallet data
       if (isExpanded && isConnected) {
@@ -412,14 +425,10 @@ const FloatingPortfolioBubble = ({
           ) : (
             <div className="w-full h-full flex items-center justify-center text-center relative">
               {!isExpanded ? (
+                // Collapsed: Unified 80px circular icon
                 <div className="flex flex-col items-center justify-center">
-                  <div className="relative mb-2">
-                    <div className="w-5 h-5 rounded-full border-0 shadow-lg bg-transparent">
-                      <img src={walletConnectLogo} alt="WalletConnect" className="w-full h-full object-cover" draggable={false} />
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    
+                  <div className="w-20 h-20 rounded-full overflow-hidden border-0 shadow-none bg-transparent">
+                    <img src={walletConnectLogo} alt="WalletConnect" className="w-full h-full object-cover" draggable={false} />
                   </div>
                 </div>
               ) : (

@@ -194,13 +194,13 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
           ) : (
             <div className="w-full h-full flex items-center justify-center text-center relative">
               {!isExpanded ? (
-                // Collapsed: Just icon
+                // Collapsed: Unified 80px circular icon
                 <div className="flex flex-col items-center justify-center">
-                  <div className="w-10 h-10">
+                  <div className="w-20 h-20 rounded-full overflow-hidden border-0 shadow-none bg-transparent">
                     <img 
                       src={twitterIcon} 
                       alt="Twitter/X" 
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover pointer-events-none"
                     />
                   </div>
                 </div>
