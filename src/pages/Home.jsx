@@ -804,24 +804,6 @@ export default function Home() {
                 ? { ...b, content: data, loading: false }
                 : b
               ));
-              // Push to AI context
-              try {
-                const ctx = {
-                  token: coinData?.symbol || searchTerm,
-                  price: data?.price ?? data?.priceUSD ?? data?.price_usd ?? data?.market_data?.current_price?.usd,
-                  change24h: data?.change24h ?? data?.priceChange1d ?? data?.market_data?.price_change_percentage_24h,
-                  marketCap: data?.marketCap ?? data?.market_cap ?? data?.market_data?.market_cap?.usd,
-                  volume: data?.volume24h ?? data?.volume ?? data?.market_data?.total_volume?.usd,
-                  timestamp: new Date().toISOString(),
-                  source: 'CoinStats API'
-                };
-                if (window.contextAwarenessData) {
-                  window.contextAwarenessData.coinstats_data = ctx;
-                } else {
-                  window.contextAwarenessData = { coinstats_data: ctx };
-                }
-                setContextAwarenessData(prev => ({ ...prev, coinstats_data: ctx, last_updated: new Date().toISOString() }));
-              } catch (_) {}
 
               // Create metric bubbles for this token using CoinStats data (avoid duplicates)
               console.log(`🎯[Metric Bubbles] ENTRY POINT - About to create metrics, coinData:`, coinData, `searchTerm:`, searchTerm);
@@ -841,11 +823,91 @@ export default function Home() {
                 const availableSupply = safeNumber(data?.availableSupply ?? data?.circulatingSupply ?? data?.market_data?.circulating_supply);
                 const totalSupply = safeNumber(data?.totalSupply ?? data?.market_data?.total_supply);
                 console.log(`🎯[Metric Bubbles] Extracted values: marketCap=${marketCap}, volume24h=${volume24h}, change1h=${change1h}, change24h=${change24h}, change7d=${change7d}, availableSupply=${availableSupply}, totalSupply=${totalSupply}`);
+                
+                // Calculate all metric scores for AI context
+                const liqScore = (marketCap && volume24h) ? clamp((volume24h / marketCap) * 100, 0, 100) : null;
+                const volScore = (change24h !== undefined) ? clamp(Math.abs(change24h) * 2, 0, 100) : null;
+                let mcapScore = null;
+                if (marketCap) {
+                  mcapScore = 20;
+                  if (marketCap >= 10e9) mcapScore = 90;
+                  else if (marketCap >= 1e9) mcapScore = 70;
+                  else if (marketCap >= 1e8) mcapScore = 50;
+                }
+                let riskScore = null;
+                if (change24h !== undefined) {
+                  let mcapComponent = 20;
+                  if (marketCap >= 10e9) mcapComponent = 90;
+                  else if (marketCap >= 1e9) mcapComponent = 70;
+                  else if (marketCap >= 1e8) mcapComponent = 50;
+                  riskScore = clamp(100 - mcapComponent + (clamp(Math.abs(change24h) * 2, 0, 100) / 2), 0, 100);
+                }
+
+                // 🧠 Push to AI context with ALL metric scores
+                try {
+                  const ctx = {
+                    token: coinData?.symbol || searchTerm,
+                    name: data?.name || coinData?.name || tokenNameUpper,
+                    price: data?.price ?? data?.priceUSD ?? data?.price_usd ?? data?.market_data?.current_price?.usd,
+                    marketCap: marketCap,
+                    volume24h: volume24h,
+                    change1h: change1h,
+                    change24h: change24h,
+                    change7d: change7d,
+                    availableSupply: availableSupply,
+                    totalSupply: totalSupply,
+                    // Metric scores for Olivia to reference
+                    metrics: {
+                      liquidityScore: liqScore,
+                      volatilityScore: volScore,
+                      marketCapScore: mcapScore,
+                      riskScore: riskScore,
+                      supplyRatio: (availableSupply && totalSupply) ? (availableSupply / totalSupply * 100) : null
+                    },
+                    // How scores are calculated - for transparency
+                    scoring_methodology: {
+                      liquidityScore: {
+                        formula: '(volume24h / marketCap) * 100, capped at 100',
+                        explanation: 'Higher score means more trading volume relative to market cap, indicating better liquidity',
+                        interpretation: 'Below 10: Low liquidity, 10-30: Moderate, 30-50: Good, Above 50: Excellent'
+                      },
+                      volatilityScore: {
+                        formula: 'abs(change24h) * 2, capped at 100',
+                        explanation: 'Higher score means larger price swings in the last 24 hours',
+                        interpretation: 'Below 20: Stable, 20-50: Moderate volatility, 50-80: High volatility, Above 80: Extreme'
+                      },
+                      marketCapScore: {
+                        formula: 'Tiered: <$100M=20, $100M-$1B=50, $1B-$10B=70, >$10B=90',
+                        explanation: 'Reflects the size and maturity of the token based on market capitalization',
+                        interpretation: '20: Micro-cap (high risk), 50: Mid-cap, 70: Large-cap, 90: Blue-chip'
+                      },
+                      riskScore: {
+                        formula: '(100 - marketCapScore) + (volatilityScore / 2), capped at 100',
+                        explanation: 'Combines small market cap risk with price volatility to assess overall risk',
+                        interpretation: 'Below 30: Low risk, 30-60: Medium risk, 60-80: High risk, Above 80: Very high risk'
+                      },
+                      supplyRatio: {
+                        formula: '(availableSupply / totalSupply) * 100',
+                        explanation: 'Percentage of total supply currently in circulation',
+                        interpretation: 'Below 50%: Large unlock risk, 50-90%: Moderate, Above 90%: Mostly circulating'
+                      }
+                    },
+                    timestamp: new Date().toISOString(),
+                    source: 'CoinStats API'
+                  };
+                  if (window.contextAwarenessData) {
+                    window.contextAwarenessData.coinstats_data = ctx;
+                  } else {
+                    window.contextAwarenessData = { coinstats_data: ctx };
+                  }
+                  setContextAwarenessData(prev => ({ ...prev, coinstats_data: ctx, last_updated: new Date().toISOString() }));
+                  console.log('🧠 Updated AI context with metric scores:', ctx);
+                } catch (_) {}
+
                 // Removed BTC bubble: we no longer compute or create BTC price bubble
 
                 // Liquidity score: ratio of volume to market cap scaled
                 if (marketCap && volume24h) {
-                  const liqScore = clamp((volume24h / marketCap) * 100, 0, 100);
                   console.log(`✅[Liquidity] Creating bubble for ${tokenNameUpper}, score=${liqScore.toFixed(2)}`);
                   setLiquidityScoreBubbles(prev => [...prev, {
                     id: `liq-${Date.now()}-${Math.random()}`,
@@ -1414,23 +1476,6 @@ export default function Home() {
               // Don't make extra API calls
               let data = coinData;
               setCoinstatsBubbles(prev => prev.map(b => b.id === bubbleId ? { ...b, content: data, loading: false } : b));
-              try {
-                const ctx = {
-                  token: coinData?.symbol || searchTerm,
-                  price: data?.price ?? data?.priceUSD ?? data?.price_usd ?? data?.market_data?.current_price?.usd,
-                  change24h: data?.change24h ?? data?.priceChange1d ?? data?.market_data?.price_change_percentage_24h,
-                  marketCap: data?.marketCap ?? data?.market_cap ?? data?.market_data?.market_cap?.usd,
-                  volume: data?.volume24h ?? data?.volume ?? data?.market_data?.total_volume?.usd,
-                  timestamp: new Date().toISOString(),
-                  source: 'CoinStats API'
-                };
-                if (window.contextAwarenessData) {
-                  window.contextAwarenessData.coinstats_data = ctx;
-                } else {
-                  window.contextAwarenessData = { coinstats_data: ctx };
-                }
-                setContextAwarenessData(prev => ({ ...prev, coinstats_data: ctx, last_updated: new Date().toISOString() }));
-              } catch (_) {}
 
               // Metric bubble creation (same rules as later path)
               const tokenNameUpper = (coinData?.symbol || searchTerm || '').toUpperCase();
@@ -1445,8 +1490,87 @@ export default function Home() {
               const availableSupply = safeNumber(data?.availableSupply ?? data?.circulatingSupply ?? data?.market_data?.circulating_supply);
               const totalSupply = safeNumber(data?.totalSupply ?? data?.market_data?.total_supply);
 
+              // Calculate all metric scores for AI context
+              const liqScore = (marketCap && volume24h) ? clamp((volume24h / marketCap) * 100, 0, 100) : null;
+              const volScore = (change24h !== undefined) ? clamp(Math.abs(change24h) * 2, 0, 100) : null;
+              let mcapScore = null;
+              if (marketCap) {
+                mcapScore = 20;
+                if (marketCap >= 10e9) mcapScore = 90;
+                else if (marketCap >= 1e9) mcapScore = 70;
+                else if (marketCap >= 1e8) mcapScore = 50;
+              }
+              let riskScore = null;
+              if (change24h !== undefined) {
+                let mcapComponent = 20;
+                if (marketCap >= 10e9) mcapComponent = 90;
+                else if (marketCap >= 1e9) mcapComponent = 70;
+                else if (marketCap >= 1e8) mcapComponent = 50;
+                riskScore = clamp(100 - mcapComponent + (clamp(Math.abs(change24h) * 2, 0, 100) / 2), 0, 100);
+              }
+
+              // 🧠 Push to AI context with ALL metric scores
+              try {
+                const ctx = {
+                  token: coinData?.symbol || searchTerm,
+                  name: data?.name || coinData?.name || tokenNameUpper,
+                  price: data?.price ?? data?.priceUSD ?? data?.price_usd ?? data?.market_data?.current_price?.usd,
+                  marketCap: marketCap,
+                  volume24h: volume24h,
+                  change1h: change1h,
+                  change24h: change24h,
+                  change7d: change7d,
+                  availableSupply: availableSupply,
+                  totalSupply: totalSupply,
+                  // Metric scores for Olivia to reference
+                  metrics: {
+                    liquidityScore: liqScore,
+                    volatilityScore: volScore,
+                    marketCapScore: mcapScore,
+                    riskScore: riskScore,
+                    supplyRatio: (availableSupply && totalSupply) ? (availableSupply / totalSupply * 100) : null
+                  },
+                  // How scores are calculated - for transparency
+                  scoring_methodology: {
+                    liquidityScore: {
+                      formula: '(volume24h / marketCap) * 100, capped at 100',
+                      explanation: 'Higher score means more trading volume relative to market cap, indicating better liquidity',
+                      interpretation: 'Below 10: Low liquidity, 10-30: Moderate, 30-50: Good, Above 50: Excellent'
+                    },
+                    volatilityScore: {
+                      formula: 'abs(change24h) * 2, capped at 100',
+                      explanation: 'Higher score means larger price swings in the last 24 hours',
+                      interpretation: 'Below 20: Stable, 20-50: Moderate volatility, 50-80: High volatility, Above 80: Extreme'
+                    },
+                    marketCapScore: {
+                      formula: 'Tiered: <$100M=20, $100M-$1B=50, $1B-$10B=70, >$10B=90',
+                      explanation: 'Reflects the size and maturity of the token based on market capitalization',
+                      interpretation: '20: Micro-cap (high risk), 50: Mid-cap, 70: Large-cap, 90: Blue-chip'
+                    },
+                    riskScore: {
+                      formula: '(100 - marketCapScore) + (volatilityScore / 2), capped at 100',
+                      explanation: 'Combines small market cap risk with price volatility to assess overall risk',
+                      interpretation: 'Below 30: Low risk, 30-60: Medium risk, 60-80: High risk, Above 80: Very high risk'
+                    },
+                    supplyRatio: {
+                      formula: '(availableSupply / totalSupply) * 100',
+                      explanation: 'Percentage of total supply currently in circulation',
+                      interpretation: 'Below 50%: Large unlock risk, 50-90%: Moderate, Above 90%: Mostly circulating'
+                    }
+                  },
+                  timestamp: new Date().toISOString(),
+                  source: 'CoinStats API'
+                };
+                if (window.contextAwarenessData) {
+                  window.contextAwarenessData.coinstats_data = ctx;
+                } else {
+                  window.contextAwarenessData = { coinstats_data: ctx };
+                }
+                setContextAwarenessData(prev => ({ ...prev, coinstats_data: ctx, last_updated: new Date().toISOString() }));
+                console.log('🧠 Updated AI context with metric scores:', ctx);
+              } catch (_) {}
+
               if (marketCap && volume24h) {
-                const liqScore = clamp((volume24h / marketCap) * 100, 0, 100);
                 const exists = liquidityScoreBubbles.some(b => (b.title || '').toLowerCase().includes(tokenNameUpper.toLowerCase()));
                 if (!exists) setLiquidityScoreBubbles(prev => [...prev, { id: `liq-${Date.now()}-${Math.random()}`, title: `${nameForTitle} Liquidity`, tokenName: tokenNameUpper, score: liqScore }]);
               }
@@ -3848,34 +3972,6 @@ export default function Home() {
                   // Don't create metric bubbles without data
                   return;
                 }
-                
-                // 🧠 Update AI context with CoinStats data ONLY
-                if (data && Object.keys(data).length > 0 && !data.error) {
-                  try {
-                    const ctx = {
-                      token: coin.symbol || coin.name,
-                      price: data?.price ?? data?.priceUSD ?? data?.price_usd,
-                      change24h: data?.change24h ?? data?.priceChange1d,
-                      marketCap: data?.marketCap ?? data?.market_cap,
-                      volume: data?.volume24h ?? data?.volume,
-                      timestamp: new Date().toISOString(),
-                      source: 'CoinStats API'
-                    };
-                    if (window.contextAwarenessData) {
-                      window.contextAwarenessData.coinstats_data = ctx;
-                    } else {
-                      window.contextAwarenessData = { coinstats_data: ctx };
-                    }
-                    setContextAwarenessData(prev => ({
-                      ...prev,
-                      coinstats_data: ctx,
-                      last_updated: new Date().toISOString()
-                    }));
-                    console.log('🧠 Updated AI context with CoinStats data:', ctx);
-                  } catch (e) {
-                    console.warn('Context update failed for CoinStats:', e);
-                  }
-                }
 
                 // Create metric bubbles for this token using CoinStats data
                 console.log(`🎯[Metric Bubbles] ENTRY POINT (AI path) - About to create metrics, coin:`, coin);
@@ -3897,9 +3993,96 @@ export default function Home() {
                   const totalSupply = safeNumber(data?.totalSupply);
                   console.log(`🎯[Metric Bubbles] Extracted values: marketCap=${marketCap}, volume24h=${volume24h}, change1h=${change1h}, change24h=${change24h}, change7d=${change7d}, availableSupply=${availableSupply}, totalSupply=${totalSupply}`);
 
+                  // Calculate all metric scores for AI context
+                  const liqScore = (marketCap && volume24h) ? clamp((volume24h / marketCap) * 100, 0, 100) : null;
+                  const volScore = (change24h !== undefined) ? clamp(Math.abs(change24h) * 2, 0, 100) : null;
+                  let mcapScore = null;
+                  if (marketCap) {
+                    mcapScore = 20;
+                    if (marketCap >= 10e9) mcapScore = 90;
+                    else if (marketCap >= 1e9) mcapScore = 70;
+                    else if (marketCap >= 1e8) mcapScore = 50;
+                  }
+                  let riskScore = null;
+                  if (change24h !== undefined) {
+                    let mcapComponent = 20;
+                    if (marketCap >= 10e9) mcapComponent = 90;
+                    else if (marketCap >= 1e9) mcapComponent = 70;
+                    else if (marketCap >= 1e8) mcapComponent = 50;
+                    riskScore = clamp(100 - mcapComponent + (clamp(Math.abs(change24h) * 2, 0, 100) / 2), 0, 100);
+                  }
+
+                  // 🧠 Update AI context with CoinStats data + ALL metric scores
+                  if (data && Object.keys(data).length > 0 && !data.error) {
+                    try {
+                      const ctx = {
+                        token: coin.symbol || coin.name,
+                        name: data?.name || coin?.name || tokenNameUpper,
+                        price: data?.price ?? data?.priceUSD ?? data?.price_usd,
+                        marketCap: marketCap,
+                        volume24h: volume24h,
+                        change1h: change1h,
+                        change24h: change24h,
+                        change7d: change7d,
+                        availableSupply: availableSupply,
+                        totalSupply: totalSupply,
+                        // Metric scores for Olivia to reference
+                        metrics: {
+                          liquidityScore: liqScore,
+                          volatilityScore: volScore,
+                          marketCapScore: mcapScore,
+                          riskScore: riskScore,
+                          supplyRatio: (availableSupply && totalSupply) ? (availableSupply / totalSupply * 100) : null
+                        },
+                        // How scores are calculated - for transparency
+                        scoring_methodology: {
+                          liquidityScore: {
+                            formula: '(volume24h / marketCap) * 100, capped at 100',
+                            explanation: 'Higher score means more trading volume relative to market cap, indicating better liquidity',
+                            interpretation: 'Below 10: Low liquidity, 10-30: Moderate, 30-50: Good, Above 50: Excellent'
+                          },
+                          volatilityScore: {
+                            formula: 'abs(change24h) * 2, capped at 100',
+                            explanation: 'Higher score means larger price swings in the last 24 hours',
+                            interpretation: 'Below 20: Stable, 20-50: Moderate volatility, 50-80: High volatility, Above 80: Extreme'
+                          },
+                          marketCapScore: {
+                            formula: 'Tiered: <$100M=20, $100M-$1B=50, $1B-$10B=70, >$10B=90',
+                            explanation: 'Reflects the size and maturity of the token based on market capitalization',
+                            interpretation: '20: Micro-cap (high risk), 50: Mid-cap, 70: Large-cap, 90: Blue-chip'
+                          },
+                          riskScore: {
+                            formula: '(100 - marketCapScore) + (volatilityScore / 2), capped at 100',
+                            explanation: 'Combines small market cap risk with price volatility to assess overall risk',
+                            interpretation: 'Below 30: Low risk, 30-60: Medium risk, 60-80: High risk, Above 80: Very high risk'
+                          },
+                          supplyRatio: {
+                            formula: '(availableSupply / totalSupply) * 100',
+                            explanation: 'Percentage of total supply currently in circulation',
+                            interpretation: 'Below 50%: Large unlock risk, 50-90%: Moderate, Above 90%: Mostly circulating'
+                          }
+                        },
+                        timestamp: new Date().toISOString(),
+                        source: 'CoinStats API'
+                      };
+                      if (window.contextAwarenessData) {
+                        window.contextAwarenessData.coinstats_data = ctx;
+                      } else {
+                        window.contextAwarenessData = { coinstats_data: ctx };
+                      }
+                      setContextAwarenessData(prev => ({
+                        ...prev,
+                        coinstats_data: ctx,
+                        last_updated: new Date().toISOString()
+                      }));
+                      console.log('🧠 Updated AI context with CoinStats data + metric scores:', ctx);
+                    } catch (e) {
+                      console.warn('Context update failed for CoinStats:', e);
+                    }
+                  }
+
                   // Liquidity score
                   if (marketCap && volume24h) {
-                    const liqScore = clamp((volume24h / marketCap) * 100, 0, 100);
                     console.log(`✅[Liquidity] Creating bubble for ${tokenNameUpper}, score=${liqScore.toFixed(2)}`);
                     setLiquidityScoreBubbles(prev => [...prev, {
                       id: `liq-${Date.now()}-${Math.random()}`,
