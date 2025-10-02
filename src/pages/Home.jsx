@@ -47,6 +47,38 @@ export default function Home() {
   // Use the shared input context
   const { showInput, setShowInput, userInput, setUserInput, inputRef, handleSendMessageRef } = useHomeInput()
   
+  // 🎯 ACTIVE TOKEN - Single source of truth for what's being discussed
+  const [activeToken, setActiveToken] = useState(null);
+  // activeToken = { symbol, name, id (geckoId), data (all CoinGecko trending data) }
+  
+  // 🔊 BROADCAST TO ALL PLUGINS - Trigger all 16 plugins with active token
+  const broadcastTokenToAllPlugins = useCallback((token) => {
+    if (!token) return;
+    
+    console.log('');
+    console.log('🎯═══════════════════════════════════════════════════════════════');
+    console.log('🎯 ACTIVE TOKEN SET');
+    console.log('🎯═══════════════════════════════════════════════════════════════');
+    console.log('📊 Symbol:', token.symbol);
+    console.log('📝 Name:', token.name);
+    console.log('🆔 CoinGecko ID:', token.id);
+    console.log('💰 Price:', token.data?.price || 'N/A');
+    console.log('📈 24h Change:', token.data?.price_change_percentage_24h?.usd || 'N/A');
+    console.log('🎯═══════════════════════════════════════════════════════════════');
+    console.log('🔌 Broadcasting to ALL 16 plugins...');
+    console.log('🎯═══════════════════════════════════════════════════════════════');
+    console.log('');
+    
+    // Store globally for all plugins to access
+    window.activeToken = token;
+    window.contextAwarenessData = window.contextAwarenessData || {};
+    window.contextAwarenessData.active_token = token;
+    
+    // Each plugin will try with this token data
+    // If they find data → add to context
+    // If no data → quietly skip
+  }, []);
+  
   // 🧠 DYNAMIC TOKEN REGISTRY - Build intelligence from API responses and conversation
   const tokenRegistry = useRef(new Map()); // Map<tokenName, {id, symbol, name, source, timestamp}>
   
@@ -637,12 +669,12 @@ export default function Home() {
     
     // DYNAMIC API VALIDATION - Test each candidate against CoinStats API
     const validatedTokens = [];
-    const maxTokensToTest = Math.min(potentialTokens.length, 2); // Limit to 2 tokens max
+    const maxTokensToTest = Math.min(potentialTokens.length, 1); // Limit to 1 token to reduce API load
     const tokensToTest = potentialTokens.slice(0, maxTokensToTest);
     
     log('🧪 AI Agent: Testing tokens against CoinStats API...', tokensToTest);
     
-    // Test each potential token in parallel using REAL API validation
+    // Test each potential token sequentially (not parallel) to reduce API load
     const validationPromises = tokensToTest.map(async (token) => {
       try {
         log(`🔎 Testing token: ${token}`);
@@ -737,9 +769,6 @@ export default function Home() {
           };
         }
         
-        log(`❌ Token not found in any source: ${token}`);
-        return { searchTerm: token, isValid: false };
-        
       } catch (error) {
         log(`⚠️ General error testing token ${token}:`, error);
         return { searchTerm: token, isValid: false };
@@ -792,14 +821,20 @@ export default function Home() {
           }]);
           (async () => {
             try {
-              // Single API call - use coin ID if available, otherwise just search
+              // Single API call - only use ID if it came from CoinStats (not CoinGecko)
               let data = null;
-              if (coinData?.id) {
+              if (coinData?.id && tokenResult.source === 'coinstats') {
+                // Use CoinStats ID directly
                 data = await coinstatsService.getCoin(coinData.id);
               } else {
-                // Just search, don't make a second getCoin call
+                // Search by symbol to get correct CoinStats ID
                 const search = await coinstatsService.searchCoins(coinData?.symbol || searchTerm);
-                data = Array.isArray(search) ? search[0] : search;
+                if (search && search.length > 0) {
+                  // Use the CoinStats ID from search result
+                  data = await coinstatsService.getCoin(search[0].id);
+                } else {
+                  data = null;
+                }
               }
               setCoinstatsBubbles(prev => prev.map(b => b.id === bubbleId
                 ? { ...b, content: data, loading: false }
@@ -3755,10 +3790,35 @@ export default function Home() {
         log('📈 Trending data fetched:', trendingData);
         
         if (trendingData?.coins && trendingData.coins.length > 0) {
-          // Pick a random trending token (0-2 for variety)
-          const randomIndex = Math.floor(Math.random() * Math.min(3, trendingData.coins.length));
-          const trendingCoin = trendingData.coins[randomIndex];
+          // Find top 20 gainers and pick randomly from them
+          const sortedByGain = trendingData.coins
+            .filter(c => {
+              const change = c.item?.data?.price_change_percentage_24h?.usd;
+              return change !== undefined && change !== null && !isNaN(change);
+            })
+            .sort((a, b) => {
+              const changeA = a.item?.data?.price_change_percentage_24h?.usd || 0;
+              const changeB = b.item?.data?.price_change_percentage_24h?.usd || 0;
+              return changeB - changeA; // Descending order (biggest gain first)
+            });
+          
+          // Pick randomly from top 20 gainers for variety
+          const topGainers = sortedByGain.slice(0, 20);
+          const randomIndex = Math.floor(Math.random() * topGainers.length);
+          const trendingCoin = topGainers.length > 0 ? topGainers[randomIndex] : trendingData.coins[0];
           const coin = trendingCoin.item;
+          
+          log('🚀 Selected from TOP 20 GAINERS:', coin.name, 'with', coin.data?.price_change_percentage_24h?.usd, '% gain');
+          
+          // 🎯 SET ACTIVE TOKEN - This is what all plugins will use
+          const tokenContext = {
+            symbol: coin.symbol,
+            name: coin.name,
+            id: coin.id, // CoinGecko ID
+            data: coin.data // All the trending data
+          };
+          setActiveToken(tokenContext);
+          broadcastTokenToAllPlugins(tokenContext);
           
           // Format market data
           const priceChange = coin.data?.price_change_percentage_24h?.usd;
@@ -3845,36 +3905,38 @@ export default function Home() {
           
           // 1. CoinGecko - Price & Market Data
           if (isPluginEnabled('coingecko')) {
-            log('📊 CoinGecko: Checking if bubble exists for', coin.id);
+            console.log('🦎 [CoinGecko] Using activeToken:', { symbol: coin.symbol, name: coin.name, id: coin.id });
             // Check if bubble already exists for this token
             setCoinGeckoBubbles(prev => {
               const exists = prev.some(b => b.title?.includes(coin.name));
               if (exists) {
-                log('📊 CoinGecko bubble already exists, skipping');
+                console.log('🦎 [CoinGecko] ✅ Bubble already exists, skipping');
                 return prev;
               }
               
-              log('📊 CoinGecko: Fetching data for', coin.id);
+              console.log('🦎 [CoinGecko] 🔍 Fetching data from API...');
               const bubbleId = `coingecko-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
               
-              // Fetch data async
-              (async () => {
-                try {
-                  const data = await coingeckoService.getCoinDetails(coin.id);
-                  const bubbleContent = `${coin.name} (${coin.symbol.toUpperCase()})\nPrice: $${data.market_data?.current_price?.usd?.toLocaleString() || 'N/A'}\n24h: ${priceChange?.toFixed(2)}%\nMarket Cap: ${marketCapRaw >= 1e9 ? `$${(marketCapRaw / 1e9).toFixed(2)}B` : `$${(marketCapRaw / 1e6).toFixed(2)}M`}\nVolume: $${(data.market_data?.total_volume?.usd / 1e6)?.toFixed(2)}M`;
-                  
-                  // Store in context
-                  window.contextAwarenessData.market_data = window.contextAwarenessData.market_data || {};
-                  window.contextAwarenessData.market_data[coin.symbol.toLowerCase()] = data.market_data;
-                  
-                  // Update bubble with data
-                  setCoinGeckoBubbles(prev => prev.map(b => 
-                    b.id === bubbleId ? { ...b, content: bubbleContent, loading: false } : b
-                  ));
-                } catch (err) {
-                  logError('CoinGecko fetch failed:', err);
-                }
-              })();
+              // Use data we already have from getTrending() - no need to fetch again!
+              console.log('🦎 [CoinGecko] ✅ Using trending data (no API call needed)');
+              
+              const price = coin.data?.price || 'N/A';
+              const priceStr = typeof price === 'number' ? `$${price.toLocaleString()}` : price;
+              const volume = coin.data?.total_volume || 0;
+              const volumeStr = volume > 0 ? `$${(volume / 1e6).toFixed(2)}M` : 'N/A';
+              
+              const bubbleContent = `${coin.name} (${coin.symbol.toUpperCase()})\nPrice: ${priceStr}\n24h: ${priceChange?.toFixed(2)}%\nMarket Cap: ${marketCapRaw >= 1e9 ? `$${(marketCapRaw / 1e9).toFixed(2)}B` : `$${(marketCapRaw / 1e6).toFixed(2)}M`}\nVolume: ${volumeStr}`;
+              
+              // Store in context
+              window.contextAwarenessData.market_data = window.contextAwarenessData.market_data || {};
+              window.contextAwarenessData.market_data[coin.symbol.toLowerCase()] = coin.data;
+              
+              // Update bubble immediately with data we already have
+              setTimeout(() => {
+                setCoinGeckoBubbles(prev => prev.map(b => 
+                  b.id === bubbleId ? { ...b, content: bubbleContent, loading: false } : b
+                ));
+              }, 100);
               
               // Return immediately with loading bubble
               return [...prev, {
@@ -3889,9 +3951,10 @@ export default function Home() {
           
           // 2. Twitter/X - Social mentions for ticker (always show tweets if any)
           if (isPluginEnabled('twitter')) {
-            log('🐦 Twitter: Searching for $', coin.symbol);
+            console.log('🐦 [Twitter] Using activeToken:', { symbol: coin.symbol });
             const fetchTwitterData = async () => {
               try {
+                console.log('🐦 [Twitter] 🔍 Searching for tweets...');
                 const rawToken = coin.symbol || '';
                 const tokenUpper = rawToken.toUpperCase();
                 const candidates = Array.from(new Set([
@@ -3956,10 +4019,46 @@ export default function Home() {
                   title: `${coin.name} Stats`
                 }]);
 
-                console.log('📊[CoinStats] Fetching coin by id:', coin.id);
+                // First search by symbol to get the correct CoinStats ID
+                console.log('📊[CoinStats] Searching for coin:', {
+                  symbol: coin.symbol,
+                  name: coin.name,
+                  geckoId: coin.id
+                });
                 
-                // Single API call - no fallback search to avoid rate limits
-                let data = await coinstatsService.getCoin(coin.id);
+                // Try searching by symbol first
+                let searchResults = await coinstatsService.searchCoins(coin.symbol);
+                
+                // If no results, try searching by name as fallback
+                if (!searchResults || searchResults.length === 0) {
+                  console.log('📊[CoinStats] No results for symbol, trying name:', coin.name);
+                  searchResults = await coinstatsService.searchCoins(coin.name);
+                }
+                
+                let data = null;
+                if (searchResults && searchResults.length > 0) {
+                  const coinStatsId = searchResults[0].id;
+                  console.log('📊[CoinStats] ✅ Found CoinStats ID:', coinStatsId, 'Full result:', searchResults[0]);
+                  // Now fetch with the correct CoinStats ID
+                  data = await coinstatsService.getCoin(coinStatsId);
+                  console.log('📊[CoinStats] getCoin returned:', data);
+                } else {
+                  console.log('📊[CoinStats] ℹ️ Token not in CoinStats database, using CoinGecko data as fallback for:', coin.symbol);
+                  // Use CoinGecko data we already have from trending
+                  data = {
+                    name: coin.name,
+                    symbol: coin.symbol,
+                    marketCap: coin.data?.market_cap,
+                    volume: coin.data?.total_volume,
+                    priceChange1h: coin.data?.price_change_percentage_1h_in_currency,
+                    change24h: coin.data?.price_change_percentage_24h?.usd,
+                    priceChange1w: coin.data?.price_change_percentage_7d_in_currency,
+                    priceChange7d: coin.data?.price_change_percentage_7d_in_currency,
+                    availableSupply: coin.data?.circulating_supply,
+                    totalSupply: coin.data?.total_supply
+                  };
+                  console.log('📊[CoinStats] Using CoinGecko fallback data:', data);
+                }
                 
                 if (data) {
                   console.log('📊[CoinStats] Success - displaying data');
@@ -3969,14 +4068,10 @@ export default function Home() {
                     : b
                   ));
                 } else {
-                  // NO FALLBACK - if CoinStats fails, we need to know
-                  console.error('📊[CoinStats] FAILED - No data returned');
-                  setCoinstatsBubbles(prev => prev.map(b => b.id === bubbleId
-                    ? { ...b, content: '❌ CoinStats failed - no data', loading: false }
-                    : b
-                  ));
-                  // Don't create metric bubbles without data
-                  return;
+                  // CoinStats API returned null - remove the bubble
+                  console.log('📊[CoinStats] No data returned, removing bubble');
+                  setCoinstatsBubbles(prev => prev.filter(b => b.id !== bubbleId));
+                  return; // Don't create metric bubbles without data
                 }
 
                 // Create metric bubbles for this token using CoinStats data
