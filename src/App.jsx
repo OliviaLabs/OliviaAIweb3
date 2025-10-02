@@ -9,6 +9,7 @@ import Profile from './pages/Profile';
 import Layout from './components/layout/Layout';
 import { PrivateRoute, PublicRoute } from './components/auth/RouteGuards';
 import { TokenInfluencerProvider } from './contexts/TokenInfluencerContext';
+import { HomeInputProvider } from './contexts/HomeInputContext';
 import React, { useState, useEffect } from 'react';
 import QrCode from './pages/QrCode';
 
@@ -70,7 +71,11 @@ function App() {
 
 
             <Route element={<PrivateRoute />}>
-              <Route element={<Layout />}>
+              <Route element={
+                <HomeInputProvider>
+                  <Layout />
+                </HomeInputProvider>
+              }>
                 <Route path="/home" element={<Home />} />
                 <Route path="/explore" element={<Explore />} />
                 <Route path="/plugins" element={<Plugins />} />

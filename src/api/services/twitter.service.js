@@ -25,12 +25,6 @@ export const twitterService = {
 
       const data = await response.json();
       
-      // Debug: Log the raw API response to see the actual structure
-      console.log('🐦 Raw Twitter API response:', JSON.stringify(data, null, 2));
-      if (data.timeline && data.timeline.length > 0) {
-        console.log('🐦 First tweet structure:', JSON.stringify(data.timeline[0], null, 2));
-      }
-      
       // Process the response to extract relevant tweet data (robust to multiple schemas)
       let tweets = [];
       const rawTimeline = Array.isArray(data.timeline) ? data.timeline

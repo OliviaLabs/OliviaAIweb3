@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useWebSocket } from '../contexts/WebSocketContext'
 import { useInternetIdentity } from '../contexts/InternetIdentityContext'
+import { useHomeInput } from '../contexts/HomeInputContext'
 import { isPluginEnabled, AVAILABLE_PLUGINS } from '../utils/pluginManager'
 import { useAccountUpgrade } from '../hooks/useAccountUpgrade';
 import { icpService } from '../api/services/icp.service.js';
@@ -38,12 +39,13 @@ export default function Home() {
   const [messages, setMessages] = useState([])
   const [currentResponse, setCurrentResponse] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [showInput, setShowInput] = useState(false)
   const messagesEndRef = useRef(null)
-  const [userInput, setUserInput] = useState('')
   const [loadingText, setLoadingText] = useState('Analyzing')
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const [particles, setParticles] = useState([])
+  
+  // Use the shared input context
+  const { showInput, setShowInput, userInput, setUserInput, inputRef, handleSendMessageRef } = useHomeInput()
   
   // 🧠 DYNAMIC TOKEN REGISTRY - Build intelligence from API responses and conversation
   const tokenRegistry = useRef(new Map()); // Map<tokenName, {id, symbol, name, source, timestamp}>
@@ -334,7 +336,6 @@ export default function Home() {
     }
   }, [])
 
-  const inputRef = useRef(null)
   const { userData, isGuestUser } = useAuth()
   const { isConnected, sendMessage, subscribe, connect, isConnecting, connectionAttempts, currentEndpointIndex, wsEndpoints } = useWebSocket()
   const { principal, isAuthenticated } = useInternetIdentity()
@@ -3724,6 +3725,11 @@ export default function Home() {
     }
   }
 
+  // Connect handleSendMessage to the context so BottomNavigation can call it
+  useEffect(() => {
+    handleSendMessageRef.current = handleSendMessage;
+  }, [handleSendMessage, handleSendMessageRef]);
+
   // Auto-initialize the chat on component mount with dynamic trending token message
   const hasInitialized = useRef(false);
   
@@ -4380,37 +4386,7 @@ export default function Home() {
               </div>
             )}
             
-            {/* Simple Input */}
-            {showInput && (
-              <div className="fixed bottom-52 left-4 right-4 z-20">
-                <div className="relative">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={userInput}
-                    onChange={(e) => setUserInput(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    className="w-full bg-black border border-green-300 rounded-lg text-white text-sm pl-3 pr-12 py-2 text-center focus:outline-none focus:border-green-400"
-                    style={{
-                      caretColor: 'white'
-                    }}
-                    placeholder="Ask me anything..."
-                  />
-                  {/* Olivia Logo Submit Button */}
-                  <button
-                    onClick={handleSendMessage}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/50 hover:bg-green-900/30 transition-colors duration-200 flex items-center justify-center border border-green-300/50 hover:border-green-400"
-                    disabled={!userInput.trim()}
-                  >
-                    <img
-                      src="/Olivia-ai-LOGO.png"
-                      alt="Send"
-                      className={`w-4 h-4 ${!userInput.trim() ? 'opacity-50' : 'opacity-100'}`}
-                    />
-                  </button>
-                </div>
-              </div>
-            )}
+            {/* AI Input is now part of BottomNavigation component */}
           </div>
         </div>
       {/* Render all Lurky bubble instances - only if plugin enabled */}

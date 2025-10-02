@@ -1,0 +1,105 @@
+{
+  "lastUpdated": "2025-10-02T09:55:25.561Z",
+  "tokens": [
+    {
+      "name": "SEI",
+      "value": 19,
+      "speakers": 15
+    },
+    {
+      "name": "BTC",
+      "value": 13,
+      "speakers": 12
+    },
+    {
+      "name": "TON",
+      "value": 13,
+      "speakers": 13
+    },
+    {
+      "name": "ARB",
+      "value": 12,
+      "speakers": 12
+    },
+    {
+      "name": "SUI",
+      "value": 11,
+      "speakers": 10
+    },
+    {
+      "name": "LDO",
+      "value": 10,
+      "speakers": 10
+    },
+    {
+      "name": "APT",
+      "value": 10,
+      "speakers": 10
+    },
+    {
+      "name": "AVAX",
+      "value": 9,
+      "speakers": 9
+    },
+    {
+      "name": "ENA",
+      "value": 9,
+      "speakers": 9
+    },
+    {
+      "name": "WIF",
+      "value": 9,
+      "speakers": 9
+    },
+    {
+      "name": "MATIC",
+      "value": 9,
+      "speakers": 9
+    },
+    {
+      "name": "CRV",
+      "value": 8,
+      "speakers": 7
+    },
+    {
+      "name": "ETH",
+      "value": 7,
+      "speakers": 7
+    },
+    {
+      "name": "SOL",
+      "value": 7,
+      "speakers": 7
+    },
+    {
+      "name": "DOGE",
+      "value": 7,
+      "speakers": 4
+    },
+    {
+      "name": "OP",
+      "value": 7,
+      "speakers": 7
+    },
+    {
+      "name": "LINK",
+      "value": 7,
+      "speakers": 7
+    },
+    {
+      "name": "UNI",
+      "value": 7,
+      "speakers": 7
+    },
+    {
+      "name": "AAVE",
+      "value": 5,
+      "speakers": 5
+    },
+    {
+      "name": "PEPE",
+      "value": 4,
+      "speakers": 4
+    }
+  ]
+}

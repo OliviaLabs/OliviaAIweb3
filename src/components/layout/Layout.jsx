@@ -5,6 +5,7 @@ import BottomNavigation from './BottomNavigation'
 import WelcomeDrawer from '../ui/WelcomeDrawer'
 import AccountUpgradePrompt from '../ui/AccountUpgradePrompt'
 import { useAuth } from '../../contexts/AuthContext'
+import { useHomeInput } from '../../contexts/HomeInputContext'
 import { useAccountUpgrade } from '../../hooks/useAccountUpgrade';
 import { log } from '../../utils/logger.js';
 
@@ -13,6 +14,9 @@ export default function Layout() {
   const location = useLocation()
   // Remove game page logic
   const { telegramUser, setTelegramUser, userData, setUserData, isGuestUser } = useAuth();
+  
+  // Get AI input state from context
+  const { showInput, userInput, setUserInput, inputRef, handleSendMessageRef } = useHomeInput();
   
   // Account upgrade flow
   const { 
@@ -68,17 +72,23 @@ export default function Layout() {
   }, [userData, telegramUser, isGuestUser])
 
   return (
-    <div className={`h-screen hide-scrollbar w-full flex flex-col relative overflow-hidden`}>
+    <div className={`h-screen hide-scrollbar w-full flex flex-col relative`}>
       {/* Top Navigation */}
       <TopNavigation />
 
       {/* Main content */}
-      <main className={`flex-1 px-4 overflow-hidden`}>
+      <main className={`flex-1 px-4 overflow-y-auto`}>
         <Outlet />
       </main>
 
       {/* Bottom Navigation */}
-      <BottomNavigation />
+      <BottomNavigation 
+        showInput={showInput}
+        userInput={userInput}
+        onInputChange={setUserInput}
+        onSendMessage={() => handleSendMessageRef.current?.()}
+        inputRef={inputRef}
+      />
 
       {/* Welcome Drawer */}
       < WelcomeDrawer

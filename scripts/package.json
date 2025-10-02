@@ -1,0 +1,9 @@
+{
+  "name": "olivia-scripts",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "scrape": "node twitter-scraper.js"
+  }
+}
+

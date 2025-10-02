@@ -9,7 +9,7 @@ import { useTokenInfluencer } from '../../../contexts/TokenInfluencerContext';
 import { useAuth } from '../../../contexts/AuthContext';
 
 
-export default function TradingInfluencersSection() {
+export default function TradingInfluencersSection({ selectedToken, tokenTweets, isSearching, onClear }) {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [selectedInfluencer, setSelectedInfluencer] = useState(null);
   const [influencers, setInfluencers] = useState([]);
@@ -18,42 +18,30 @@ export default function TradingInfluencersSection() {
   const { setTokenInfluencerData } = useTokenInfluencer();
   const { userData } = useAuth();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [data, tokensData] = await Promise.all([
-          socialService.getInfluencers(),
-          socialService.getTokens()
-        ]);
-        setTokens(tokensData);
-        // Map all influencers (no slice)
-        const allInfluencers = data
-          .map(({ influencer, cashtags }) => ({
-            id: influencer.id,
-            name: influencer.username,
-            handle: `@${influencer.username}`,
-            image: influencer.avatar_image,
-            tag: cashtags?.length > 0 ? `$${cashtags[0].cashtag}` : '$TON',
-            tagColor: '#4ED342', // Keep consistent green color
-            followers_count: influencer.followers_count,
-            following_count: influencer.following_count,
-            onai_table_user_id: influencer.onai_table_user_id,
-            influencer_points: influencer.influencer_points,
-            is_verified: influencer.is_verified,
-            olivia_users_ids: influencer.olivia_users_ids,
-            community_trades_ids: influencer.community_trades_ids,
-            cashtags: cashtags
-          }));
-        // console.log("All Influencers: ", allInfluencers);
-        setInfluencers(allInfluencers);
-      } catch (error) {
-        console.error("Error:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Show Twitter results if a token is selected, otherwise show default influencers
+  const displayInfluencers = selectedToken && tokenTweets?.length > 0
+    ? tokenTweets.map((tweet, index) => ({
+        id: `twitter-${index}`,
+        name: tweet.user.name || tweet.user.username,
+        handle: `@${tweet.user.username}`,
+        image: tweet.user.profile_image_url || '/Olivia-ai-LOGO.png',
+        tag: `$${selectedToken}`,
+        tagColor: '#4ED342',
+        engagement: tweet.engagement,
+        tweet_url: tweet.url,
+        tweet_text: tweet.text,
+        favorite_count: tweet.favorite_count,
+        retweet_count: tweet.retweet_count,
+        reply_count: tweet.reply_count || 0
+      }))
+    : influencers;
 
-    fetchData();
+  useEffect(() => {
+    // Skip loading default influencers - we only show Twitter results now
+    // This avoids API errors and improves performance
+    setLoading(false);
+    setInfluencers([]);
+    setTokens([]);
   }, []);
 
   if (loading) {
@@ -82,56 +70,101 @@ export default function TradingInfluencersSection() {
 
   return (
     <>
-      <div className="w-full">
+      <div id="trading-influencers" className="w-full">
         <div className="flex items-center justify-between mb-4 z-10 mt-6">
-          <h2 className="text-sm font-medium">Explore Trading Influencers</h2>
+          <h2 className="text-sm font-medium">
+            {selectedToken ? `Influencers talking about $${selectedToken}` : 'Click a bubble to see who\'s talking'}
+          </h2>
+          {selectedToken && (
+            <button
+              onClick={() => {
+                if (onClear) {
+                  onClear();
+                }
+              }}
+              className="text-xs text-white/50 hover:text-white transition-colors"
+            >
+              Clear
+            </button>
+          )}
         </div>
 
         <div className="rounded-2xl">
-          <ScrollShadow
-            className="h-[360px]"
-            hideScrollBar={false}
-            size={40}
-          >
-            <div className="flex flex-col gap-4">
-              {influencers.map(influencer => (
-                <button
-                  key={influencer.id}
-                  className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-colors"
-                  onClick={() => {
-                    setSelectedInfluencer(influencer);
-                    onOpen();
-                  }}
-                >
-                  <div className="min-w-12 w-12 min-h-12 h-12 rounded-full overflow-hidden border-[#1B1B1B] border-solid border-2">
-                    <img
-                      src={influencer.image}
-                      alt={influencer.name}
-                      className="min-w-12 w-12 min-h-12 h-12 object-cover"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1 items-start justify-between w-full">
-                    <div className='flex justify-start flex-col items-start'>
-                      <span className="text-[12px] font-medium">{influencer.name}</span>
-                      <span className="text-[10px] text-white/80">{influencer.handle}</span>
+          {/* Desktop: Fixed height with scroll. Mobile: Natural flow */}
+          <div className="md:max-h-[360px] md:overflow-y-auto md:pr-2">
+            {isSearching ? (
+              <div className="flex items-center justify-center h-[200px]">
+                <div className="text-white/50">Searching Twitter...</div>
+              </div>
+            ) : displayInfluencers.length === 0 ? (
+              <div className="flex items-center justify-center h-[200px]">
+                <div className="text-white/50">
+                  {selectedToken ? `No tweets found for $${selectedToken}` : 'No influencers found'}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4 pb-20 md:pb-0">
+                {displayInfluencers.map(influencer => (
+                  <button
+                    key={influencer.id}
+                    className="flex flex-col gap-2 p-3 rounded-xl hover:bg-white/5 transition-colors border border-white/5 text-left"
+                    onClick={() => {
+                      if (influencer.tweet_url) {
+                        // If it's a Twitter result, open the tweet
+                        window.open(influencer.tweet_url, '_blank');
+                      } else {
+                        // If it's a regular influencer, show the drawer
+                        setSelectedInfluencer(influencer);
+                        onOpen();
+                      }
+                    }}
+                  >
+                    {/* Header with avatar and name */}
+                    <div className="flex items-center gap-3">
+                      <div className="min-w-12 w-12 min-h-12 h-12 rounded-full overflow-hidden border-[#1B1B1B] border-solid border-2">
+                        <img
+                          src={influencer.image}
+                          alt={influencer.name}
+                          className="min-w-12 w-12 min-h-12 h-12 object-cover"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-0.5 flex-1">
+                        <span className="text-[12px] font-medium">{influencer.name}</span>
+                        <span className="text-[10px] text-white/80">{influencer.handle}</span>
+                      </div>
+                      <div
+                        className="text-[12px] border-1 border-solid px-2 py-0.5 border-[#22D911]/40 rounded-full"
+                        style={{
+                          backgroundColor: `${influencer.tagColor}20`,
+                          color: influencer.tagColor
+                        }}
+                      >
+                        {influencer.tag}
+                      </div>
                     </div>
-                  </div>
-                  <div className='flex justify-end items-center gap-2'>
-                    <div
-                      className="text-[12px] border-1 border-solid px-2 py-0.2 border-[#22D911]/40 rounded-full"
-                      style={{
-                        backgroundColor: `${influencer.tagColor}20`,
-                        color: influencer.tagColor
-                      }}
-                    >
-                      {influencer.tag}
-                    </div>
-                    <ChevronRight className="w-4 h-4 ml-auto text-white/50" />
-                  </div>
-                </button>
-              ))}
-            </div>
-          </ScrollShadow>
+
+                    {/* Tweet text (only for Twitter results) */}
+                    {influencer.tweet_text && (
+                      <div className="text-[11px] text-white/90 line-clamp-3 pl-15">
+                        {influencer.tweet_text}
+                      </div>
+                    )}
+
+                    {/* Engagement stats */}
+                    {influencer.engagement && (
+                      <div className="flex items-center gap-3 text-[10px] text-white/50 pl-15">
+                        <span>❤️ {influencer.favorite_count}</span>
+                        <span>🔄 {influencer.retweet_count}</span>
+                        {influencer.reply_count > 0 && (
+                          <span>💬 {influencer.reply_count}</span>
+                        )}
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

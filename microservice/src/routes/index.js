@@ -10,6 +10,8 @@ import twitterRoutes from './twitterRoutes.js';
 import protokolsRoutes from './protokolsRoutes.js';
 import tonCenterRoutes from './tonCenterRoutes.js';
 import chainbaseRoutes from './chainbaseRoutes.js';
+// Commented out until database is set up
+// import exploreRoutes from './exploreRoutes.js';
 import { OpenAIController } from '../controllers/openaiController.js';
 import AlchemyController from '../controllers/alchemyController.js';
 
@@ -129,6 +131,9 @@ router.use('/twitter', twitterRoutes);
 
 // Protokols routes
 router.use('/protokols', protokolsRoutes);
+
+// Explore routes (for Explore page only) - Commented out until database is set up
+// router.use('/explore', exploreRoutes);
 
 // Default route
 router.get('/', (req, res) => {
