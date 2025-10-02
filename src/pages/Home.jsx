@@ -837,7 +837,7 @@ export default function Home() {
                 const volume24h = safeNumber(data?.volume24h ?? data?.volume ?? data?.market_data?.total_volume?.usd);
                 const change1h = safeNumber(data?.priceChange1h ?? data?.price_change_1h ?? data?.market_data?.price_change_percentage_1h_in_currency?.usd);
                 const change24h = safeNumber(data?.change24h ?? data?.priceChange1d ?? data?.market_data?.price_change_percentage_24h);
-                const change7d = safeNumber(data?.priceChange7d ?? data?.price_change_7d ?? data?.market_data?.price_change_percentage_7d);
+                const change7d = safeNumber(data?.priceChange1w ?? data?.priceChange7d ?? data?.price_change_7d ?? data?.market_data?.price_change_percentage_7d);
                 const availableSupply = safeNumber(data?.availableSupply ?? data?.circulatingSupply ?? data?.market_data?.circulating_supply);
                 const totalSupply = safeNumber(data?.totalSupply ?? data?.market_data?.total_supply);
                 console.log(`🎯[Metric Bubbles] Extracted values: marketCap=${marketCap}, volume24h=${volume24h}, change1h=${change1h}, change24h=${change24h}, change7d=${change7d}, availableSupply=${availableSupply}, totalSupply=${totalSupply}`);
@@ -1441,7 +1441,7 @@ export default function Home() {
               const volume24h = safeNumber(data?.volume24h ?? data?.volume ?? data?.market_data?.total_volume?.usd);
               const change1h = safeNumber(data?.priceChange1h ?? data?.price_change_1h ?? data?.market_data?.price_change_percentage_1h_in_currency?.usd);
               const change24h = safeNumber(data?.change24h ?? data?.priceChange1d ?? data?.market_data?.price_change_percentage_24h);
-              const change7d = safeNumber(data?.priceChange7d ?? data?.price_change_7d ?? data?.market_data?.price_change_percentage_7d);
+              const change7d = safeNumber(data?.priceChange1w ?? data?.priceChange7d ?? data?.price_change_7d ?? data?.market_data?.price_change_percentage_7d);
               const availableSupply = safeNumber(data?.availableSupply ?? data?.circulatingSupply ?? data?.market_data?.circulating_supply);
               const totalSupply = safeNumber(data?.totalSupply ?? data?.market_data?.total_supply);
 
@@ -3892,7 +3892,7 @@ export default function Home() {
                   const volume24h = safeNumber(data?.volume24h ?? data?.volume);
                   const change1h = safeNumber(data?.priceChange1h ?? data?.price_change_1h);
                   const change24h = safeNumber(data?.change24h ?? data?.priceChange1d);
-                  const change7d = safeNumber(data?.priceChange7d ?? data?.price_change_7d);
+                  const change7d = safeNumber(data?.priceChange1w ?? data?.priceChange7d ?? data?.price_change_7d);
                   const availableSupply = safeNumber(data?.availableSupply ?? data?.circulatingSupply);
                   const totalSupply = safeNumber(data?.totalSupply);
                   console.log(`🎯[Metric Bubbles] Extracted values: marketCap=${marketCap}, volume24h=${volume24h}, change1h=${change1h}, change24h=${change24h}, change7d=${change7d}, availableSupply=${availableSupply}, totalSupply=${totalSupply}`);
