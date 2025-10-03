@@ -215,9 +215,10 @@ export class OpenAIController {
    */
   static async generateChatCompletion(req, res) {
     try {
-      const { messages, model = 'gpt-3.5-turbo', max_tokens = 1000, temperature = 0.7, taker, chainId } = req.body;
+      const { messages, model = 'gpt-3.5-turbo', max_tokens = 1000, temperature = 0.7, taker, chainId, contextAwarenessData } = req.body;
 
-      console.log('📧 Messages Content --> ', messages); 
+      console.log('📧 Messages Content --> ', messages);
+      console.log('🧠 Context Awareness Data --> ', contextAwarenessData); 
 
       // Validate required fields
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -351,10 +352,28 @@ export class OpenAIController {
         }
       ];
 
+      // Build system message with context awareness data
+      const systemMessage = {
+        role: "system",
+        content: `You are Olivia, a helpful cryptocurrency AI assistant. You have access to real-time market data from various sources.
+
+${contextAwarenessData ? `
+REAL-TIME MARKET CONTEXT:
+${JSON.stringify(contextAwarenessData, null, 2)}
+
+Use this data to provide accurate, informed responses. When users ask about prices, trends, or market data, reference this context directly.
+` : ''}
+
+Keep responses natural, conversational, and helpful. Avoid emojis unless they add value.`
+      };
+
+      // Prepend system message to conversation
+      const messagesWithContext = [systemMessage, ...messages];
+
       // Make request to OpenAI with function calling tools
       const completion = await openai.chat.completions.create({
         model,
-        messages,
+        messages: messagesWithContext,
         max_tokens,
         temperature,
         tools: tradingTools,
