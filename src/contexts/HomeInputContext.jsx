@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useRef } from 'react';
 const HomeInputContext = createContext();
 
 export const HomeInputProvider = ({ children }) => {
-  const [showInput, setShowInput] = useState(false);
+  const [showInput, setShowInput] = useState(true); // Always show - it's part of navigation!
   const [userInput, setUserInput] = useState('');
   const inputRef = useRef(null);
   const handleSendMessageRef = useRef(null);

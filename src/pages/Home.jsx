@@ -44,6 +44,8 @@ export default function Home() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const [particles, setParticles] = useState([])
   
+  // NOTE: Chat system now lives in Layout.jsx and works on ALL pages!
+  // Home.jsx only handles the proactive AI greeting and bubble interactions
   // Use the shared input context
   const { showInput, setShowInput, userInput, setUserInput, inputRef, handleSendMessageRef } = useHomeInput()
   
@@ -3862,10 +3864,12 @@ export default function Home() {
           
           proactiveMessage += closings[Math.floor(Math.random() * closings.length)];
           
-          setMessages([{
-            type: 'ai',
-            content: proactiveMessage
-          }]);
+          // Dispatch intro message to Layout (chat now lives there)
+          window.dispatchEvent(new CustomEvent('addIntroMessage', {
+            detail: {
+              message: proactiveMessage
+            }
+          }));
           
           
           // 🚀 CRITICAL: Pre-trigger ALL relevant plugins for this token so data is ready
@@ -3903,11 +3907,12 @@ export default function Home() {
           window.contextAwarenessData = window.contextAwarenessData || {};
           window.contextAwarenessData.proactive_token = tokenInfo;
           
-          // 1. CoinGecko - Price & Market Data
+          // 1. CoinGecko - Price & Market Data (0ms - instant)
           if (isPluginEnabled('coingecko')) {
-            console.log('🦎 [CoinGecko] Using activeToken:', { symbol: coin.symbol, name: coin.name, id: coin.id });
-            // Check if bubble already exists for this token
-            setCoinGeckoBubbles(prev => {
+            setTimeout(() => {
+              console.log('🦎 [CoinGecko] Using activeToken:', { symbol: coin.symbol, name: coin.name, id: coin.id });
+              // Check if bubble already exists for this token
+              setCoinGeckoBubbles(prev => {
               const exists = prev.some(b => b.title?.includes(coin.name));
               if (exists) {
                 console.log('🦎 [CoinGecko] ✅ Bubble already exists, skipping');
@@ -3946,11 +3951,13 @@ export default function Home() {
                 loading: true,
                 title: `${coin.name} Market Data`
               }];
-            });
+              });
+            }, 0); // Instant
           }
           
-          // 2. Twitter/X - Social mentions for ticker (always show tweets if any)
+          // 2. Twitter/X - Social mentions for ticker (200ms delay)
           if (isPluginEnabled('twitter')) {
+            setTimeout(() => {
             console.log('🐦 [Twitter] Using activeToken:', { symbol: coin.symbol });
             const fetchTwitterData = async () => {
               try {
@@ -4003,9 +4010,11 @@ export default function Home() {
               }
             };
             fetchTwitterData();
+            }, 200); // 200ms delay
           }
-          // 4. CoinStats - Get data for the ONE coin mentioned in the AI greeting
+          // 4. CoinStats - Get data for the ONE coin mentioned in the AI greeting (400ms delay)
           if (isPluginEnabled('coinstats')) {
+            setTimeout(() => {
             log('📊 CoinStats: Fetching for', coin.symbol);
             const fetchCoinStatsData = async () => {
               const bubbleId = `coinstats-${Date.now()}`;
@@ -4304,26 +4313,29 @@ export default function Home() {
               }
             };
             fetchCoinStatsData();
+            }, 400); // 400ms delay
           }
           
           log('✅ All plugins triggered for:', coin.name);
           
           setIsLoading(false);
         } else {
-          // Fallback if no trending data
-          setMessages([{
-            type: 'ai',
-            content: "Hey! Just scanned the crypto markets for you. What would you like to know about? I can help with live prices, trading insights, or anything Web3!"
-          }]);
+          // Fallback if no trending data - dispatch to Layout
+          window.dispatchEvent(new CustomEvent('addIntroMessage', {
+            detail: {
+              message: "Hey! Just scanned the crypto markets for you. What would you like to know about? I can help with live prices, trading insights, or anything Web3!"
+            }
+          }));
           setIsLoading(false);
         }
       } catch (error) {
         logError('Failed to fetch trending data:', error);
-        // Fallback message on error
-        setMessages([{
-          type: 'ai',
-          content: "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!"
-        }]);
+        // Fallback message on error - dispatch to Layout
+        window.dispatchEvent(new CustomEvent('addIntroMessage', {
+          detail: {
+            message: "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!"
+          }
+        }));
         setIsLoading(false);
       }
     };
@@ -4379,8 +4391,8 @@ export default function Home() {
         ))}
       </div>
 
-      {/* Conversation Display - Properly centered with safe area */}
-      <div className="flex-1 flex items-center justify-center px-4 relative z-10 pt-8 pb-36">
+      {/* Conversation Display - HIDDEN: Chat now displays in bottom navigation only */}
+      <div className="flex-1 flex items-center justify-center px-4 relative z-10 pt-8 pb-36" style={{ display: 'none' }}>
         <div className="text-center max-w-xl w-full">
             
             {/* Chat Messages - Scroll up and fade older messages */}

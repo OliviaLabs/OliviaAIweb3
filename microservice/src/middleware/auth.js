@@ -15,10 +15,17 @@ export const authenticateAdmin = (req, res, next) => {
 
   const authHeader = req.headers.authorization;
   
+  // Debug: Log what we're checking
+  console.log('🔐 Auth check:', {
+    received: authHeader ? authHeader.substring(0, 20) + '...' : 'NONE',
+    expectedSecret: config.adminAccessSecret ? config.adminAccessSecret.substring(0, 10) + '...' : 'NOT SET',
+    matches: authHeader === `Bearer ${config.adminAccessSecret}`
+  });
+  
   // Allow dev-token for both development and production
   // This bypasses the need for JWT verification when using dev-token
   if (authHeader === 'Bearer dev-token' || authHeader === `Bearer ${config.adminAccessSecret}`) {
-    console.log('🔓 Authentication successful');
+    console.log('✅ Authentication successful');
     req.tokenInfo = {
       client_id: 'dev-client',
       role: 'admin',

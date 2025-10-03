@@ -5,7 +5,6 @@ import './index.css'
 import App from './App.jsx'
 import React from 'react'
 
-import { ChatProvider } from './contexts/ChatContext.jsx'
 import { WebSocketProvider } from './contexts/WebSocketContext.jsx'
 import AppKitProvider from './components/auth/Web3ModalProvider.jsx'
 
@@ -47,11 +46,9 @@ try {
                 <AuthProviderLogin>
                   <InternetIdentityProvider>
                     <WebSocketProvider>
-                      <ChatProvider>
-                        <main className="dark text-foreground bg-background">
-                          <App />
-                        </main>
-                      </ChatProvider>
+                      <main className="dark text-foreground bg-background">
+                        <App />
+                      </main>
                     </WebSocketProvider>
                   </InternetIdentityProvider>
                 </AuthProviderLogin>

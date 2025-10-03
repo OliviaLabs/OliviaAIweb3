@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useWebSocket } from '../../contexts/WebSocketContext';
 import { useWalletAuthFlow } from '../../hooks/useWalletAuthFlow';
 import { getPluginCounts } from '../../utils/pluginManager';
+import { useHomeInput } from '../../contexts/HomeInputContext';
 
 import Button from '../ui/Button';
 import { log } from '../../utils/logger.js';
@@ -26,6 +27,9 @@ export default function TopNavigation() {
   // Dropdown state
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  // 💬 CHAT INTERFACE - Use the shared AI system from Home.jsx
+  const { userInput, setUserInput, handleSendMessageRef } = useHomeInput();
 
   // Plugin Manager state
 
@@ -161,17 +165,21 @@ export default function TopNavigation() {
     }
   }, [isGuestUser, icpInitialized, icpUser, hasICPIdentity, icpIdDisplay]);
 
+  // NOTE: All chat/AI logic lives in Home.jsx
+  // The bottom navigation uses handleSendMessageRef from HomeInputContext
+  // which points to Home.jsx's handleSendMessage function
+
   return (
     <>
       {/* Wallet authentication modal functionality removed */}
 
       <div className="px-4 py-4" style={{ zIndex: 2147483646 }}>
         <div className="flex justify-between items-center">
-          {/* Left side - empty (Plugins button removed) */}
+          {/* Left side - empty */}
           <div />
-          
-          {/* Right side - User dropdown */}
-          <div className="relative" ref={dropdownRef}>
+            
+            {/* Right side - User dropdown */}
+            <div className="relative" ref={dropdownRef}>
             {isGuestUser ? (
               hasICPIdentity ? (
                 // ICP Guest User Dropdown
@@ -360,13 +368,9 @@ export default function TopNavigation() {
                 )}
               </div>
             ) : null}
-            
-
           </div>
         </div>
       </div>
-
-
     </>
   );
 }

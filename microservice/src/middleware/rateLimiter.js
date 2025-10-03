@@ -28,16 +28,23 @@ export const createRateLimiter = () => {
  * Stricter rate limiter for OpenAI endpoints
  */
 export const createOpenAIRateLimiter = () => {
+  const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+  
   return rateLimit({
     windowMs: 60 * 1000, // 1 minute
-    max: 10, // Maximum 10 requests per minute for OpenAI endpoints
+    max: isDevelopment ? 100 : 10, // 100 requests/min in dev, 10 in production
     message: {
       error: 'Too many OpenAI requests from this IP, please try again later.',
       code: 'OPENAI_RATE_LIMIT_EXCEEDED',
       retryAfter: 60 // in seconds
     },
     standardHeaders: true,
-    legacyHeaders: false
+    legacyHeaders: false,
+    skip: (req) => {
+      // In development, you can optionally skip rate limiting entirely
+      // return isDevelopment;
+      return false; // Still apply limits, just more generous
+    }
     // Use default keyGenerator (handles IPv6 properly)
   });
 };

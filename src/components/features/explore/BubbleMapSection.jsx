@@ -64,6 +64,34 @@ export default function BubbleMapSection({ onTokenClick, loadingToken }) {
     fetchBubbleData();
   }, [timeframe]);
 
+  // 🧠 MAKE BUBBLE DATA AVAILABLE TO OLIVIA - Add all token data to context window
+  useEffect(() => {
+    if (bubbleData && bubbleData.length > 0) {
+      // Initialize context if it doesn't exist
+      if (!window.contextAwarenessData) {
+        window.contextAwarenessData = {};
+      }
+      
+      // Add all bubble token data to context
+      window.contextAwarenessData.explore_tokens = {
+        tokens: bubbleData.map(token => ({
+          symbol: token.symbol,
+          name: token.name,
+          rank: token.rank,
+          priceChange: token.priceChange,
+          marketCap: token.marketCap,
+          volume: token.volume,
+          price: token.price
+        })),
+        total_tokens: bubbleData.length,
+        source: 'Explore Bubble Map',
+        timestamp: new Date().toISOString()
+      };
+      
+      console.log('🧠 [Explore] Added', bubbleData.length, 'tokens to Olivia\'s context window');
+    }
+  }, [bubbleData]);
+
   const handleBubbleClick = async (tokenSymbol) => {
     console.log('🎯 Bubble clicked:', tokenSymbol);
     
@@ -71,6 +99,28 @@ export default function BubbleMapSection({ onTokenClick, loadingToken }) {
     if (!tokenSymbol) {
       console.error('❌ No token symbol provided');
       return;
+    }
+    
+    // 🧠 ADD CLICKED TOKEN TO OLIVIA'S CONTEXT
+    const clickedToken = bubbleData.find(t => t.symbol === tokenSymbol);
+    if (clickedToken) {
+      if (!window.contextAwarenessData) {
+        window.contextAwarenessData = {};
+      }
+      
+      window.contextAwarenessData.selected_token = {
+        symbol: clickedToken.symbol,
+        name: clickedToken.name,
+        rank: clickedToken.rank,
+        priceChange: clickedToken.priceChange,
+        marketCap: clickedToken.marketCap,
+        volume: clickedToken.volume,
+        price: clickedToken.price,
+        source: 'Explore Bubble Click',
+        timestamp: new Date().toISOString()
+      };
+      
+      console.log('🧠 [Explore] Added clicked token to Olivia\'s context:', tokenSymbol);
     }
     
     // Show loading state immediately
@@ -92,6 +142,27 @@ export default function BubbleMapSection({ onTokenClick, loadingToken }) {
         .slice(0, 20); // Top 20 most engaging tweets
       
       console.log(`✅ Found ${sortedTweets.length} tweets for $${tokenSymbol}`);
+      
+      // 🧠 ADD TWEETS TO OLIVIA'S CONTEXT WINDOW
+      if (sortedTweets.length > 0) {
+        window.contextAwarenessData.twitter_data = {
+          token: tokenSymbol,
+          tweets: sortedTweets.map(tweet => ({
+            text: tweet.text,
+            author: tweet.author_username,
+            likes: tweet.favorite_count,
+            retweets: tweet.retweet_count,
+            replies: tweet.reply_count || 0,
+            engagement: tweet.engagement,
+            created_at: tweet.created_at
+          })),
+          total_tweets: sortedTweets.length,
+          source: 'Twitter Search from Explore',
+          timestamp: new Date().toISOString()
+        };
+        
+        console.log('🧠 [Explore] Added', sortedTweets.length, 'tweets to Olivia\'s context for', tokenSymbol);
+      }
       
       // Pass the results to parent to update TradingInfluencersSection
       if (onTokenClick) {
