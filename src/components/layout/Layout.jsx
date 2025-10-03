@@ -7,7 +7,7 @@ import AccountUpgradePrompt from '../ui/AccountUpgradePrompt'
 import { useAuth } from '../../contexts/AuthContext'
 import { useHomeInput } from '../../contexts/HomeInputContext'
 import { useAccountUpgrade } from '../../hooks/useAccountUpgrade';
-import { useWebSocket } from '../../contexts/WebSocketContext';
+import { OPENAI_MICROSERVICE_CONFIG } from '../../api/config/endpoints.js';
 import { log, error as logError } from '../../utils/logger.js';
 
 export default function Layout() {
@@ -24,9 +24,6 @@ export default function Layout() {
   const [currentResponse, setCurrentResponse] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
-  // WebSocket for AI communication
-  const { isConnected, sendMessage, subscribe } = useWebSocket();
-  
   // Account upgrade flow
   const { 
     shouldShowUpgrade, 
@@ -35,53 +32,70 @@ export default function Layout() {
     forceShowUpgrade // Add this function
   } = useAccountUpgrade();
 
-  // 💬 HANDLE SENDING MESSAGES TO AI
+  // 💬 HANDLE SENDING MESSAGES TO AI (Direct OpenAI HTTP call)
   const handleSendMessage = useCallback(async () => {
     if (!userInput.trim() || isLoading) return;
     
     const message = userInput.trim();
     
+    log('💬 Layout: Sending message:', message);
+    
     // Add user message to conversation
     setMessages(prev => [...prev, { type: 'user', content: message }]);
     setUserInput('');
-    setShowInput(false);
     setIsLoading(true);
-    setCurrentResponse(''); // Clear previous response
+    setCurrentResponse('');
     
     try {
-      // Build conversation history
+      // Build conversation history in OpenAI format
       const conversationHistory = messages.map(msg => ({
         role: msg.type === 'user' ? 'user' : 'assistant',
         content: msg.content
       }));
       
-      // Check if we have context data
-      const hasContext = window.contextAwarenessData && Object.keys(window.contextAwarenessData).length > 0;
+      // Add current message
+      conversationHistory.push({
+        role: 'user',
+        content: message
+      });
       
-      // Send message via WebSocket
-      log('📤 Sending message to AI:', message);
-      const result = await sendMessage(message, conversationHistory, hasContext, false);
+      log('📤 Calling OpenAI API directly');
       
-      if (!result) {
-        // Connection failed
-        setMessages(prev => [...prev, { 
-          type: 'ai', 
-          content: 'Sorry, I\'m having trouble connecting to my AI service right now. Please try again in a moment!' 
-        }]);
-        setIsLoading(false);
-        setShowInput(true);
+      // Call OpenAI API directly via HTTP
+      const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/openai/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`
+        },
+        body: JSON.stringify({
+          messages: conversationHistory,
+          contextAwarenessData: window.contextAwarenessData || {}
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      // If successful, WebSocket listener will handle the response
+      
+      const data = await response.json();
+      const aiResponse = data.choices?.[0]?.message?.content || data.message || 'Sorry, I couldn\'t process that.';
+      
+      log('✅ AI response received:', aiResponse.substring(0, 50) + '...');
+      
+      // Add AI response to conversation
+      setMessages(prev => [...prev, { type: 'ai', content: aiResponse }]);
+      setIsLoading(false);
+      
     } catch (error) {
-      logError('Failed to send message:', error);
+      logError('❌ Failed to send message:', error);
       setMessages(prev => [...prev, { 
         type: 'ai', 
-        content: 'I\'m currently offline. Please try again in a moment!' 
+        content: 'Sorry, I\'m having trouble connecting to my AI service right now. Please try again in a moment!' 
       }]);
       setIsLoading(false);
-      setShowInput(true);
     }
-  }, [userInput, isLoading, messages, sendMessage, setUserInput, setShowInput]);
+  }, [userInput, isLoading, messages, setUserInput]);
   
   // Wire up the handleSendMessageRef so BottomNavigation can call it
   useEffect(() => {
@@ -89,41 +103,6 @@ export default function Layout() {
     log('✅ Chat system initialized - works on ALL pages!');
   }, [handleSendMessage]);
 
-  // 👂 LISTEN FOR WEBSOCKET MESSAGES FROM AI
-  useEffect(() => {
-    const handleMessage = (data) => {
-      log('📨 Layout received WebSocket message:', data);
-      
-      if (data.type === 'stream_chunk') {
-        setCurrentResponse(prev => prev + (data.data?.text || data.content || ''));
-        setIsLoading(false);
-      } else if (data.type === 'stream_complete') {
-        const finalResponse = data.data?.fullResponse || data.data?.text || currentResponse;
-        setMessages(prev => [...prev, { type: 'ai', content: finalResponse }]);
-        setCurrentResponse('');
-        setIsLoading(false);
-        setShowInput(true);
-      } else if (data.type === 'response') {
-        const response = data.data?.text || data.content || data.message || '';
-        setMessages(prev => [...prev, { type: 'ai', content: response }]);
-        setCurrentResponse('');
-        setIsLoading(false);
-        setShowInput(true);
-      } else if (data.type === 'error') {
-        setMessages(prev => [...prev, { 
-          type: 'ai', 
-          content: 'Sorry, something went wrong. Please try again!' 
-        }]);
-        setIsLoading(false);
-        setShowInput(true);
-      }
-    };
-    
-    // Subscribe to WebSocket messages
-    const unsubscribe = subscribe(handleMessage);
-    return unsubscribe;
-  }, [subscribe, currentResponse]);
-  
   // 📡 LISTEN FOR INTRO MESSAGES FROM HOME.JSX
   useEffect(() => {
     const handleIntroMessage = (event) => {

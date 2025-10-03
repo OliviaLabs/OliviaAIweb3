@@ -1182,112 +1182,37 @@ export default function Home() {
     }
   }, [isLoading]);
 
-  // Handle WebSocket messages
+  // 📡 WEBSOCKET LISTENER - Forward AI responses to BottomNavigation
   useEffect(() => {
-    const handleMessage = (data) => {
-      log('📨 Received message:', data)
-      console.log('📨 Home.jsx received message:', data)
-      console.log('📰 WebSearch plugin enabled?', isPluginEnabled('websearch'))
-      
-      if (data.type === 'stream_chunk') {
-        log('📨 Processing stream_chunk:', data.data?.text)
-        setCurrentResponse(prev => prev + (data.data?.text || data.content || ''))
-        setIsLoading(false)
-      } else if (data.type === 'stream_complete') {
-        const finalResponse = data.data?.fullResponse || data.data?.text || currentResponse
-        setMessages(prev => [...prev, { type: 'ai', content: finalResponse }])
-        setCurrentResponse('')
-        setIsLoading(false)
-        setShowInput(true) // Show input after AI responds
-        
-        // Parse AI response for coin mentions
-        parseAIResponseForCoins(finalResponse);
-        
-        
-        // Show input after response is complete
-        setTimeout(() => {
-          setShowInput(true)
-        }, 300)
-      } else if (data.type === 'response') {
-        const response = data.data?.text || data.content || data.message || ''
-        setMessages(prev => [...prev, { type: 'ai', content: response }])
-        setCurrentResponse('')
-        setIsLoading(false)
-        
-        // Parse AI response for coin mentions
-        parseAIResponseForCoins(response);
-        
-        // Create news bubble from AI response
-        if (isPluginEnabled('websearch')) {
-          const keywords = response.match(/\b[A-Z][a-z]+(?:[A-Z][a-z]+)*\b|\b[A-Z]{2,}\b/g) || [];
-          const searchTerms = keywords.slice(0, 3).join(' ') || 'crypto';
-          
-          setWebSearchBubbles(prev => [...prev, {
-            id: Date.now() + Math.random(),
-            title: `${searchTerms} News`,
-            content: `Websearch: "${searchTerms}"`,
-            loading: false
-          }]);
-          
-          const newsContext = { news_search_data: { query: searchTerms, keywords, timestamp: new Date().toISOString() } };
-          if (window.contextAwarenessData) {
-            window.contextAwarenessData = { ...window.contextAwarenessData, ...newsContext };
-          } else {
-            window.contextAwarenessData = newsContext;
-          }
-          setContextAwarenessData(prev => ({ ...prev, ...newsContext, last_updated: new Date().toISOString() }));
-        }
-        
-        // Show input after response
-        setTimeout(() => {
-          setShowInput(true)
-        }, 300)
-      } else if (data.type === 'text') {
-        const response = data.data?.text || data.content || data.message || ''
-        setMessages(prev => [...prev, { type: 'ai', content: response }])
-        setCurrentResponse('')
-        setIsLoading(false)
-        setShowInput(true) // Show input after AI responds
-        
-        // Parse AI response for coin mentions
-        parseAIResponseForCoins(response);
-        
-        // Create news bubble from AI response
-        if (isPluginEnabled('websearch')) {
-          const keywords = response.match(/\b[A-Z][a-z]+(?:[A-Z][a-z]+)*\b|\b[A-Z]{2,}\b/g) || [];
-          const searchTerms = keywords.slice(0, 3).join(' ') || 'crypto';
-          
-          setWebSearchBubbles(prev => [...prev, {
-            id: Date.now() + Math.random(),
-            title: `${searchTerms} News`,
-            content: `Websearch: "${searchTerms}"`,
-            loading: false
-          }]);
-          
-          const newsContext = { news_search_data: { query: searchTerms, keywords, timestamp: new Date().toISOString() } };
-          if (window.contextAwarenessData) {
-            window.contextAwarenessData = { ...window.contextAwarenessData, ...newsContext };
-          } else {
-            window.contextAwarenessData = newsContext;
-          }
-          setContextAwarenessData(prev => ({ ...prev, ...newsContext, last_updated: new Date().toISOString() }));
-        }
-        
-        // Show input after response
-        setTimeout(() => {
-          setShowInput(true)
-        }, 300)
-      } else {
-        // Catch-all for any other message types - ensure input is always shown
-        console.log('Unknown message type:', data.type, data);
-        setIsLoading(false);
-        setShowInput(true);
-      }
-    }
+    if (!subscribe) return;
 
-    const unsubscribe = subscribe(handleMessage)
-    return () => unsubscribe()
-  }, [subscribe, currentResponse, parseAIResponseForCoins])
+    const handleMessage = (data) => {
+      log('📨 Home.jsx received WebSocket message:', data);
+
+      if (data.type === 'ai_response' || data.type === 'message') {
+        const response = data.message || data.response;
+        
+        // Broadcast to BottomNavigation for display
+        window.dispatchEvent(new CustomEvent('chatUpdate', {
+          detail: {
+            userMessage: messages[messages.length - 1]?.content || '',
+            aiResponse: response,
+            isTyping: false
+          }
+        }));
+
+        // Also update local messages for context
+        setMessages(prev => [...prev, {
+          type: 'ai',
+          content: response
+        }]);
+        setIsLoading(false);
+      }
+    };
+
+    const unsubscribe = subscribe(handleMessage);
+    return () => unsubscribe?.();
+  }, [subscribe, messages]);
 
   // Focus input when it appears
   useEffect(() => {
@@ -1861,6 +1786,16 @@ export default function Home() {
     
     // Add user message to conversation
     setMessages(prev => [...prev, { type: 'user', content: message }])
+    
+    // Broadcast user message to BottomNavigation
+    window.dispatchEvent(new CustomEvent('chatUpdate', {
+      detail: {
+        userMessage: message,
+        aiResponse: '',
+        isTyping: true
+      }
+    }));
+    
     setUserInput('')
     setShowInput(false)
     setIsLoading(true)
