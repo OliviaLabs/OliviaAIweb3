@@ -322,6 +322,37 @@ export default function Home() {
     return () => document.removeEventListener('click', handleDocumentClick);
   }, [handleUrlClick])
 
+  // 🚀 ACTIVE TOKEN WATCHER: When activeToken changes, trigger ALL compatible plugins
+  useEffect(() => {
+    if (!activeToken || !activeToken.symbol) return;
+    
+    log('🎯 ACTIVE TOKEN CHANGED - Auto-triggering all compatible plugins:', activeToken);
+    
+    // Give time for CoinGecko/CoinStats to populate basic market data first
+    // Then other plugins can calculate scores/metrics from that data
+    setTimeout(() => {
+      const tokenSymbol = activeToken.symbol.toUpperCase();
+      const tokenName = activeToken.name || activeToken.symbol;
+      const tokenId = activeToken.id || activeToken.symbol.toLowerCase();
+      
+      // Only trigger if contextAwarenessData has market data from CoinGecko/CoinStats
+      if (window.contextAwarenessData?.coingecko_price_data || window.contextAwarenessData?.coinstats_data) {
+        log('✅ Market data available, triggering analytics plugins...');
+        
+        // Notify all analytics plugins that they can calculate metrics
+        window.dispatchEvent(new CustomEvent('tokenDataReady', {
+          detail: {
+            token: activeToken,
+            marketData: window.contextAwarenessData
+          }
+        }));
+        
+        log('📊 Analytics plugins notified via tokenDataReady event');
+      }
+    }, 2000); // 2-second delay to let market data load first
+    
+  }, [activeToken]);
+
   // Helper function to update context awareness data
   const updateContextAwareness = useCallback((category, token, data) => {
     // Check which plugin this data is from and if it's enabled
@@ -1757,6 +1788,23 @@ export default function Home() {
       setActiveToken(window.proactiveMentionedToken);
     }
     
+    // 🚀 CRITICAL FIX: If user directly asked about a specific token, broadcast to ALL 22 plugins!
+    if (userIntent.specificToken && !isFollowUpResponse) {
+      log('🎯 USER ASKED ABOUT SPECIFIC TOKEN:', userIntent.specificToken);
+      log('🔌 Broadcasting to ALL 22 plugins for comprehensive data fetch...');
+      
+      // Create token context for broadcast
+      const tokenContext = {
+        symbol: userIntent.specificToken.toUpperCase(),
+        name: userIntent.specificToken, // Will be refined by CoinGecko
+        id: userIntent.specificToken.toLowerCase(), // CoinGecko ID format
+        data: null // Will be populated by plugins
+      };
+      
+      setActiveToken(tokenContext);
+      broadcastTokenToAllPlugins(tokenContext);
+    }
+    
     console.log('🎯 User Intent:', userIntent);
     
     // Add user message to conversation
@@ -1776,14 +1824,14 @@ export default function Home() {
     setIsLoading(true)
     setCurrentResponse('')
 
-    // Handle Lurky bubble logic - now intent-based for social sentiment!
-    if (userIntent.specificToken && isPluginEnabled('lurky')) {
+    // Handle Lurky bubble logic - trigger on activeToken
+    if (activeToken && activeToken.symbol && isPluginEnabled('lurky')) {
       // Only create Lurky bubble if none exists
       if (lurkyBubbles.length === 0) {
         // Create new Lurky bubble instance
         const newBubble = {
           id: Date.now() + Math.random(), // Unique ID
-          title: `${userIntent.specificToken.toUpperCase()} - Lurky`,
+          title: `${activeToken.symbol.toUpperCase()} - Lurky`,
           content: 'Loading social sentiment...',
           loading: true
         }
@@ -1793,14 +1841,14 @@ export default function Home() {
       // Then try to fetch data
       ;(async () => {
         try {
-          const data = await lurkyService.getCoins(userIntent.specificToken)
+          const data = await lurkyService.getCoins(activeToken.symbol)
           
           // Clean Lurky API response processing
           
           let lurkyText = '';
           
           // Always show what coin the user asked about
-          const searchedCoin = userIntent.specificToken.charAt(0).toUpperCase() + userIntent.specificToken.slice(1);
+          const searchedCoin = activeToken.name || activeToken.symbol;
           
           if (!data || typeof data !== 'object') {
             lurkyText = `${searchedCoin} Social Data\n\nNo data available from Lurky API\n\nTry asking about popular coins like:\n• Bitcoin\n• Ethereum\n• Solana`;
@@ -1809,7 +1857,7 @@ export default function Home() {
             lurkyText = `${searchedCoin} Social Data\n\n${data.message}\n\n${data.suggestion || 'Try a different coin name'}`;
           } else if (data.coins && Array.isArray(data.coins) && data.coins.length > 0) {
             // Find the coin that matches what user asked for - be more flexible
-            const searchTerm = userIntent.specificToken.toLowerCase();
+            const searchTerm = activeToken.symbol.toLowerCase();
             let targetCoin = data.coins.find(coin => {
               const name = coin.name?.toLowerCase() || '';
               const symbol = coin.symbol?.toLowerCase() || '';
@@ -1867,10 +1915,10 @@ export default function Home() {
             lurkyText += `\n\nPowered by Lurky`;
             
             // Update context awareness with sentiment data
-            updateContextAwareness('sentiment_data', userIntent.specificToken.toLowerCase(), {
+            updateContextAwareness('sentiment_data', activeToken.symbol.toLowerCase(), {
               source: 'Lurky',
-              name: targetCoin.name || userIntent.specificToken,
-              symbol: targetCoin.symbol || userIntent.specificToken.toUpperCase(),
+              name: targetCoin.name || activeToken.name,
+              symbol: targetCoin.symbol || activeToken.symbol.toUpperCase(),
               mentions: targetCoin.mentions || null
             })
             
@@ -1891,7 +1939,7 @@ export default function Home() {
           // 🧠 Update AI context with Lurky data
           const lurkyContext = {
             lurky_data: {
-              coin: userIntent.specificToken,
+              coin: activeToken.symbol,
               social_data: data,
               timestamp: new Date().toISOString(),
               source: 'Lurky API'
@@ -1918,7 +1966,7 @@ export default function Home() {
           console.log('🧠 Updated AI context with Lurky data:', lurkyContext);
         } catch (e) {
           console.error('[Lurky] Error:', e);
-          const searchedCoin = userIntent.specificToken.charAt(0).toUpperCase() + userIntent.specificToken.slice(1);
+          const searchedCoin = activeToken.name || activeToken.symbol;
           
           let errorContent = `${searchedCoin} Social Data\n\n`;
           
@@ -2105,22 +2153,11 @@ export default function Home() {
       }, 1000) // 1 second delay before making API call
     }
 
-    // Handle Crypto News bubble - Only trigger when user wants news/info
-    if (userIntent.wantsNews && isPluginEnabled('websearch')) {
-      // If user is responding to a proactive token mention, use the token name
-      const isFollowUpResponse = /^(yes|yeah|yep|sure|ok|okay|tell me more|more|details|absolutely|definitely|interested|what's happening|why|how|analyze|show me|let's look)$/i.test(message.trim());
-      
-      let searchQuery;
-      if (isFollowUpResponse && (window.proactiveMentionedToken || activeToken)) {
-        // Use the token context for the search
-        const tokenContext = window.proactiveMentionedToken || activeToken;
-        searchQuery = tokenContext.name || tokenContext.symbol || tokenContext;
-        console.log('📰 Creating News bubble for follow-up - searching token:', searchQuery);
-      } else {
-        // Use the user's actual question
-        searchQuery = message;
-        console.log('📰 Creating News bubble - searching user question:', searchQuery);
-      }
+    // Handle Crypto News bubble - Trigger for ANY message when there's an active token
+    if (activeToken && activeToken.symbol && isPluginEnabled('websearch')) {
+      // Always search for the active token's news
+      const searchQuery = activeToken.name || activeToken.symbol;
+      console.log('📰 Creating News bubble for active token:', searchQuery);
       
       // Create bubble
       const bubbleId = Date.now() + Math.random();
@@ -2131,29 +2168,47 @@ export default function Home() {
         loading: true
       }]);
       
-      // Actually search using DuckDuckGo API
+      // Actually search using CryptoPanic API (crypto-specific news aggregator)
       (async () => {
         try {
-          const searchUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(searchQuery + ' cryptocurrency')}&format=json&no_html=1&skip_disambig=1`;
+          // CryptoPanic API - Developer plan with your API key
+          const CRYPTOPANIC_API_KEY = '8f21a7808b68dd6807a62bcd1e53db4e467b660f';
+          
+          // Search for token-specific news (no filter/kind to get ALL news)
+          const searchUrl = `https://cryptopanic.com/api/developer/v2/posts/?auth_token=${CRYPTOPANIC_API_KEY}&currencies=${encodeURIComponent(searchQuery)}`;
           const response = await fetch(searchUrl);
           const data = await response.json();
           
           let resultText = '';
+          let newsArticles = [];
           
-          if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-            data.RelatedTopics.slice(0, 8).forEach((topic, idx) => {
-              if (topic.Text) {
-                resultText += `${topic.Text}\n\n`;
+          if (data.results && data.results.length > 0) {
+            // CryptoPanic returns news in results array
+            const topNews = data.results.slice(0, 5);
+            topNews.forEach((article, idx) => {
+              resultText += `📰 ${article.title}\n`;
+              if (article.source?.title) {
+                resultText += `   Source: ${article.source.title}\n`;
               }
+              if (article.votes) {
+                const sentiment = article.votes.positive > article.votes.negative ? '🟢' : 
+                                 article.votes.negative > article.votes.positive ? '🔴' : '⚪';
+                resultText += `   ${sentiment} Votes: +${article.votes.positive} / -${article.votes.negative}\n`;
+              }
+              resultText += `   ${article.url}\n\n`;
+              
+              newsArticles.push({
+                title: article.title,
+                url: article.url,
+                source: article.source?.title || 'Unknown',
+                published_at: article.published_at,
+                description: article.description,
+                votes: article.votes,
+                panic_score: article.panic_score
+              });
             });
-          } else if (data.Abstract) {
-            resultText = data.Abstract;
           } else {
-            resultText = `No web results found for "${searchQuery}". Olivia will use her knowledge to answer.`;
-          }
-          
-          if (!resultText.trim()) {
-            resultText = `Searching for: ${searchQuery}`;
+            resultText = `No recent news found for "${searchQuery}". Check back later for updates!`;
           }
           
           // Update bubble with results
@@ -2163,10 +2218,12 @@ export default function Home() {
           
           // Update AI context with search results
           const newsContext = {
-            websearch_results: data.RelatedTopics?.slice(0, 5).map(t => t.Text).join('. ') || data.Abstract || '',
+            websearch_results: newsArticles.map(a => `${a.title} (${a.source}) - Votes: +${a.votes?.positive || 0}/-${a.votes?.negative || 0}`).join('. ') || '',
+            websearch_articles: newsArticles,
             websearch_query: searchQuery,
             user_question: message,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            source: 'CryptoPanic API (Real-time Crypto News)'
           };
           
           if (window.contextAwarenessData) {
@@ -2175,8 +2232,10 @@ export default function Home() {
             window.contextAwarenessData = newsContext;
           }
           setContextAwarenessData(prev => ({ ...prev, ...newsContext, last_updated: new Date().toISOString() }));
+          
+          console.log('📰 CryptoPanic news added to context:', newsArticles.length, 'articles');
         } catch (error) {
-          console.error('Web search error:', error);
+          console.error('CryptoPanic news search error:', error);
           setWebSearchBubbles(prev => prev.map(b => 
             b.id === bubbleId ? { ...b, content: `Search error. Olivia will answer using her knowledge.`, loading: false } : b
           ));
@@ -2184,15 +2243,15 @@ export default function Home() {
       })();
     }
 
-    // Handle Twitter bubble logic - now intent-based!
-    if ((userIntent.wantsTwitter || (userIntent.specificToken && userIntent.primaryIntent === 'TOKEN_INFO')) && isPluginEnabled('twitter')) {
-      console.log('🐦 Creating Twitter bubble for token:', userIntent.specificToken)
+    // Handle Twitter bubble logic - trigger on activeToken
+    if (activeToken && activeToken.symbol && isPluginEnabled('twitter')) {
+      console.log('🐦 Creating Twitter bubble for active token:', activeToken.symbol)
       
-      // Extract search term based on intent - use smart targeted searches
+      // Extract search term based on activeToken
       let searchQuery = '';
-      if (userIntent.specificToken) {
-        // Use smart targeted searches for specific tokens
-        const token = userIntent.specificToken;
+      if (activeToken.symbol) {
+        // Use smart targeted searches for active token
+        const token = activeToken.symbol;
         // Try multiple focused searches to get better quality results
         const searchQueries = [
           `${token} price -telegram -airdrop -giveaway`,
@@ -2222,7 +2281,7 @@ export default function Home() {
           console.log(`🐦 Twitter search query: "${searchQuery}"`);
           
           // Robust search: try multiple query variants and search types
-          const rawToken = userIntent.specificToken || '';
+          const rawToken = activeToken.symbol || '';
           const tokenUpper = rawToken ? rawToken.toUpperCase() : '';
           const candidates = Array.from(new Set([
             searchQuery,
@@ -2444,10 +2503,10 @@ export default function Home() {
       })()
     }
 
-    // Handle CoinGecko bubble logic - trigger for ANY token mention!
-    if (userIntent.specificToken && isPluginEnabled('coingecko')) {
-      // Create CoinGecko bubble for any mentioned token
-      const tokenName = userIntent.specificToken;
+    // Handle CoinGecko bubble logic - trigger on activeToken
+    if (activeToken && activeToken.symbol && isPluginEnabled('coingecko')) {
+      // Create CoinGecko bubble for active token
+      const tokenName = activeToken.symbol;
       
       // Map common token names to CoinGecko IDs
       const tokenIdMap = {
@@ -2615,10 +2674,10 @@ export default function Home() {
       })()
     }
     
-    // Handle CoinStats bubble logic - trigger for ANY token mention!
-    if (userIntent.specificToken && isPluginEnabled('coinstats')) {
-      // Create CoinStats bubble for token
-      const tokenName = userIntent.specificToken;
+    // Handle CoinStats bubble logic - trigger on activeToken
+    if (activeToken && activeToken.symbol && isPluginEnabled('coinstats')) {
+      // Create CoinStats bubble for active token
+      const tokenName = activeToken.symbol;
       
       // Check if we already have a bubble for this token (prevent spam)
       const existingBubble = coinstatsBubbles.find(bubble => 
@@ -3583,6 +3642,9 @@ export default function Home() {
     }
 
     // Send message to Olivia - SMART CONTEXT OPTIMIZATION
+    // Note: activeToken is already broadcast globally via setActiveToken() and broadcastTokenToAllPlugins()
+    // Each plugin watches window.activeToken and fetches data if it can support that token
+    
     // 🕐 DELAY AI RESPONSE: Give bubbles time to load data first
     setTimeout(async () => {
       try {
@@ -3644,6 +3706,14 @@ export default function Home() {
       
       // 🚀 SEND TO AI VIA HTTP (replaced WebSocket)
       try {
+        // 🔥 CRITICAL FIX: If user asked about a specific token, wait for plugins to populate contextAwarenessData
+        if (userIntent.specificToken) {
+          log(`⏳ User asked about "${userIntent.specificToken}" - waiting 1.5s for plugin data to load...`);
+          await new Promise(resolve => setTimeout(resolve, 1500)); // Wait for CoinGecko, Twitter, etc. to finish
+          log('✅ Plugin wait complete. Current context keys:', Object.keys(window.contextAwarenessData || {}));
+          log('📦 Full context data being sent to AI:', JSON.stringify(window.contextAwarenessData, null, 2));
+        }
+        
         if (hasContext && !useSearchFromStart) {
           if (isSimplePriceQuery) {
             log('⚡ AI WITH BUBBLE DATA: Letting AI respond conversationally with bubble context, no search');
@@ -3838,7 +3908,7 @@ export default function Home() {
           proactiveMessage += closings[Math.floor(Math.random() * closings.length)];
           
           // Add intro message to local messages state so AI has context
-          setMessages([{
+          setMessages(prev => [...prev, {
             type: 'ai',
             content: proactiveMessage
           }]);
@@ -4031,21 +4101,10 @@ export default function Home() {
                   data = await coinstatsService.getCoin(coinStatsId);
                   console.log('📊[CoinStats] getCoin returned:', data);
                 } else {
-                  console.log('📊[CoinStats] ℹ️ Token not in CoinStats database, using CoinGecko data as fallback for:', coin.symbol);
-                  // Use CoinGecko data we already have from trending
-                  data = {
-                    name: coin.name,
-                    symbol: coin.symbol,
-                    marketCap: coin.data?.market_cap,
-                    volume: coin.data?.total_volume,
-                    priceChange1h: coin.data?.price_change_percentage_1h_in_currency,
-                    change24h: coin.data?.price_change_percentage_24h?.usd,
-                    priceChange1w: coin.data?.price_change_percentage_7d_in_currency,
-                    priceChange7d: coin.data?.price_change_percentage_7d_in_currency,
-                    availableSupply: coin.data?.circulating_supply,
-                    totalSupply: coin.data?.total_supply
-                  };
-                  console.log('📊[CoinStats] Using CoinGecko fallback data:', data);
+                  console.log('📊[CoinStats] ❌ Token not found in CoinStats database:', coin.symbol);
+                  // Don't use fallback - just skip this plugin's data
+                  // Let other plugins provide their data
+                  return; // Exit early
                 }
                 
                 if (data) {
@@ -4302,7 +4361,7 @@ export default function Home() {
           // Fallback if no trending data
           const fallbackMessage = "Hey! Just scanned the crypto markets for you. What would you like to know about? I can help with live prices, trading insights, or anything Web3!";
           
-          setMessages([{
+          setMessages(prev => [...prev, {
             type: 'ai',
             content: fallbackMessage
           }]);
@@ -4319,7 +4378,7 @@ export default function Home() {
         // Fallback message on error
         const errorMessage = "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!";
         
-        setMessages([{
+        setMessages(prev => [...prev, {
           type: 'ai',
           content: errorMessage
         }]);

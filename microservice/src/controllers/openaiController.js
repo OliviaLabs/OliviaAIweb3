@@ -254,13 +254,13 @@ export class OpenAIController {
           type: "function",
           function: {
             name: "webSearch",
-            description: "Search the web for real-time cryptocurrency information, prices, trends, and news",
+            description: "Search the web for real-time cryptocurrency information ONLY if the context data doesn't already have the answer",
             parameters: {
               type: "object",
               properties: {
                 query: {
                   type: "string",
-                  description: "Search query for cryptocurrency information, prices, trends, or news"
+                  description: "Search query for cryptocurrency information"
                 }
               },
               required: ["query"]
@@ -355,16 +355,26 @@ export class OpenAIController {
       // Build system message with context awareness data
       const systemMessage = {
         role: "system",
-        content: `You are Olivia, a helpful cryptocurrency AI assistant. You have access to real-time market data from various sources.
+        content: `You are Olivia, a helpful cryptocurrency AI assistant.
 
-${contextAwarenessData ? `
-REAL-TIME MARKET CONTEXT:
+${contextAwarenessData && Object.keys(contextAwarenessData).length > 0 ? `
+═══════════════════════════════════════════════════════
+REAL-TIME DATA ALREADY AVAILABLE (21 APIS FETCHED):
+═══════════════════════════════════════════════════════
+
 ${JSON.stringify(contextAwarenessData, null, 2)}
 
-Use this data to provide accurate, informed responses. When users ask about prices, trends, or market data, reference this context directly.
-` : ''}
+CRITICAL INSTRUCTIONS:
+1. This data was ALREADY fetched by 21 different APIs
+2. USE THIS DATA to answer the user's question
+3. DO NOT call webSearch - this data is already complete
+4. DO NOT say "I encountered an issue" - the data is RIGHT HERE
+5. Answer confidently using CoinGecko, Twitter, News, and other data above
 
-Keep responses natural, conversational, and helpful. Avoid emojis unless they add value.`
+Only call webSearch if you genuinely need additional information not in the context.
+` : 'No context data available. You may use webSearch if needed.'}
+
+Keep responses natural and conversational.`
       };
 
       // Prepend system message to conversation
@@ -372,7 +382,11 @@ Keep responses natural, conversational, and helpful. Avoid emojis unless they ad
       
       // Log what we're sending to OpenAI
       console.log('Sending to OpenAI - Message count:', messagesWithContext.length);
-      console.log('Conversation:', messages.map(m => `${m.role}: ${m.content.substring(0, 50)}...`));
+      console.log('Full conversation being sent:');
+      messages.forEach((m, i) => {
+        console.log(`  [${i}] ${m.role}: ${m.content}`);
+      });
+      console.log('Context data keys:', Object.keys(contextAwarenessData || {}));
 
       // Make request to OpenAI with function calling tools
       const completion = await openai.chat.completions.create({
