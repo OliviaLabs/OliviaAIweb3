@@ -215,7 +215,7 @@ export class OpenAIController {
    */
   static async generateChatCompletion(req, res) {
     try {
-      const { messages, model = 'gpt-3.5-turbo', max_tokens = 1000, temperature = 0.7, taker, chainId, contextAwarenessData } = req.body;
+      const { messages, model = 'gpt-4o', max_tokens = 2000, temperature = 0.7, taker, chainId, contextAwarenessData } = req.body;
 
       console.log('📧 Messages Content --> ', messages);
       console.log('🧠 Context Awareness Data --> ', contextAwarenessData); 
@@ -655,7 +655,7 @@ Keep responses detailed and prove every claim with data.`
 
       // Make request to OpenAI with function calling
       const completion = await openai.chat.completions.create({
-        model: "gpt-4",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
