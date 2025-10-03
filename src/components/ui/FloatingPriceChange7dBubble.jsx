@@ -90,9 +90,7 @@ const FloatingPriceChange7dBubble = ({ isOpen, onClose, title = '7d Change', cha
 
   if (!isOpen) return null;
   
-  // Responsive bubble sizes: half-size on mobile, full-size on desktop
-  const isMobile = window.innerWidth < 768;
-  const bubbleSize = isExpanded ? (isMobile ? 140 : 280) : (isMobile ? 70 : 140);
+  const bubbleSize = isExpanded ? 280 : 140;
   const isPositive = change >= 0;
   const scoreColor = isPositive ? '#10b981' : '#ef4444';
   const Icon = isPositive ? TrendingUp : TrendingDown;

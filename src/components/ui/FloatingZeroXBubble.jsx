@@ -127,10 +127,8 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
 
   if (!isOpen) return null;
   
-  // Responsive bubble sizes: half-size on mobile, full-size on desktop
-  const isMobile = window.innerWidth < 768;
-  let bubbleSize = isMobile ? 70 : 140;
-  if (isExpanded) bubbleSize = isMobile ? 80 : 160;
+  let bubbleSize = 140;
+  if (isExpanded) bubbleSize = 160;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
   

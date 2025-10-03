@@ -2103,10 +2103,20 @@ export default function Home() {
 
     // Handle Crypto News bubble - Only trigger when user wants news/info
     if (userIntent.wantsNews && isPluginEnabled('websearch')) {
-      console.log('📰 Creating News bubble - searching user question:', message);
+      // If user is responding to a proactive token mention, use the token name
+      const isFollowUpResponse = /^(yes|yeah|yep|sure|ok|okay|tell me more|more|details|absolutely|definitely|interested|what's happening|why|how|analyze|show me|let's look)$/i.test(message.trim());
       
-      // Use the user's ACTUAL QUESTION as the search query
-      const searchQuery = message;
+      let searchQuery;
+      if (isFollowUpResponse && (window.proactiveMentionedToken || activeToken)) {
+        // Use the token context for the search
+        const tokenContext = window.proactiveMentionedToken || activeToken;
+        searchQuery = tokenContext.name || tokenContext.symbol || tokenContext;
+        console.log('📰 Creating News bubble for follow-up - searching token:', searchQuery);
+      } else {
+        // Use the user's actual question
+        searchQuery = message;
+        console.log('📰 Creating News bubble - searching user question:', searchQuery);
+      }
       
       // Create bubble
       const bubbleId = Date.now() + Math.random();

@@ -369,10 +369,8 @@ const FloatingPortfolioBubble = ({
 
   if (!isOpen) return null;
 
-  // Responsive bubble sizes: half-size on mobile, full-size on desktop
-  const isMobile = window.innerWidth < 768;
-  const collapsedSize = isMobile ? 70 : 140;
-  const maxExpandedSize = isMobile ? 150 : 300;
+  const collapsedSize = 140;
+  const maxExpandedSize = 300;
   
   // Bubble ALWAYS stays circular - never bigger than screen
   const maxSize = Math.min(maxExpandedSize, window.innerWidth - 40, window.innerHeight - 100);

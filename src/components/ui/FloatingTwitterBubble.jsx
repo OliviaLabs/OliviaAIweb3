@@ -142,10 +142,8 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
 
   if (!isOpen) return null;
   
-  // Responsive bubble sizes: half-size on mobile, full-size on desktop
-  const isMobile = window.innerWidth < 768;
-  const collapsedSize = isMobile ? 70 : 140;
-  const maxExpandedSize = isMobile ? 210 : 420; // Twitter needs more space
+  const collapsedSize = 140;
+  const maxExpandedSize = 420; // Twitter needs more space
   
   // Larger expanded bubble for readability, still clamped to viewport
   const maxSize = Math.min(maxExpandedSize, window.innerWidth - 40, window.innerHeight - 100);
