@@ -30,24 +30,54 @@ export default function BottomNavigation({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isAiTyping]);
   
+  // Listen for intro message from Home.jsx (Olivia's welcome)
+  useEffect(() => {
+    const handleIntroMessage = (event) => {
+      const introMsg = event.detail.message;
+      if (introMsg) {
+        setMessages([{ type: 'ai', content: introMsg, timestamp: Date.now() }]);
+      }
+    };
+    
+    window.addEventListener('addIntroMessage', handleIntroMessage);
+    return () => window.removeEventListener('addIntroMessage', handleIntroMessage);
+  }, []);
+  
   // Listen for chat updates from Home.jsx and ADD to history
   useEffect(() => {
     const handleChatUpdate = (event) => {
       const { userMessage: msg, aiResponse: response, isTyping } = event.detail;
       
-      if (msg && response && !isTyping) {
-        // Complete exchange - add both messages
-        setMessages(prev => [
-          ...prev,
-          { type: 'user', content: msg, timestamp: Date.now() },
-          { type: 'ai', content: response, timestamp: Date.now() }
-        ]);
-        setIsAiTyping(false);
-        setIsChatMinimized(false);
-      } else if (msg && isTyping) {
-        // User sent message, AI is typing
-        setMessages(prev => [...prev, { type: 'user', content: msg, timestamp: Date.now() }]);
+      if (msg && isTyping) {
+        // User just sent a message - add it and show typing
+        setMessages(prev => {
+          // Avoid duplicate user messages
+          const lastMsg = prev[prev.length - 1];
+          if (lastMsg?.type === 'user' && lastMsg?.content === msg) {
+            return prev; // Already added
+          }
+          return [...prev, { type: 'user', content: msg, timestamp: Date.now() }];
+        });
         setIsAiTyping(true);
+        setIsChatMinimized(false);
+      } else if (msg && response && !isTyping) {
+        // AI responded - add AI message
+        setMessages(prev => {
+          // Check if user message exists, if not add it first
+          const lastMsg = prev[prev.length - 1];
+          const needsUserMsg = !lastMsg || lastMsg.type !== 'user' || lastMsg.content !== msg;
+          
+          if (needsUserMsg) {
+            return [
+              ...prev,
+              { type: 'user', content: msg, timestamp: Date.now() },
+              { type: 'ai', content: response, timestamp: Date.now() }
+            ];
+          } else {
+            return [...prev, { type: 'ai', content: response, timestamp: Date.now() }];
+          }
+        });
+        setIsAiTyping(false);
         setIsChatMinimized(false);
       }
     };
