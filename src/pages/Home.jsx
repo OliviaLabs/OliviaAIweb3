@@ -78,6 +78,7 @@ export default function Home() {
     if (previousToken && previousToken !== newToken) {
       console.log('🔄 TOKEN CHANGED:', previousToken, '→', newToken);
       console.log('🗑️ CLEARING old context data for', previousToken);
+      
       // Clear old context, keep only base structure
       window.contextAwarenessData = {
         market_data: {},
@@ -88,6 +89,12 @@ export default function Home() {
         active_token: token,
         last_updated: new Date().toISOString()
       };
+      
+      // 🔥 CLEAR ALL OLD BUBBLES - dispatch event for all plugins to clear
+      console.log('🗑️ CLEARING all old bubbles for', previousToken);
+      window.dispatchEvent(new CustomEvent('clearAllBubblesForTokenChange', {
+        detail: { oldToken: previousToken, newToken: newToken }
+      }));
     } else {
       console.log('✅ SAME TOKEN or FIRST TOKEN - keeping accumulated context');
       // Initialize if needed, but keep existing data
@@ -380,6 +387,42 @@ export default function Home() {
     }, 2000); // 2-second delay to let market data load first
     
   }, [activeToken]);
+
+  // 🗑️ CLEAR ALL BUBBLES when token changes
+  useEffect(() => {
+    const handleClearBubbles = (event) => {
+      const { oldToken, newToken } = event.detail;
+      log('🗑️ Clearing all bubbles - Token changed from', oldToken, 'to', newToken);
+      
+      // Clear all bubble states
+      setCoinGeckoBubbles([]);
+      setTwitterBubbles([]);
+      setCoinstatsBubbles([]);
+      setLurkyBubbles([]);
+      setWebSearchBubbles([]);
+      setHederaBubbles([]);
+      setChangeNowBubbles([]);
+      setZeroXBubbles([]);
+      setOkxBubbles([]);
+      setTonCenterBubbles([]);
+      setChainbaseBubbles([]);
+      setPortfolioBubbles([]);
+      setAlchemyBubbles([]);
+      setProtokolsBubbles([]);
+      setLiquidityScoreBubbles([]);
+      setVolatilityScoreBubbles([]);
+      setMarketCapScoreBubbles([]);
+      setRiskScoreBubbles([]);
+      setSupplyBubbles([]);
+      setPriceChange1hBubbles([]);
+      setPriceChange7dBubbles([]);
+      
+      log('✅ All bubbles cleared for new token:', newToken);
+    };
+    
+    window.addEventListener('clearAllBubblesForTokenChange', handleClearBubbles);
+    return () => window.removeEventListener('clearAllBubblesForTokenChange', handleClearBubbles);
+  }, []);
 
   // Helper function to update context awareness data
   const updateContextAwareness = useCallback((category, token, data) => {
@@ -1853,13 +1896,14 @@ export default function Home() {
     setCurrentResponse('')
 
     // Handle Lurky bubble logic - trigger on activeToken
-    if (activeToken && activeToken.symbol && isPluginEnabled('lurky')) {
+    if (window.activeToken && window.activeToken.symbol && isPluginEnabled('lurky')) {
       // Only create Lurky bubble if none exists
       if (lurkyBubbles.length === 0) {
         // Create new Lurky bubble instance
+        const currentToken = window.activeToken; // Capture current token
         const newBubble = {
           id: Date.now() + Math.random(), // Unique ID
-          title: `${activeToken.symbol.toUpperCase()} - Lurky`,
+          title: `${currentToken.symbol.toUpperCase()} - Lurky`,
           content: 'Loading social sentiment...',
           loading: true
         }
@@ -1869,14 +1913,14 @@ export default function Home() {
       // Then try to fetch data
       ;(async () => {
         try {
-          const data = await lurkyService.getCoins(activeToken.symbol)
+          const data = await lurkyService.getCoins(currentToken.symbol)
           
           // Clean Lurky API response processing
           
           let lurkyText = '';
           
           // Always show what coin the user asked about
-          const searchedCoin = activeToken.name || activeToken.symbol;
+          const searchedCoin = currentToken.name || currentToken.symbol;
           
           if (!data || typeof data !== 'object') {
             lurkyText = `${searchedCoin} Social Data\n\nNo data available from Lurky API\n\nTry asking about popular coins like:\n• Bitcoin\n• Ethereum\n• Solana`;
@@ -1885,7 +1929,7 @@ export default function Home() {
             lurkyText = `${searchedCoin} Social Data\n\n${data.message}\n\n${data.suggestion || 'Try a different coin name'}`;
           } else if (data.coins && Array.isArray(data.coins) && data.coins.length > 0) {
             // Find the coin that matches what user asked for - be more flexible
-            const searchTerm = activeToken.symbol.toLowerCase();
+            const searchTerm = currentToken.symbol.toLowerCase();
             let targetCoin = data.coins.find(coin => {
               const name = coin.name?.toLowerCase() || '';
               const symbol = coin.symbol?.toLowerCase() || '';
@@ -2182,9 +2226,9 @@ export default function Home() {
     }
 
     // Handle Crypto News bubble - Trigger for ANY message when there's an active token
-    if (activeToken && activeToken.symbol && isPluginEnabled('websearch')) {
+    if (window.activeToken && window.activeToken.symbol && isPluginEnabled('websearch')) {
       // Always search for the active token's news
-      const searchQuery = activeToken.name || activeToken.symbol;
+      const searchQuery = window.activeToken.name || window.activeToken.symbol;
       console.log('📰 Creating News bubble for active token:', searchQuery);
       
       // Create bubble
@@ -2272,14 +2316,15 @@ export default function Home() {
     }
 
     // Handle Twitter bubble logic - trigger on activeToken
-    if (activeToken && activeToken.symbol && isPluginEnabled('twitter')) {
-      console.log('🐦 Creating Twitter bubble for active token:', activeToken.symbol)
+    if (window.activeToken && window.activeToken.symbol && isPluginEnabled('twitter')) {
+      const currentToken = window.activeToken; // Capture current token
+      console.log('🐦 Creating Twitter bubble for active token:', currentToken.symbol)
       
       // Extract search term based on activeToken
       let searchQuery = '';
-      if (activeToken.symbol) {
+      if (currentToken.symbol) {
         // Use smart targeted searches for active token
-        const token = activeToken.symbol;
+        const token = currentToken.symbol;
         // Try multiple focused searches to get better quality results
         const searchQueries = [
           `${token} price -telegram -airdrop -giveaway`,
@@ -2532,9 +2577,10 @@ export default function Home() {
     }
 
     // Handle CoinGecko bubble logic - trigger on activeToken
-    if (activeToken && activeToken.symbol && isPluginEnabled('coingecko')) {
+    if (window.activeToken && window.activeToken.symbol && isPluginEnabled('coingecko')) {
+      const currentToken = window.activeToken; // Capture current token
       // Create CoinGecko bubble for active token
-      const tokenName = activeToken.symbol;
+      const tokenName = currentToken.symbol;
       
       // Map common token names to CoinGecko IDs
       const tokenIdMap = {
@@ -2703,9 +2749,10 @@ export default function Home() {
     }
     
     // Handle CoinStats bubble logic - trigger on activeToken
-    if (activeToken && activeToken.symbol && isPluginEnabled('coinstats')) {
+    if (window.activeToken && window.activeToken.symbol && isPluginEnabled('coinstats')) {
+      const currentToken = window.activeToken; // Capture current token
       // Create CoinStats bubble for active token
-      const tokenName = activeToken.symbol;
+      const tokenName = currentToken.symbol;
       
       // Check if we already have a bubble for this token (prevent spam)
       const existingBubble = coinstatsBubbles.find(bubble => 
