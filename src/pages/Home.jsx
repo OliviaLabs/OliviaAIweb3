@@ -2101,25 +2101,26 @@ export default function Home() {
       }, 1000) // 1 second delay before making API call
     }
 
-    // Handle Crypto News bubble - Actually search and show results
-    if (isPluginEnabled('websearch')) {
-      const targetToken = userIntent.specificToken || window.proactiveMentionedToken;
-      const keywords = message.match(/\b[A-Z][a-z]+(?:[A-Z][a-z]+)*\b|\b[A-Z]{2,}\b/g) || [];
-      const searchTerms = targetToken || keywords.slice(0, 3).join(' ') || 'crypto';
+    // Handle Crypto News bubble - Only trigger when user wants news/info
+    if (userIntent.wantsNews && isPluginEnabled('websearch')) {
+      console.log('📰 Creating News bubble - searching user question:', message);
+      
+      // Use the user's ACTUAL QUESTION as the search query
+      const searchQuery = message;
       
       // Create bubble
       const bubbleId = Date.now() + Math.random();
       setWebSearchBubbles(prev => [...prev, {
         id: bubbleId,
-        title: `${searchTerms} News`,
-        content: `Searching web for ${searchTerms}...`,
+        title: 'Web Search',
+        content: `Searching for: "${searchQuery}"`,
         loading: true
       }]);
       
       // Actually search using DuckDuckGo API
       (async () => {
         try {
-          const searchUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(searchTerms + ' cryptocurrency')}&format=json&no_html=1&skip_disambig=1`;
+          const searchUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(searchQuery + ' cryptocurrency')}&format=json&no_html=1&skip_disambig=1`;
           const response = await fetch(searchUrl);
           const data = await response.json();
           
@@ -2134,11 +2135,11 @@ export default function Home() {
           } else if (data.Abstract) {
             resultText = data.Abstract;
           } else {
-            resultText = `No web results found for "${searchTerms}". Olivia will use her knowledge to answer.`;
+            resultText = `No web results found for "${searchQuery}". Olivia will use her knowledge to answer.`;
           }
           
           if (!resultText.trim()) {
-            resultText = `Searching for ${searchTerms}...`;
+            resultText = `Searching for: ${searchQuery}`;
           }
           
           // Update bubble with results
@@ -2149,7 +2150,8 @@ export default function Home() {
           // Update AI context with search results
           const newsContext = {
             websearch_results: data.RelatedTopics?.slice(0, 5).map(t => t.Text).join('. ') || data.Abstract || '',
-            websearch_query: searchTerms,
+            websearch_query: searchQuery,
+            user_question: message,
             timestamp: new Date().toISOString()
           };
           

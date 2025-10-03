@@ -116,19 +116,19 @@ const Plugins = () => {
       </div>
 
       {/* Content Container */}
-      <div className="flex-1 px-4 py-4 overflow-y-auto">
+      <div className="flex-1 px-3 py-2 overflow-y-auto pb-24">
         {/* Simple Description */}
-        <div className="mb-6 bg-white/5 rounded-lg p-4 border border-white/10">
-          <h3 className="font-semibold text-white mb-2">Plugins for Olivia AI</h3>
-          <p className="text-sm text-white/70">
+        <div className="mb-3 bg-white/5 rounded-lg p-3 border border-white/10">
+          <h3 className="font-semibold text-white mb-1 text-sm">Plugins for Olivia AI</h3>
+          <p className="text-xs text-white/70">
             Enable plugins to give Olivia AI access to real-time data. You'll see her thoughts displayed as bubbles with the data she's using.
           </p>
         </div>
 
         {/* Simple Plan Selection */}
-        <div className="mb-6">
-          <h3 className="text-sm font-semibold text-white mb-3">Choose Your Plan</h3>
-          <div className="grid grid-cols-2 gap-3">
+        <div className="mb-3">
+          <h3 className="text-xs font-semibold text-white mb-2">Choose Your Plan</h3>
+          <div className="grid grid-cols-2 gap-2">
             {[
               { id: 'free', name: 'Free', price: '$0', plugins: '2 Plugins' },
               { id: 'starter', name: 'Starter', price: '$5', plugins: '4 Plugins' },
@@ -137,7 +137,7 @@ const Plugins = () => {
             ].map(plan => (
               <div
                 key={plan.id}
-                className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                className={`p-2 rounded-lg border cursor-pointer transition-all ${
                   selectedPlan === plan.id
                     ? 'bg-white/10 border-white/30'
                     : 'bg-white/5 border-white/10 hover:bg-white/10'
@@ -145,9 +145,9 @@ const Plugins = () => {
                 onClick={() => handlePlanSelect(plan.id)}
               >
                 <div className="text-center">
-                  <h4 className="font-semibold text-white text-sm">{plan.name}</h4>
-                  <div className="text-lg font-bold text-white mt-1">{plan.price}</div>
-                  <div className="text-xs text-white/70 mt-1">{plan.plugins}</div>
+                  <h4 className="font-semibold text-white text-xs">{plan.name}</h4>
+                  <div className="text-sm font-bold text-white mt-0.5">{plan.price}</div>
+                  <div className="text-[10px] text-white/70 mt-0.5">{plan.plugins}</div>
                 </div>
               </div>
             ))}
@@ -155,9 +155,9 @@ const Plugins = () => {
         </div>
 
         {/* Plugin Stats */}
-        <div className="mb-4 bg-white/5 rounded-lg p-3 border border-white/10">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex gap-4">
+        <div className="mb-2 bg-white/5 rounded-lg p-2 border border-white/10">
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex gap-3">
               <span className="text-white">{pluginCounts.enabled} Active</span>
               <span className="text-white/70">{pluginCounts.disabled} Inactive</span>
             </div>
@@ -168,12 +168,12 @@ const Plugins = () => {
         </div>
 
         {/* Category Filters */}
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="flex flex-wrap gap-1.5 mb-3">
           {categories.map(category => (
             <button
               key={category}
               onClick={() => setSelectedCategory(category)}
-              className={`px-3 py-1 rounded-full text-sm transition-all ${
+              className={`px-2 py-1 rounded-full text-xs transition-all ${
                 selectedCategory === category
                   ? 'bg-white text-black'
                   : 'bg-white/10 text-white/70 hover:bg-white/20'
@@ -185,7 +185,7 @@ const Plugins = () => {
         </div>
 
         {/* Plugin Grid */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-3 gap-3">
           {filteredPlugins.map(plugin => {
             const enabled = pluginStates[plugin.id] || false;
             
@@ -196,7 +196,7 @@ const Plugins = () => {
                 onClick={() => handleToggle(plugin.id)}
               >
                 {/* Plugin Icon */}
-                <div className={`relative w-16 h-16 transition-all ${
+                <div className={`relative w-14 h-14 transition-all ${
                   enabled 
                     ? 'bg-white' 
                     : 'bg-white/10 hover:bg-white/20'
@@ -224,8 +224,8 @@ const Plugins = () => {
                 </div>
 
                 {/* Plugin Name */}
-                <div className="mt-2 text-center">
-                  <div className={`text-xs font-medium ${
+                <div className="mt-1.5 text-center">
+                  <div className={`text-[10px] font-medium leading-tight ${
                     enabled ? 'text-white' : 'text-white/30'
                   }`}>
                     {plugin.name}
@@ -235,9 +235,6 @@ const Plugins = () => {
             );
           })}
         </div>
-        
-        {/* Small bottom padding */}
-        <div className="h-2 md:h-4"></div>
       </div>
       </div>
     </div>

@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect, useRef } from 'react';
 import newsIcon from '../../assets/OLIVIA NEWS.png';
+import { useFloatToTop } from '../../hooks/useFloatToTop';
 
 const FloatingNewsBubble = ({ isOpen, onClose, title = 'Trending Tokens', content = '', loading = false, addParticlesToSwarm }) => {
   const bubbleId = useState(() => `news-${Date.now()}-${Math.random()}`)[0]; // Unique ID for this bubble instance
@@ -17,8 +18,8 @@ const FloatingNewsBubble = ({ isOpen, onClose, title = 'Trending Tokens', conten
   const [lastClickTime, setLastClickTime] = useState(0);
   const containerRef = useRef(null);
 
-  // Remove auto-floating
-  useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded, content]);
+  // Float to top like other bubbles
+  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs: 80, bubbleWidth: 140, gap: 4, margin: 8 });
 
   // Create pop particles and add them to main swarm
   const createPopEffect = () => {
@@ -108,24 +109,42 @@ const FloatingNewsBubble = ({ isOpen, onClose, title = 'Trending Tokens', conten
     }
   }, [isDragging, dragOffset]);
 
+  // Boundary check - keep bubble on screen
+  useEffect(() => {
+    if (!containerRef.current) return;
+    requestAnimationFrame(() => {
+      const rect = containerRef.current.getBoundingClientRect();
+      const margin = 10;
+      const maxX = window.innerWidth - rect.width - margin;
+      const maxY = window.innerHeight - rect.height - margin;
+      const clampedX = Math.max(margin, Math.min(position.x, maxX));
+      const clampedY = Math.max(margin, Math.min(position.y, maxY));
+      if (clampedX !== position.x || clampedY !== position.y) {
+        setPosition({ x: clampedX, y: clampedY });
+      }
+    });
+  }, [isOpen, isExpanded]);
+
   if (!isOpen) return null;
 
-  // Dynamic bubble size - keep spherical even when expanded
-  const maxSize = Math.min(420, window.innerWidth - 40, window.innerHeight - 100);
+  // Bubble ALWAYS stays circular - never bigger than screen
+  const maxSize = Math.min(300, window.innerWidth - 40, window.innerHeight - 100);
   const bubbleSize = isExpanded ? maxSize : 140;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
   
   const bubble = (
     <div 
+      ref={containerRef}
       className={`fixed pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isDragging ? '' : 'transition-all duration-150 ease-in-out'}`}
       style={{ 
         left: `${position.x}px`,
         top: `${position.y}px`,
         width: `${bubbleWidth}px`,
         height: `${bubbleHeight}px`,
-        zIndex: 2147483646, // Slightly lower than Lurky
-        willChange: isDragging ? 'transform' : 'auto'
+        zIndex: 2147483646,
+        willChange: isDragging ? 'transform' : 'auto',
+        transition: isDragging ? 'none' : 'top 4800ms linear'
       }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
@@ -161,8 +180,8 @@ const FloatingNewsBubble = ({ isOpen, onClose, title = 'Trending Tokens', conten
             <div className="w-full h-full flex items-center justify-center text-center relative">
               {!isExpanded ? (
                 <div className="flex flex-col items-center justify-center">
-                  <div className="relative mb-2">
-                    <div className="w-20 h-20 rounded-full overflow-hidden border-0 shadow-none bg-transparent">
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-full overflow-hidden border-0 shadow-none bg-white">
                       <img src={newsIcon} alt="News" className="w-full h-full object-cover" draggable={false} />
                     </div>
                   </div>
