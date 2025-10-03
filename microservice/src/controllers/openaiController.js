@@ -366,12 +366,13 @@ ${JSON.stringify(contextAwarenessData, null, 2)}
 
 CRITICAL INSTRUCTIONS:
 1. This data was ALREADY fetched by 21 different APIs
-2. USE THIS DATA to answer the user's question
-3. DO NOT call webSearch - this data is already complete
-4. DO NOT say "I encountered an issue" - the data is RIGHT HERE
-5. Answer confidently using CoinGecko, Twitter, News, and other data above
+2. USE THIS EXACT DATA to answer - cite specific numbers, prices, percentages
+3. DO NOT call webSearch - the data is RIGHT HERE in the context above
+4. DO NOT say "I encountered an issue" or "making moves" - be SPECIFIC with the data
+5. Example: "BNB is at $1132.18, up 7.09% in 24h. Twitter shows 20 recent tweets discussing..."
+6. Answer with ACTUAL DATA from coingecko_price_data, twitter_data, websearch_articles above
 
-Only call webSearch if you genuinely need additional information not in the context.
+Only call webSearch if the context data is genuinely empty or missing critical information.
 ` : 'No context data available. You may use webSearch if needed.'}
 
 Keep responses natural and conversational.`

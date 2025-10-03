@@ -71,13 +71,41 @@ export default function Home() {
     console.log('🎯═══════════════════════════════════════════════════════════════');
     console.log('');
     
+    // Check if token changed - if so, CLEAR old context
+    const previousToken = window.activeToken?.symbol;
+    const newToken = token.symbol;
+    
+    if (previousToken && previousToken !== newToken) {
+      console.log('🔄 TOKEN CHANGED:', previousToken, '→', newToken);
+      console.log('🗑️ CLEARING old context data for', previousToken);
+      // Clear old context, keep only base structure
+      window.contextAwarenessData = {
+        market_data: {},
+        sentiment_data: {},
+        exchange_data: {},
+        blockchain_data: {},
+        portfolio_data: {},
+        active_token: token,
+        last_updated: new Date().toISOString()
+      };
+    } else {
+      console.log('✅ SAME TOKEN or FIRST TOKEN - keeping accumulated context');
+      // Initialize if needed, but keep existing data
+      window.contextAwarenessData = window.contextAwarenessData || {
+        market_data: {},
+        sentiment_data: {},
+        exchange_data: {},
+        blockchain_data: {},
+        portfolio_data: {}
+      };
+      window.contextAwarenessData.active_token = token;
+    }
+    
     // Store globally for all plugins to access
     window.activeToken = token;
-    window.contextAwarenessData = window.contextAwarenessData || {};
-    window.contextAwarenessData.active_token = token;
     
     // Each plugin will try with this token data
-    // If they find data → add to context
+    // If they find data → MERGE into context (not overwrite)
     // If no data → quietly skip
   }, []);
   
@@ -3706,12 +3734,17 @@ export default function Home() {
       
       // 🚀 SEND TO AI VIA HTTP (replaced WebSocket)
       try {
-        // 🔥 CRITICAL FIX: If user asked about a specific token, wait for plugins to populate contextAwarenessData
-        if (userIntent.specificToken) {
-          log(`⏳ User asked about "${userIntent.specificToken}" - waiting 1.5s for plugin data to load...`);
+        // 🔥 CRITICAL FIX: If there's an active token, wait for plugins to populate contextAwarenessData
+        if (activeToken && activeToken.symbol) {
+          log(`⏳ Active token detected: "${activeToken.symbol}" - waiting 1.5s for plugin data to load...`);
           await new Promise(resolve => setTimeout(resolve, 1500)); // Wait for CoinGecko, Twitter, etc. to finish
           log('✅ Plugin wait complete. Current context keys:', Object.keys(window.contextAwarenessData || {}));
-          log('📦 Full context data being sent to AI:', JSON.stringify(window.contextAwarenessData, null, 2));
+          log('📦 PERSISTENT CONTEXT being sent to AI:', JSON.stringify(window.contextAwarenessData, null, 2));
+          log('💬 Conversation history length:', conversationHistory.length, 'messages');
+        } else {
+          // Even without activeToken, log what context we're sending
+          log('📦 Context data available:', Object.keys(window.contextAwarenessData || {}));
+          log('💬 Conversation history length:', conversationHistory.length, 'messages');
         }
         
         if (hasContext && !useSearchFromStart) {
