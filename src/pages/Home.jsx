@@ -3820,7 +3820,13 @@ export default function Home() {
           
           proactiveMessage += closings[Math.floor(Math.random() * closings.length)];
           
-          // Dispatch intro message to Layout (chat now lives there)
+          // Add intro message to local messages state so AI has context
+          setMessages([{
+            type: 'ai',
+            content: proactiveMessage
+          }]);
+          
+          // Also dispatch to Layout for display
           window.dispatchEvent(new CustomEvent('addIntroMessage', {
             detail: {
               message: proactiveMessage
@@ -4276,20 +4282,34 @@ export default function Home() {
           
           setIsLoading(false);
         } else {
-          // Fallback if no trending data - dispatch to Layout
+          // Fallback if no trending data
+          const fallbackMessage = "Hey! Just scanned the crypto markets for you. What would you like to know about? I can help with live prices, trading insights, or anything Web3!";
+          
+          setMessages([{
+            type: 'ai',
+            content: fallbackMessage
+          }]);
+          
           window.dispatchEvent(new CustomEvent('addIntroMessage', {
             detail: {
-              message: "Hey! Just scanned the crypto markets for you. What would you like to know about? I can help with live prices, trading insights, or anything Web3!"
+              message: fallbackMessage
             }
           }));
           setIsLoading(false);
         }
       } catch (error) {
         logError('Failed to fetch trending data:', error);
-        // Fallback message on error - dispatch to Layout
+        // Fallback message on error
+        const errorMessage = "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!";
+        
+        setMessages([{
+          type: 'ai',
+          content: errorMessage
+        }]);
+        
         window.dispatchEvent(new CustomEvent('addIntroMessage', {
           detail: {
-            message: "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!"
+            message: errorMessage
           }
         }));
         setIsLoading(false);
