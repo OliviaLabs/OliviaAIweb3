@@ -51,7 +51,7 @@ async function rateLimitedFetch(url, cacheKey, retryCount = 0) {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
+        'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`,
         'Origin': window.location.origin
       }
     });

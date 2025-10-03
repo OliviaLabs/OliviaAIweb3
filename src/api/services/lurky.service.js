@@ -27,7 +27,7 @@ export const lurkyService = {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`,
           'Origin': window.location.origin
         }
       });
@@ -56,7 +56,7 @@ export const lurkyService = {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`,
           'Origin': window.location.origin
         }
       });
@@ -83,7 +83,7 @@ export const lurkyService = {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`,
           'Origin': window.location.origin
         }
       });
@@ -107,7 +107,7 @@ export const lurkyService = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`,
           'Origin': window.location.origin,
           ...config.headers
         },
@@ -133,7 +133,7 @@ export const lurkyService = {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN || 'dev-token'}`,
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`,
           'Origin': window.location.origin
         }
       });
