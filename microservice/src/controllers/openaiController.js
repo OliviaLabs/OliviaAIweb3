@@ -352,6 +352,57 @@ export class OpenAIController {
         }
       ];
 
+      // Format context data in a clean, readable way
+      const formatContextData = (data) => {
+        if (!data || Object.keys(data).length === 0) return 'No context data available.';
+        
+        let formatted = '';
+        
+        // CoinGecko Price Data
+        if (data.coingecko_price_data) {
+          const coin = data.coingecko_price_data;
+          formatted += `📊 COINGECKO PRICE DATA:\n${coin.content || coin.token}\n\n`;
+        }
+        
+        // Twitter Data
+        if (data.twitter_data && data.twitter_data.tweets) {
+          const tweets = Array.isArray(data.twitter_data.tweets) ? data.twitter_data.tweets : [];
+          formatted += `🐦 TWITTER DATA (${tweets.length} tweets):\n`;
+          tweets.slice(0, 10).forEach((tweet, i) => {
+            formatted += `${i+1}. ${tweet}\n`;
+          });
+          formatted += '\n';
+        }
+        
+        // CryptoPanic News
+        if (data.websearch_articles && data.websearch_articles.length > 0) {
+          formatted += `📰 NEWS ARTICLES (${data.websearch_articles.length}):\n`;
+          data.websearch_articles.slice(0, 5).forEach((article, i) => {
+            formatted += `${i+1}. ${article.title} (${article.source})\n`;
+          });
+          formatted += '\n';
+        }
+        
+        // CoinStats Data
+        if (data.coinstats_data) {
+          const cs = data.coinstats_data;
+          formatted += `💹 COINSTATS DATA:\n`;
+          formatted += `Price: $${cs.price}, Change: ${cs.change24h}%, Market Cap: $${cs.marketCap}, Volume: $${cs.volume}\n\n`;
+        }
+        
+        // Lurky Social Data
+        if (data.lurky_data && data.lurky_data.social_data) {
+          formatted += `💬 LURKY SOCIAL SENTIMENT:\n${JSON.stringify(data.lurky_data.social_data, null, 2)}\n\n`;
+        }
+        
+        // Portfolio Data
+        if (data.portfolio_data) {
+          formatted += `💰 PORTFOLIO DATA:\n${JSON.stringify(data.portfolio_data, null, 2)}\n\n`;
+        }
+        
+        return formatted;
+      };
+      
       // Build system message with context awareness data
       const systemMessage = {
         role: "system",
@@ -362,39 +413,21 @@ ${contextAwarenessData && Object.keys(contextAwarenessData).length > 0 ? `
 REAL-TIME DATA ALREADY AVAILABLE (21 APIS FETCHED):
 ═══════════════════════════════════════════════════════
 
-${JSON.stringify(contextAwarenessData, null, 2)}
+${formatContextData(contextAwarenessData)}
 
-🔥 CRITICAL INSTRUCTIONS - READ CAREFULLY:
-═══════════════════════════════════════════════════════
+🎯 YOUR JOB: Use the data above to answer questions with SPECIFIC DETAILS.
 
-1. **USE THE FULL CONTEXT WINDOW** - All data above was ALREADY fetched from 21 APIs
-2. **PROVE EVERY STATEMENT** - Never say generic things like "positive sentiment" - SHOW ME THE TWEETS
-3. **CITE ACTUAL DATA** - Don't say "increased trading volume" - say "$4.8M volume (up 15%)"
-4. **QUOTE TWEETS** - If twitter_data has 20 tweets, REFERENCE THEM: "According to recent tweets: '@user says...'"
-5. **SPECIFIC NUMBERS** - Use exact prices, percentages, market caps from coingecko_price_data
-6. **DEEP ANALYSIS** - Use ALL available context to give comprehensive insights
+MANDATORY:
+- Quote 2-3 actual tweets when discussing sentiment
+- Cite exact prices, percentages, and volumes
+- Reference news headlines when explaining pumps/dumps
+- Never say generic things like "positive sentiment" - prove it with actual data
 
-❌ BAD RESPONSE:
-"Corn is pumping due to positive market sentiment and increased trading volume."
+BAD: "Corn is pumping due to positive sentiment"
+GOOD: "Corn up 5.48% to $0.1274. Tweet from @trader: 'CORN breaking $0.12 resistance'. Market cap $66.7M, volume $4.8M."
+` : 'No context data available.'}
 
-✅ GOOD RESPONSE:
-"Corn (CORN) is up 5.48% to $0.1274. Based on 20 recent tweets I found:
-- @cryptotrader mentioned 'CORN breaking resistance at $0.12'
-- @defi_analyst noted 'strong accumulation pattern'
-Market cap is $66.7M with $4.8M in 24h volume. The pump started 6 hours ago according to CoinGecko data."
-
-🚨 MANDATORY RULES:
-- If twitter_data exists → QUOTE at least 2-3 actual tweets
-- If coingecko_price_data exists → CITE exact price, change%, volume
-- If websearch_articles exists → REFERENCE actual news headlines
-- NEVER say "I couldn't retrieve" when data is RIGHT THERE in context
-- NEVER call webSearch - everything you need is ALREADY in the context above
-- BE SPECIFIC, BE DETAILED, BE THOROUGH
-
-Only call webSearch if the context data is genuinely empty or missing critical information.
-` : 'No context data available. You may use webSearch if needed.'}
-
-Keep responses detailed and prove every claim with data.`
+Be specific and cite your sources.`
       };
 
       // Prepend system message to conversation
