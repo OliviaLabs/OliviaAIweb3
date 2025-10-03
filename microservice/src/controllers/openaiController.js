@@ -369,6 +369,10 @@ Keep responses natural, conversational, and helpful. Avoid emojis unless they ad
 
       // Prepend system message to conversation
       const messagesWithContext = [systemMessage, ...messages];
+      
+      // Log what we're sending to OpenAI
+      console.log('Sending to OpenAI - Message count:', messagesWithContext.length);
+      console.log('Conversation:', messages.map(m => `${m.role}: ${m.content.substring(0, 50)}...`));
 
       // Make request to OpenAI with function calling tools
       const completion = await openai.chat.completions.create({

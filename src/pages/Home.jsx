@@ -1751,6 +1751,10 @@ export default function Home() {
       
       // Store the full token info for plugins to use
       window.currentTokenContext = window.proactiveMentionedToken;
+      
+      // 🔥 RE-BROADCAST to ALL plugins to fetch fresh data
+      log('🔌 Re-broadcasting token to ALL plugins for fresh data fetch...');
+      setActiveToken(window.proactiveMentionedToken);
     }
     
     console.log('🎯 User Intent:', userIntent);
@@ -3623,7 +3627,8 @@ export default function Home() {
       
       // Conversation history already built at top of function
       
-      log('🧠 Conversation history being sent:', conversationHistory);
+      log('Conversation history being sent:', conversationHistory);
+      log('Context awareness data being sent:', window.contextAwarenessData);
       
       // Skip AI response if we successfully created a swap bubble OR if there's ongoing swap context
       const hasRecentSwapContext = conversationHistory.slice(-4).some(msg => 
