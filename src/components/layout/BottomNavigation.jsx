@@ -19,24 +19,37 @@ export default function BottomNavigation({
   const location = useLocation();
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   
-  // 💬 CHAT DISPLAY STATE - Listen to Home.jsx's chat
-  const [userMessage, setUserMessage] = useState('');
-  const [aiResponse, setAiResponse] = useState('');
+  // 💬 CHAT DISPLAY STATE - Full message history with fade effect
+  const [messages, setMessages] = useState([]);
   const [isAiTyping, setIsAiTyping] = useState(false);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
+  const messagesEndRef = React.useRef(null);
   
-  // Listen for chat updates from Home.jsx
+  // Auto-scroll to bottom when new messages come in
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isAiTyping]);
+  
+  // Listen for chat updates from Home.jsx and ADD to history
   useEffect(() => {
     const handleChatUpdate = (event) => {
       const { userMessage: msg, aiResponse: response, isTyping } = event.detail;
-      if (msg) {
-        setUserMessage(msg);
-        // Auto-expand when user sends a new message
+      
+      if (msg && response && !isTyping) {
+        // Complete exchange - add both messages
+        setMessages(prev => [
+          ...prev,
+          { type: 'user', content: msg, timestamp: Date.now() },
+          { type: 'ai', content: response, timestamp: Date.now() }
+        ]);
+        setIsAiTyping(false);
+        setIsChatMinimized(false);
+      } else if (msg && isTyping) {
+        // User sent message, AI is typing
+        setMessages(prev => [...prev, { type: 'user', content: msg, timestamp: Date.now() }]);
+        setIsAiTyping(true);
         setIsChatMinimized(false);
       }
-      // Always update AI response (even if empty - this clears it when loading)
-      setAiResponse(response || '');
-      setIsAiTyping(isTyping || false);
     };
     
     window.addEventListener('chatUpdate', handleChatUpdate);
