@@ -1182,37 +1182,8 @@ export default function Home() {
     }
   }, [isLoading]);
 
-  // 📡 WEBSOCKET LISTENER - Forward AI responses to BottomNavigation
-  useEffect(() => {
-    if (!subscribe) return;
-
-    const handleMessage = (data) => {
-      log('📨 Home.jsx received WebSocket message:', data);
-
-      if (data.type === 'ai_response' || data.type === 'message') {
-        const response = data.message || data.response;
-        
-        // Broadcast to BottomNavigation for display
-        window.dispatchEvent(new CustomEvent('chatUpdate', {
-          detail: {
-            userMessage: messages[messages.length - 1]?.content || '',
-            aiResponse: response,
-            isTyping: false
-          }
-        }));
-
-        // Also update local messages for context
-        setMessages(prev => [...prev, {
-          type: 'ai',
-          content: response
-        }]);
-        setIsLoading(false);
-      }
-    };
-
-    const unsubscribe = subscribe(handleMessage);
-    return () => unsubscribe?.();
-  }, [subscribe, messages]);
+  // NOTE: WebSocket listener removed - now using HTTP POST for AI responses
+  // AI responses are handled directly in handleSendMessage and broadcast to BottomNavigation
 
   // Focus input when it appears
   useEffect(() => {
@@ -3654,39 +3625,82 @@ export default function Home() {
         return;
       }
       
-      let result;
-      if (hasContext && !useSearchFromStart) {
-        if (isSimplePriceQuery) {
-          log('⚡ AI WITH BUBBLE DATA: Letting AI respond conversationally with bubble context, no search');
+      // 🚀 SEND TO AI VIA HTTP (replaced WebSocket)
+      try {
+        if (hasContext && !useSearchFromStart) {
+          if (isSimplePriceQuery) {
+            log('⚡ AI WITH BUBBLE DATA: Letting AI respond conversationally with bubble context, no search');
+          } else {
+            log('⚡ FAST MODE: Using bubble context first, no search needed');
+          }
         } else {
-          log('⚡ FAST MODE: Using bubble context first, no search needed');
+          log('🌐 COMPLETE MODE: Enabling search for comprehensive answer');
         }
-        result = await sendMessage(message, conversationHistory, false, false); // Bubble context + conversation history, no search
-      } else {
-        log('🌐 COMPLETE MODE: Enabling search for comprehensive answer');
-        result = await sendMessage(message, conversationHistory, true, false); // With search + conversation history
-      }
-      
-      if (!result) {
-        // sendMessage returned false - connection failed after waiting
+
+        // Call OpenAI API directly via HTTP
+        const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/openai/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`
+          },
+          body: JSON.stringify({
+            messages: conversationHistory,
+            contextAwarenessData: window.contextAwarenessData || {}
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const aiResponse = data.choices?.[0]?.message?.content || data.message || 'Sorry, I couldn\'t process that.';
+
+        log('✅ AI response received:', aiResponse.substring(0, 50) + '...');
+
+        // Add AI response to conversation
+        setMessages(prev => [...prev, { type: 'ai', content: aiResponse }]);
+        
+        // Broadcast to BottomNavigation
+        window.dispatchEvent(new CustomEvent('chatUpdate', {
+          detail: {
+            userMessage: message,
+            aiResponse: aiResponse,
+            isTyping: false
+          }
+        }));
+        
+        setIsLoading(false);
+        setShowInput(true);
+
+      } catch (error) {
+        logError('❌ Failed to send message:', error);
         setMessages(prev => [...prev, { 
           type: 'ai', 
           content: 'Sorry, I\'m having trouble connecting to my AI service right now. Please try again in a moment. In the meantime, you can still see cryptocurrency data above!' 
-        }])
-        setIsLoading(false)
-        setShowInput(true)
+        }]);
+        
+        // Broadcast error to BottomNavigation
+        window.dispatchEvent(new CustomEvent('chatUpdate', {
+          detail: {
+            userMessage: message,
+            aiResponse: 'Sorry, I\'m having trouble connecting right now. Please try again!',
+            isTyping: false
+          }
+        }));
+        
+        setIsLoading(false);
+        setShowInput(true);
       }
-      // If successful, the WebSocket message handler will take care of the response
       
-      } catch (error) {
-        logError('Failed to send message:', error)
-        setMessages(prev => [...prev, { 
-          type: 'ai', 
-          content: 'I\'m currently offline, but you can still get crypto data from the bubbles above! Try asking about Bitcoin, Ethereum, or other coins.' 
-        }])
-        setIsLoading(false)
-        setShowInput(true) // Always show input after error
+      } catch (outerError) {
+        // Outer catch for any errors in the setTimeout callback
+        logError('❌ Critical error in handleSendMessage:', outerError);
+        setIsLoading(false);
+        setShowInput(true);
       }
+      
     }, 2000); // 2 second delay to allow bubbles to load data
   }
 
