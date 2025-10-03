@@ -111,8 +111,10 @@ const FloatingSupplyBubble = ({ isOpen, onClose, title = 'Supply Info', availabl
 
   if (!isOpen) return null;
   
-  let bubbleSize = 140;
-  if (isExpanded) bubbleSize = 280;
+  // Responsive bubble sizes: half-size on mobile, full-size on desktop
+  const isMobile = window.innerWidth < 768;
+  let bubbleSize = isMobile ? 70 : 140;
+  if (isExpanded) bubbleSize = isMobile ? 140 : 280;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
   

@@ -90,7 +90,9 @@ const FloatingPriceChange1hBubble = ({ isOpen, onClose, title = '1h Change', cha
 
   if (!isOpen) return null;
   
-  const bubbleSize = isExpanded ? 280 : 140;
+  // Responsive bubble sizes: half-size on mobile, full-size on desktop
+  const isMobile = window.innerWidth < 768;
+  const bubbleSize = isExpanded ? (isMobile ? 140 : 280) : (isMobile ? 70 : 140);
   const isPositive = change >= 0;
   const scoreColor = isPositive ? '#10b981' : '#ef4444';
   const Icon = isPositive ? TrendingUp : TrendingDown;

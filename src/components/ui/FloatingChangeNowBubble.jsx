@@ -141,9 +141,10 @@ const FloatingChangeNowBubble = ({ isOpen, onClose, title = 'ChangeNOW', content
 
   if (!isOpen) return null;
 
-  // Dynamic bubble size based on expanded state
-  let bubbleSize = 140;
-  if (isExpanded) bubbleSize = 160;
+  // Responsive bubble sizes: half-size on mobile, full-size on desktop
+  const isMobile = window.innerWidth < 768;
+  let bubbleSize = isMobile ? 70 : 140;
+  if (isExpanded) bubbleSize = isMobile ? 80 : 160;
 
   const bubble = (
     <div

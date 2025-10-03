@@ -2,7 +2,7 @@ import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect, useRef } from 'react';
 import newsIcon from '../../assets/OLIVIA NEWS.png';
-import { useFloatToTop } from '../../hooks/useFloatToTop';
+import useFloatToTop from '../../hooks/useFloatToTop';
 
 const FloatingNewsBubble = ({ isOpen, onClose, title = 'Trending Tokens', content = '', loading = false, addParticlesToSwarm }) => {
   const bubbleId = useState(() => `news-${Date.now()}-${Math.random()}`)[0]; // Unique ID for this bubble instance
@@ -127,9 +127,14 @@ const FloatingNewsBubble = ({ isOpen, onClose, title = 'Trending Tokens', conten
 
   if (!isOpen) return null;
 
+  // Responsive bubble sizes: half-size on mobile, full-size on desktop
+  const isMobile = window.innerWidth < 768;
+  const collapsedSize = isMobile ? 70 : 140;
+  const maxExpandedSize = isMobile ? 150 : 300;
+  
   // Bubble ALWAYS stays circular - never bigger than screen
-  const maxSize = Math.min(300, window.innerWidth - 40, window.innerHeight - 100);
-  const bubbleSize = isExpanded ? maxSize : 140;
+  const maxSize = Math.min(maxExpandedSize, window.innerWidth - 40, window.innerHeight - 100);
+  const bubbleSize = isExpanded ? maxSize : collapsedSize;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
   

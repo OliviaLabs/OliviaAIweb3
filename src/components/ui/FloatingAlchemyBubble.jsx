@@ -300,9 +300,10 @@ const FloatingAlchemyBubble = ({
 
   if (!isOpen) return null;
 
-  // Dynamic bubble size
-  const bubbleSize = 140;
-  const bubbleWidth = isExpanded ? Math.min(500, window.innerWidth - 40) : bubbleSize;
+  // Responsive bubble sizes: half-size on mobile, full-size on desktop
+  const isMobile = window.innerWidth < 768;
+  const bubbleSize = isMobile ? 70 : 140;
+  const bubbleWidth = isExpanded ? Math.min(isMobile ? 250 : 500, window.innerWidth - 40) : bubbleSize;
   const bubbleHeight = isExpanded ? Math.min(400, window.innerHeight - 100) : bubbleSize;
   
   // Get raw numeric balance value
