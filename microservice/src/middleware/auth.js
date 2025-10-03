@@ -15,16 +15,30 @@ export const authenticateAdmin = (req, res, next) => {
 
   const authHeader = req.headers.authorization;
   
+  if (!authHeader) {
+    console.log('❌ No authorization header');
+    return res.status(401).json({
+      error: 'Authorization header is required',
+      code: 'UNAUTHORIZED'
+    });
+  }
+
+  // Extract and clean the token
+  const receivedToken = authHeader.replace('Bearer ', '').trim();
+  const expectedToken = config.adminAccessSecret ? config.adminAccessSecret.trim() : null;
+  
   // Debug: Log what we're checking
   console.log('🔐 Auth check:', {
-    received: authHeader ? authHeader.substring(0, 20) + '...' : 'NONE',
-    expectedSecret: config.adminAccessSecret ? config.adminAccessSecret.substring(0, 10) + '...' : 'NOT SET',
-    matches: authHeader === `Bearer ${config.adminAccessSecret}`
+    receivedLength: receivedToken.length,
+    expectedLength: expectedToken ? expectedToken.length : 0,
+    receivedPreview: receivedToken.substring(0, 10) + '...' + receivedToken.substring(receivedToken.length - 10),
+    expectedPreview: expectedToken ? expectedToken.substring(0, 10) + '...' + expectedToken.substring(expectedToken.length - 10) : 'NOT SET',
+    matches: receivedToken === expectedToken,
+    isDevToken: receivedToken === 'dev-token'
   });
   
-  // Allow dev-token for both development and production
-  // This bypasses the need for JWT verification when using dev-token
-  if (authHeader === 'Bearer dev-token' || authHeader === `Bearer ${config.adminAccessSecret}`) {
+  // Allow dev-token OR the admin secret token
+  if (receivedToken === 'dev-token' || (expectedToken && receivedToken === expectedToken)) {
     console.log('✅ Authentication successful');
     req.tokenInfo = {
       client_id: 'dev-client',
@@ -38,22 +52,17 @@ export const authenticateAdmin = (req, res, next) => {
     };
     return next();
   }
-  
-  if (!authHeader) {
-    return res.status(401).json({
-      error: 'Authorization header is required',
-      code: 'UNAUTHORIZED'
-    });
-  }
 
-  // Extract token from "Bearer token"
-  if (!authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({
-      error: 'Authorization header must start with "Bearer "',
-      code: 'INVALID_AUTH_FORMAT'
-    });
-  }
+  // If simple token didn't match, reject immediately (don't try JWT verification)
+  console.error('❌ Token mismatch - Auth failed');
+  return res.status(403).json({
+    error: 'Invalid authentication token',
+    code: 'INVALID_TOKEN',
+    hint: 'Token does not match ADMIN_ACCESS_SECRET'
+  });
 
+  // JWT verification code below is unreachable but kept for future use
+  /* 
   const token = authHeader.slice(7);
 
   try {
@@ -93,4 +102,5 @@ export const authenticateAdmin = (req, res, next) => {
       });
     }
   }
+  */
 };

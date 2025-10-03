@@ -2735,7 +2735,7 @@ export default function Home() {
         try {
           const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/coinstats/coins/${coinStatsId}`, {
             headers: {
-              'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+              'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`
             }
           })
           
@@ -3193,11 +3193,11 @@ export default function Home() {
             const formattedSwap = finalSwapInfo;
             
             // Get swap price from 0x API
-            const swapData = await fetch(`${import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3001'}/api/zerox/price?chainId=1&sellToken=${formattedSwap.sellToken}&buyToken=${formattedSwap.buyToken}&sellAmount=${formattedSwap.sellAmount}`, {
+            const swapData = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/zerox/price?chainId=1&sellToken=${formattedSwap.sellToken}&buyToken=${formattedSwap.buyToken}&sellAmount=${formattedSwap.sellAmount}`, {
               method: 'GET',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer dev-token',
+                'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`,
                 'Origin': window.location.origin
               }
             });
@@ -3346,11 +3346,11 @@ export default function Home() {
           // Handle token holder queries
           if (userIntent.wantsTokenHolders && userIntent.specificToken) {
             try {
-              const response = await fetch(`${import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3001'}/api/okx/token-holders-query`, {
+              const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/okx/token-holders-query`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${import.meta.env.VITE_APP_ACCESS_TOKEN || 'dev-token'}`
+                  'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`
                 },
                 body: JSON.stringify({ userQuery: message })
               });
@@ -3401,7 +3401,7 @@ export default function Home() {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`
               },
               body: JSON.stringify({
                 fromTokenSymbol: fromToken.toUpperCase(),

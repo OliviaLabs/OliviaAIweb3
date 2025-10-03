@@ -37,7 +37,7 @@ const okxDexService = {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_APP_ACCESS_TOKEN || 'dev-token'}`
+          'Authorization': `Bearer ${import.meta.env.VITE_APP_ACCESS_TOKEN || '132fb6616283707bfb4e673e5ee6b4a3c199aa2dd2f214cdf72f920d1b6e70a7'}`
         }
       });
 
@@ -66,7 +66,7 @@ const okxDexService = {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_APP_ACCESS_TOKEN || 'dev-token'}`
+          'Authorization': `Bearer ${import.meta.env.VITE_APP_ACCESS_TOKEN || '132fb6616283707bfb4e673e5ee6b4a3c199aa2dd2f214cdf72f920d1b6e70a7'}`
         }
       });
 
@@ -88,7 +88,7 @@ const okxDexService = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_APP_ACCESS_TOKEN || 'dev-token'}`
+          'Authorization': `Bearer ${import.meta.env.VITE_APP_ACCESS_TOKEN || '132fb6616283707bfb4e673e5ee6b4a3c199aa2dd2f214cdf72f920d1b6e70a7'}`
         },
         body: JSON.stringify({ userQuery })
       });

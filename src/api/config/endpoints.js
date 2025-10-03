@@ -8,27 +8,17 @@ const OPENAI_MICROSERVICE_URL = import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 
 console.log('🔍 OpenAI Microservice URL:', OPENAI_MICROSERVICE_URL);
 console.log('🔍 Environment variable:', import.meta.env.VITE_OPENAI_MICROSERVICE_URL);
 console.log('🔍 Hostname:', window.location.hostname);
-// Get token from environment variable with fallback to check multiple sources
-const getAuthToken = () => {
-  // Try environment variable first
-  if (import.meta.env.VITE_APP_ACCESS_TOKEN) {
-    return import.meta.env.VITE_APP_ACCESS_TOKEN;
-  }
-  
-  // In production, use the actual token that matches ADMIN_ACCESS_SECRET
-  if (window.location.hostname === 'oliviaaiweb3-1.onrender.com') {
-    return '132fb6616283707bfb4e673e5ee6b4a3c199aa2dd2f214cdf72f920d1b6e70a7';
-  }
-  
-  // Development fallback
-  return 'dev-token';
-};
+// Get token from environment variable - MUST be set in .env
+const OPENAI_MICROSERVICE_TOKEN = import.meta.env.VITE_APP_ACCESS_TOKEN;
 
-const OPENAI_MICROSERVICE_TOKEN = getAuthToken();
-
-// Debug: Check what token is being used
-console.log('🔑 Auth Token:', OPENAI_MICROSERVICE_TOKEN.substring(0, 10) + '...' + OPENAI_MICROSERVICE_TOKEN.substring(OPENAI_MICROSERVICE_TOKEN.length - 10));
-console.log('🔑 Token source:', import.meta.env.VITE_APP_ACCESS_TOKEN ? 'Environment Variable' : 'Hardcoded Fallback');
+// Debug: Verify token is loaded
+if (OPENAI_MICROSERVICE_TOKEN) {
+  console.log('✅ Auth Token loaded:', OPENAI_MICROSERVICE_TOKEN.substring(0, 10) + '...' + OPENAI_MICROSERVICE_TOKEN.substring(OPENAI_MICROSERVICE_TOKEN.length - 10));
+} else {
+  console.error('❌ CRITICAL: VITE_APP_ACCESS_TOKEN not found in environment!');
+  console.error('❌ This means the .env file was not loaded during build.');
+  console.error('❌ Render needs to rebuild with the environment variable set.');
+}
 const SECURE_WEBSOCKET_URL = OPENAI_MICROSERVICE_URL.replace('http', 'ws') + '/ws/secure-proxy';
 
 // Streamlined endpoints - only what's actually used
