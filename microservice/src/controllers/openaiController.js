@@ -364,11 +364,29 @@ export class OpenAIController {
           formatted += `📊 COINGECKO PRICE DATA:\n${coin.content || coin.token}\n\n`;
         }
         
-        // Twitter Data
+        // Twitter Data with SENTIMENT ANALYSIS
         if (data.twitter_data && data.twitter_data.tweets) {
           const tweets = Array.isArray(data.twitter_data.tweets) ? data.twitter_data.tweets : [];
-          formatted += `🐦 TWITTER DATA (${tweets.length} tweets):\n`;
-          tweets.slice(0, 10).forEach((tweet, i) => {
+          formatted += `🐦 TWITTER SENTIMENT ANALYSIS (${tweets.length} tweets):\n`;
+          
+          // Analyze sentiment
+          const bullishKeywords = ['bullish', 'moon', 'pump', 'buy', 'long', 'up', 'breakout', 'resistance', 'support'];
+          const bearishKeywords = ['bearish', 'dump', 'sell', 'short', 'down', 'crash', 'rug'];
+          
+          let bullishCount = 0;
+          let bearishCount = 0;
+          
+          tweets.forEach(tweet => {
+            const lower = tweet.toLowerCase();
+            if (bullishKeywords.some(word => lower.includes(word))) bullishCount++;
+            if (bearishKeywords.some(word => lower.includes(word))) bearishCount++;
+          });
+          
+          formatted += `SENTIMENT: ${bullishCount} bullish, ${bearishCount} bearish (${tweets.length} total)\n`;
+          formatted += `SIGNAL: ${bullishCount > bearishCount * 2 ? '🟢 STRONG BULLISH' : bullishCount > bearishCount ? '🟡 MODERATELY BULLISH' : bearishCount > bullishCount ? '🔴 BEARISH' : '⚪ NEUTRAL'}\n\n`;
+          
+          formatted += 'TOP TWEETS:\n';
+          tweets.slice(0, 8).forEach((tweet, i) => {
             formatted += `${i+1}. ${tweet}\n`;
           });
           formatted += '\n';
@@ -376,28 +394,61 @@ export class OpenAIController {
         
         // CryptoPanic News
         if (data.websearch_articles && data.websearch_articles.length > 0) {
-          formatted += `📰 NEWS ARTICLES (${data.websearch_articles.length}):\n`;
+          formatted += `📰 NEWS CATALYST ANALYSIS (${data.websearch_articles.length} articles):\n`;
           data.websearch_articles.slice(0, 5).forEach((article, i) => {
             formatted += `${i+1}. ${article.title} (${article.source})\n`;
+            if (article.votes) {
+              const sentiment = article.votes.positive > article.votes.negative ? '🟢 Positive' : '🔴 Negative';
+              formatted += `   Votes: ${sentiment} (+${article.votes.positive}/-${article.votes.negative})\n`;
+            }
           });
           formatted += '\n';
         }
         
-        // CoinStats Data
+        // CoinStats Data with VOLUME ANALYSIS
         if (data.coinstats_data) {
           const cs = data.coinstats_data;
-          formatted += `💹 COINSTATS DATA:\n`;
-          formatted += `Price: $${cs.price}, Change: ${cs.change24h}%, Market Cap: $${cs.marketCap}, Volume: $${cs.volume}\n\n`;
+          formatted += `💹 COINSTATS METRICS:\n`;
+          formatted += `Price: $${cs.price} | Change: ${cs.change24h > 0 ? '+' : ''}${cs.change24h}%\n`;
+          formatted += `Market Cap: $${(cs.marketCap / 1e6).toFixed(2)}M | Volume: $${(cs.volume / 1e6).toFixed(2)}M\n`;
+          formatted += `Rank: #${cs.rank || 'N/A'}\n\n`;
         }
         
         // Lurky Social Data
         if (data.lurky_data && data.lurky_data.social_data) {
-          formatted += `💬 LURKY SOCIAL SENTIMENT:\n${JSON.stringify(data.lurky_data.social_data, null, 2)}\n\n`;
+          formatted += `💬 LURKY SOCIAL INTELLIGENCE:\n`;
+          const social = data.lurky_data.social_data;
+          if (social.coins && social.coins[0]) {
+            const coin = social.coins[0];
+            if (coin.mentions) {
+              formatted += `Bullish Mentions: ${coin.mentions.bullish || 0}\n`;
+              formatted += `Bearish Mentions: ${coin.mentions.bearish || 0}\n`;
+              formatted += `Neutral: ${coin.mentions.neutral || 0}\n`;
+              formatted += `Overall Sentiment: ${coin.mentions.overall_sentiment || 'Unknown'}\n`;
+            }
+          }
+          formatted += '\n';
         }
         
-        // Portfolio Data
-        if (data.portfolio_data) {
-          formatted += `💰 PORTFOLIO DATA:\n${JSON.stringify(data.portfolio_data, null, 2)}\n\n`;
+        // Portfolio Data with P&L ANALYSIS
+        if (data.portfolio_data && data.portfolio_data.tokens) {
+          formatted += `💰 USER PORTFOLIO ANALYSIS:\n`;
+          formatted += `Total Tokens: ${data.portfolio_data.tokens.length}\n`;
+          formatted += `Total Value: $${data.portfolio_data.total_value?.toFixed(2) || 'N/A'}\n\n`;
+          
+          // Check if user holds the token being discussed
+          const activeSymbol = data.active_token?.symbol?.toUpperCase();
+          if (activeSymbol) {
+            const holding = data.portfolio_data.tokens.find(t => 
+              t.symbol?.toUpperCase() === activeSymbol
+            );
+            if (holding) {
+              formatted += `🎯 USER HOLDS THIS TOKEN:\n`;
+              formatted += `Amount: ${holding.balance} ${holding.symbol}\n`;
+              formatted += `Value: $${holding.value?.toFixed(2) || 'N/A'}\n`;
+              formatted += `🔥 USE THIS FOR PERSONALIZED INSIGHTS!\n\n`;
+            }
+          }
         }
         
         return formatted;
@@ -423,16 +474,25 @@ ${formatContextData(contextAwarenessData)}
 
 When answering "why is X pumping?":
 1. PRICE ACTION: Cite exact % change, volume, market cap from CoinGecko
-2. SOCIAL PROOF: Quote 2-3 specific tweets showing what traders are saying
-3. PATTERN RECOGNITION: Connect the dots - do the tweets align with price action?
-4. NEWS CATALYST: Reference any news that could explain the movement
-5. ACTIONABLE INSIGHT: What does this mean for someone holding or considering buying?
+2. SENTIMENT ANALYSIS: Use the pre-calculated sentiment (🟢 STRONG BULLISH / 🟡 MODERATE / 🔴 BEARISH)
+3. SOCIAL PROOF: Quote 2-3 specific tweets from the TOP TWEETS list
+4. PATTERN RECOGNITION: Does sentiment match price action?
+   - Price up + Bullish tweets + High volume = LEGITIMATE PUMP
+   - Price up + Bearish tweets + Low volume = SUSPICIOUS / MANIPULATION
+   - Price down + Bullish tweets = POTENTIAL REVERSAL COMING
+5. NEWS CATALYST: Reference any news articles and their sentiment scores
+6. PORTFOLIO IMPACT: If "USER HOLDS THIS TOKEN" appears, calculate their P&L!
+7. ACTIONABLE INSIGHT: What should they do? Buy? Hold? Sell? Watch for X?
 
 When answering "what's happening with X?":
 1. CURRENT STATE: Exact price, 24h change, volume
-2. SENTIMENT ANALYSIS: What are people saying? (quote actual tweets)
-3. TECHNICAL CONTEXT: Is this breaking resistance? Following a trend?
-4. RISK ASSESSMENT: Any red flags? Is volume legitimate?
+2. SENTIMENT DASHBOARD: 
+   - Twitter: X bullish, Y bearish = SIGNAL
+   - Lurky: Overall sentiment
+   - News: Positive/Negative vote ratio
+3. CROSS-VALIDATION: Do all signals align? If not, why?
+4. PORTFOLIO CONTEXT: Does user hold this? If yes, show their P&L
+5. RISK ASSESSMENT: Red flags, anomalies, manipulation signs
 
 CRITICAL RULES:
 - ALWAYS quote actual tweets verbatim: "According to @username: 'exact tweet text'"
@@ -446,34 +506,53 @@ EXAMPLES OF EXCEPTIONAL RESPONSES:
 User: "why is CORN pumping?"
 YOU: "CORN is up 5.48% to $0.1274 with $4.8M volume (market cap $66.7M). 
 
-Social sentiment is bullish - analyzing 20 recent tweets:
+📊 SENTIMENT ANALYSIS:
+Twitter shows 🟢 STRONG BULLISH signal (15 bullish tweets vs 2 bearish out of 20 total)
+
+Key tweets:
 • @crypto_hunter: 'CORN breaking key resistance at $0.12, could run to $0.15'
 • @defi_degen: 'Smart money accumulating CORN, check the volume'
 • @chart_master: 'Perfect cup and handle forming on 4h chart'
 
-The price action aligns with the social buzz - volume is up 40% from yesterday, suggesting this isn't just hype. The $0.12 resistance break is significant technically.
+✅ VALIDATION: Price up + Strong bullish sentiment + Volume increase = LEGITIMATE PUMP
+The social buzz aligns perfectly with price action. Volume is up 40%, suggesting real demand.
 
-⚠️ Note: Market cap is still small ($66M) so volatility is high. This could pump harder but also dump faster."
+💰 YOUR POSITION: You hold 1,000 CORN (value: $127.40)
+This 5.48% pump added $6.97 to your position today!
+
+🎯 WHAT TO DO:
+- HOLD if you believe in long-term
+- TAKE PROFIT at $0.15 (next resistance mentioned in tweets)
+- STOP LOSS at $0.11 to protect gains
+- WATCH for volume - if it drops below $3M, momentum weakening
+
+⚠️ Note: Small cap ($66M) = high volatility. Could pump to $0.15 or dump to $0.10 fast."
 
 User: "should I buy?"
-YOU: "Based on the data:
+YOU: "I see you already hold 1,000 CORN ($127.40). Let me analyze if you should ADD to your position:
 
-BULLISH SIGNALS:
-✅ Breaking resistance + volume increase = legitimate momentum
-✅ 20 tweets in last hour = attention growing
-✅ No major negative news
+📊 CURRENT SIGNALS:
+✅ Price +5.48% with strong volume (+40%)
+✅ Twitter sentiment: 🟢 STRONG BULLISH (15 bullish vs 2 bearish)
+✅ Breaking $0.12 resistance mentioned in tweets
+❌ Already pumped 5.48% (late entry risk)
+⚠️ Small market cap ($66M) = HIGH VOLATILITY
 
-RISKS:
-⚠️ Small market cap = high volatility
-⚠️ Already up 5.48% today = potential short-term resistance
-⚠️ No clear fundamental catalyst in news
+🎯 RECOMMENDATION:
+For your position: HOLD and set targets
+- Your 1,000 CORN is up $6.97 today
+- If you MUST add more, DCA 20-30% of intended position now
+- Wait for pullback to $0.11-$0.115 for main entry
+- Target: $0.15 (mentioned in tweets) = +17% from here
+- Stop loss: $0.11 to protect your gains
 
-CONCLUSION: If you're considering buying, watch for:
-1. Price holding above $0.12 (new support)
-2. Volume staying elevated
-3. More tweets from credible analysts
+💡 SMART PLAY:
+Instead of buying more CORN, consider:
+1. Taking partial profits at $0.14-$0.15
+2. Using that to diversify into other opportunities
+3. Only add if price consolidates above $0.12 for 2-4 hours
 
-This looks like early momentum, but manage risk carefully."
+⚠️ WARNING: You're already exposed. Adding here = chasing. Be patient."
 
 NOW ANALYZE THE DATA ABOVE WITH THIS LEVEL OF DEPTH.
 ` : 'No live data available. Provide general crypto knowledge only.'}
