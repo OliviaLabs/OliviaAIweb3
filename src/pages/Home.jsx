@@ -3655,7 +3655,14 @@ export default function Home() {
         }
 
         const data = await response.json();
-        const aiResponse = data.choices?.[0]?.message?.content || data.message || 'Sorry, I couldn\'t process that.';
+        
+        // Check for error response first
+        if (data.error || !data.success) {
+          throw new Error(data.error || 'AI request failed');
+        }
+        
+        // Backend wraps response in data.data
+        const aiResponse = data.data?.choices?.[0]?.message?.content || data.message || 'Sorry, I couldn\'t process that.';
 
         log('✅ AI response received:', aiResponse.substring(0, 50) + '...');
 
