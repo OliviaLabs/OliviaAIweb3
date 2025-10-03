@@ -377,7 +377,9 @@ export class OpenAIController {
           let bearishCount = 0;
           
           tweets.forEach(tweet => {
-            const lower = tweet.toLowerCase();
+            // Handle both string and object formats
+            const tweetText = typeof tweet === 'string' ? tweet : (tweet.text || tweet.content || JSON.stringify(tweet));
+            const lower = tweetText.toLowerCase();
             if (bullishKeywords.some(word => lower.includes(word))) bullishCount++;
             if (bearishKeywords.some(word => lower.includes(word))) bearishCount++;
           });
@@ -387,7 +389,9 @@ export class OpenAIController {
           
           formatted += 'TOP TWEETS:\n';
           tweets.slice(0, 8).forEach((tweet, i) => {
-            formatted += `${i+1}. ${tweet}\n`;
+            // Handle both string and object formats
+            const tweetText = typeof tweet === 'string' ? tweet : (tweet.text || tweet.content || JSON.stringify(tweet));
+            formatted += `${i+1}. ${tweetText}\n`;
           });
           formatted += '\n';
         }
