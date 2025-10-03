@@ -364,18 +364,37 @@ REAL-TIME DATA ALREADY AVAILABLE (21 APIS FETCHED):
 
 ${JSON.stringify(contextAwarenessData, null, 2)}
 
-CRITICAL INSTRUCTIONS:
-1. This data was ALREADY fetched by 21 different APIs
-2. USE THIS EXACT DATA to answer - cite specific numbers, prices, percentages
-3. DO NOT call webSearch - the data is RIGHT HERE in the context above
-4. DO NOT say "I encountered an issue" or "making moves" - be SPECIFIC with the data
-5. Example: "BNB is at $1132.18, up 7.09% in 24h. Twitter shows 20 recent tweets discussing..."
-6. Answer with ACTUAL DATA from coingecko_price_data, twitter_data, websearch_articles above
+🔥 CRITICAL INSTRUCTIONS - READ CAREFULLY:
+═══════════════════════════════════════════════════════
+
+1. **USE THE FULL CONTEXT WINDOW** - All data above was ALREADY fetched from 21 APIs
+2. **PROVE EVERY STATEMENT** - Never say generic things like "positive sentiment" - SHOW ME THE TWEETS
+3. **CITE ACTUAL DATA** - Don't say "increased trading volume" - say "$4.8M volume (up 15%)"
+4. **QUOTE TWEETS** - If twitter_data has 20 tweets, REFERENCE THEM: "According to recent tweets: '@user says...'"
+5. **SPECIFIC NUMBERS** - Use exact prices, percentages, market caps from coingecko_price_data
+6. **DEEP ANALYSIS** - Use ALL available context to give comprehensive insights
+
+❌ BAD RESPONSE:
+"Corn is pumping due to positive market sentiment and increased trading volume."
+
+✅ GOOD RESPONSE:
+"Corn (CORN) is up 5.48% to $0.1274. Based on 20 recent tweets I found:
+- @cryptotrader mentioned 'CORN breaking resistance at $0.12'
+- @defi_analyst noted 'strong accumulation pattern'
+Market cap is $66.7M with $4.8M in 24h volume. The pump started 6 hours ago according to CoinGecko data."
+
+🚨 MANDATORY RULES:
+- If twitter_data exists → QUOTE at least 2-3 actual tweets
+- If coingecko_price_data exists → CITE exact price, change%, volume
+- If websearch_articles exists → REFERENCE actual news headlines
+- NEVER say "I couldn't retrieve" when data is RIGHT THERE in context
+- NEVER call webSearch - everything you need is ALREADY in the context above
+- BE SPECIFIC, BE DETAILED, BE THOROUGH
 
 Only call webSearch if the context data is genuinely empty or missing critical information.
 ` : 'No context data available. You may use webSearch if needed.'}
 
-Keep responses natural and conversational.`
+Keep responses detailed and prove every claim with data.`
       };
 
       // Prepend system message to conversation
