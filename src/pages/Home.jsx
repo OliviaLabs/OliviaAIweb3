@@ -2001,6 +2001,12 @@ export default function Home() {
             lurkyText += `Try popular coins like:\n• Bitcoin\n• Ethereum\n• Solana`;
           }
           
+          // 🔒 Validate token hasn't changed before updating
+          if (window.activeToken?.symbol?.toUpperCase() !== currentToken.symbol.toUpperCase()) {
+            console.log('🔍 [Lurky] ⚠️ Token changed during fetch, discarding data for:', currentToken.symbol);
+            return;
+          }
+          
           // Update the specific bubble
           setLurkyBubbles(prev => prev.map(bubble => 
             bubble.id === newBubble.id 
@@ -2011,7 +2017,7 @@ export default function Home() {
           // 🧠 Update AI context with Lurky data
           const lurkyContext = {
             lurky_data: {
-              coin: activeToken.symbol,
+              coin: currentToken.symbol,
               social_data: data,
               timestamp: new Date().toISOString(),
               source: 'Lurky API'
@@ -2227,29 +2233,39 @@ export default function Home() {
 
     // Handle Crypto News bubble - Trigger for ANY message when there's an active token
     if (window.activeToken && window.activeToken.symbol && isPluginEnabled('websearch')) {
-      // Always search for the active token's news
-      const searchQuery = window.activeToken.name || window.activeToken.symbol;
+      // Capture current token to prevent race condition
+      const currentToken = window.activeToken;
+      // Use SYMBOL for CryptoPanic (not name) - they expect uppercase symbols
+      const searchQuery = currentToken.symbol.toUpperCase();
       console.log('📰 Creating News bubble for active token:', searchQuery);
       
       // Create bubble
       const bubbleId = Date.now() + Math.random();
       setWebSearchBubbles(prev => [...prev, {
         id: bubbleId,
-        title: 'Web Search',
-        content: `Searching for: "${searchQuery}"`,
+        title: 'Crypto News',
+        content: `Searching news for ${searchQuery}...`,
         loading: true
       }]);
       
       // Actually search using CryptoPanic API (crypto-specific news aggregator)
       (async () => {
         try {
+          // 🔒 Validate token hasn't changed
+          if (window.activeToken?.symbol?.toUpperCase() !== currentToken.symbol.toUpperCase()) {
+            console.log('📰 [CryptoPanic] ⚠️ Token changed, discarding search for:', currentToken.symbol);
+            return;
+          }
+          
           // CryptoPanic API - Developer plan with your API key
           const CRYPTOPANIC_API_KEY = '8f21a7808b68dd6807a62bcd1e53db4e467b660f';
           
-          // Search for token-specific news (no filter/kind to get ALL news)
-          const searchUrl = `https://cryptopanic.com/api/developer/v2/posts/?auth_token=${CRYPTOPANIC_API_KEY}&currencies=${encodeURIComponent(searchQuery)}`;
+          // Search for token-specific news (use uppercase symbol)
+          const searchUrl = `https://cryptopanic.com/api/developer/v2/posts/?auth_token=${CRYPTOPANIC_API_KEY}&currencies=${searchQuery}`;
+          console.log('📰 [CryptoPanic] Fetching:', searchUrl);
           const response = await fetch(searchUrl);
           const data = await response.json();
+          console.log('📰 [CryptoPanic] Response:', data);
           
           let resultText = '';
           let newsArticles = [];
@@ -2280,7 +2296,13 @@ export default function Home() {
               });
             });
           } else {
-            resultText = `No recent news found for "${searchQuery}". Check back later for updates!`;
+            resultText = `No recent news found for "${searchQuery}". Try broader crypto news or check back later!`;
+          }
+          
+          // 🔒 Validate token AGAIN before updating (async completion might be stale)
+          if (window.activeToken?.symbol?.toUpperCase() !== currentToken.symbol.toUpperCase()) {
+            console.log('📰 [CryptoPanic] ⚠️ Token changed during fetch, discarding results for:', currentToken.symbol);
+            return;
           }
           
           // Update bubble with results
@@ -2379,6 +2401,12 @@ export default function Home() {
             if (bestResult) break;
           }
 
+          // 🔒 Validate token hasn't changed before updating
+          if (window.activeToken?.symbol?.toUpperCase() !== currentToken.symbol.toUpperCase()) {
+            console.log('🐦 [Twitter] ⚠️ Token changed during fetch, discarding data for:', currentToken.symbol);
+            return;
+          }
+          
           if (!bestResult) {
             const fallbackText = `Twitter/X: ${searchQuery}\n\nNo tweets found. Try searching $${tokenUpper || 'BTC'}, #${rawToken || 'bitcoin'}, or different keywords.`;
             setTwitterBubbles(prev => prev.map(bubble => 
@@ -2701,6 +2729,12 @@ export default function Home() {
             }
           }
           
+          // 🔒 Validate token hasn't changed before updating
+          if (window.activeToken?.symbol?.toUpperCase() !== tokenName.toUpperCase()) {
+            console.log('🦎 [CoinGecko] ⚠️ Token changed during fetch, discarding data for:', tokenName);
+            return;
+          }
+          
           // Update bubble with market data
           setCoinGeckoBubbles(prev => prev.map(bubble => 
             bubble.id === newBubble.id 
@@ -2838,6 +2872,12 @@ export default function Home() {
             marketText += `\n📊 Powered by CoinStats`;
           } else {
             marketText = 'Market data not available'
+          }
+          
+          // 🔒 Validate token hasn't changed before updating
+          if (window.activeToken?.symbol?.toUpperCase() !== currentToken.symbol.toUpperCase()) {
+            console.log('📊 [CoinStats] ⚠️ Token changed during fetch, discarding data for:', currentToken.symbol);
+            return;
           }
           
           // Update bubble with market data
@@ -4060,6 +4100,13 @@ export default function Home() {
               const volumeStr = volume > 0 ? `$${(volume / 1e6).toFixed(2)}M` : 'N/A';
               
               const bubbleContent = `${coin.name} (${coin.symbol.toUpperCase()})\nPrice: ${priceStr}\n24h: ${priceChange?.toFixed(2)}%\nMarket Cap: ${marketCapRaw >= 1e9 ? `$${(marketCapRaw / 1e9).toFixed(2)}B` : `$${(marketCapRaw / 1e6).toFixed(2)}M`}\nVolume: ${volumeStr}`;
+              
+              // 🔒 CRITICAL FIX: Only update context if this is still the active token
+              const isStillActiveToken = window.activeToken?.symbol?.toUpperCase() === coin.symbol.toUpperCase();
+              if (!isStillActiveToken) {
+                console.log('🦎 [CoinGecko] ⚠️ Token changed, discarding stale data for:', coin.symbol);
+                return prev; // Don't add bubble for old token
+              }
               
               // Store in context
               window.contextAwarenessData.market_data = window.contextAwarenessData.market_data || {};
