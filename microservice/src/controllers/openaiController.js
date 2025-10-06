@@ -481,12 +481,20 @@ MUST INCLUDE (but naturally woven in, no headers):
 
 STYLE:
 - Conversational and natural (like talking to a friend)
-- NO section headers like "PRICE & SIGNAL:" or "ACTION:"
+- ABSOLUTELY NO section headers - not even in bold like **PRICE & SIGNAL:** or **ACTION:**
+- ABSOLUTELY NO emojis - no ✅, no 📈, no 🔴, NONE
 - Short paragraphs with line breaks for spacing
 - Max 6-8 sentences total
-- NO emojis
+- Just write naturally, like explaining to a friend
 
-Think: "How would a smart trader explain this to a friend over coffee?"
+FORBIDDEN:
+❌ **PRICE & SIGNAL:**
+❌ **SOCIAL PROOF:**
+❌ **VALIDATION:**
+❌ **ACTION:**
+❌ Any emojis (✅📈🔴💰🎯)
+
+Think: "How would a smart trader explain this to a friend over coffee?" - NO labels, NO emojis, just talk.
 
 ${contextAwarenessData && Object.keys(contextAwarenessData).length > 0 ? `
 ═══════════════════════════════════════════════════════

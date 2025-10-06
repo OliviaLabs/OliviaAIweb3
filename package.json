@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 3000",
+    "dev": "vite --port 3001",
     "dev:frontend-only": "vite --port 3000",
     "prebuild": "node optimize-assets.js",
     "postbuild": "node restore-assets.js",

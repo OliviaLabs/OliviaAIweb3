@@ -9,6 +9,7 @@ import { icpService } from '../api/services/icp.service.js';
 import { lurkyService, coingeckoService, coinstatsService, hgraphService, changeNowService } from '../api';
 import { twitterService } from '../api/services/twitter.service.js';
 import protokolsService from '../api/services/protokols.service.js';
+import agentService from '../api/services/agentService.js';
 import { OPENAI_MICROSERVICE_CONFIG } from '../api/config/endpoints.js';
 import { log, error as logError } from '../utils/logger.js';
 import FloatingLurkyBubble from '../components/ui/FloatingLurkyBubble.jsx';
@@ -491,7 +492,7 @@ export default function Home() {
       // Fetch portfolio data immediately without showing bubble
       (async () => {
         try {
-          const response = await fetch(`${import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3001'}/api/portfolio/${walletAddress}`);
+          const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/portfolio/${walletAddress}`);
           
           if (response.ok) {
             const data = await response.json();
@@ -1873,7 +1874,8 @@ export default function Home() {
       };
       
       setActiveToken(tokenContext);
-      broadcastTokenToAllPlugins(tokenContext);
+      // ⚡ DISABLED: Agent system is now the ONLY data fetcher (old plugin system caused duplicate work)
+      // broadcastTokenToAllPlugins(tokenContext);
     }
     
     console.log('🎯 User Intent:', userIntent);
@@ -2043,7 +2045,7 @@ export default function Home() {
           
           console.log('🧠 Updated AI context with Lurky data:', lurkyContext);
         } catch (e) {
-          console.error('[Lurky] Error:', e);
+          // Silent fail - Lurky is optional and often blocks requests
           const searchedCoin = activeToken.name || activeToken.symbol;
           
           let errorContent = `${searchedCoin} Social Data\n\n`;
@@ -2329,7 +2331,7 @@ export default function Home() {
           
           console.log('📰 CryptoPanic news added to context:', newsArticles.length, 'articles');
         } catch (error) {
-          console.error('CryptoPanic news search error:', error);
+          // Silent fail - CryptoPanic rate limits or CORS issues are common
           setWebSearchBubbles(prev => prev.map(b => 
             b.id === bubbleId ? { ...b, content: `Search error. Olivia will answer using her knowledge.`, loading: false } : b
           ));
@@ -3475,7 +3477,7 @@ export default function Home() {
                 throw new Error('Failed to fetch holder data');
               }
             } catch (error) {
-              console.error('Failed to fetch token holders:', error);
+              // Silent fail - OKX holder data is optional
               okxContent = `**${userIntent.specificToken?.toUpperCase() || 'Token'} Holders**\n\n`;
               okxContent += `🚫 **Unable to fetch holder data**\n\n`;
               okxContent += `The OKX API is currently unavailable (possibly geo-blocked).\n\n`;
@@ -3761,9 +3763,11 @@ export default function Home() {
     // Each plugin watches window.activeToken and fetches data if it can support that token
     
     // 🕐 DELAY AI RESPONSE: Give bubbles time to load data first
+    console.log('⏰ Setting 2-second timer for agent system...');
     setTimeout(async () => {
+      console.log('⏰ Timer fired! Starting agent system call...');
       try {
-        log('📤 Sending message to Olivia AI (after bubble loading delay)...')
+        console.log('📤 Sending message to Olivia AI (after bubble loading delay)...')
         
         // 🧠 SMART DECISION: Check if we have relevant bubble context
         const hasRelevantContext = () => {
@@ -3771,18 +3775,18 @@ export default function Home() {
         
         // Check if user mentions any tokens we have context for
         const mentionedTokens = words.filter(word => knownCryptos.includes(word));
-        log('🧠 Checking context for mentioned tokens:', mentionedTokens);
-        log('🧠 Available context data:', Object.keys(contextData));
+        console.log('🧠 Checking context for mentioned tokens:', mentionedTokens);
+        console.log('🧠 Available context data:', Object.keys(contextData));
         
         for (const category in contextData) {
           for (const token in contextData[category]) {
             if (mentionedTokens.includes(token)) {
-              log(`🎯 Found relevant bubble context for: ${token} in ${category}`);
+              console.log(`🎯 Found relevant bubble context for: ${token} in ${category}`);
               return true;
             }
           }
         }
-        log('❌ No relevant bubble context found');
+        console.log('❌ No relevant bubble context found');
         return false;
       };
       
@@ -3800,12 +3804,12 @@ export default function Home() {
         return false;
       }) && !useSearchFromStart;
       
-      log('🔍 Price query detection:', { isSimplePriceQuery, useSearchFromStart, words });
+      console.log('🔍 Price query detection:', { isSimplePriceQuery, useSearchFromStart, words });
       
       // Conversation history already built at top of function
       
-      log('Conversation history being sent:', conversationHistory);
-      log('Context awareness data being sent:', window.contextAwarenessData);
+      console.log('Conversation history being sent:', conversationHistory);
+      console.log('Context awareness data being sent:', window.contextAwarenessData);
       
       // Skip AI response if we successfully created a swap bubble OR if there's ongoing swap context
       const hasRecentSwapContext = conversationHistory.slice(-4).some(msg => 
@@ -3813,65 +3817,105 @@ export default function Home() {
         /how much|which token|want to swap/i.test(msg.content)
       );
       
+      console.log('🔍 Swap check:', { swapBubbleCreated, mentions0x, hasRecentSwapContext });
+      
       if (swapBubbleCreated || (mentions0x && hasRecentSwapContext)) {
         console.log('🔄 Skipping AI response - swap processing or context detected');
         setIsLoading(false);
         return;
       }
       
-      // 🚀 SEND TO AI VIA HTTP (replaced WebSocket)
+      console.log('✅ Swap check passed, continuing to agent system...');
+      console.log('📍 About to enter INNER try block...');
+      
+      // 🤖 SEND TO MULTI-AGENT SYSTEM
       try {
-        // 🔥 CRITICAL FIX: If there's an active token, wait for plugins to populate contextAwarenessData
-        if (activeToken && activeToken.symbol) {
-          log(`⏳ Active token detected: "${activeToken.symbol}" - waiting 1.5s for plugin data to load...`);
-          await new Promise(resolve => setTimeout(resolve, 1500)); // Wait for CoinGecko, Twitter, etc. to finish
-          log('✅ Plugin wait complete. Current context keys:', Object.keys(window.contextAwarenessData || {}));
-          log('📦 PERSISTENT CONTEXT being sent to AI:', JSON.stringify(window.contextAwarenessData, null, 2));
-          log('💬 Conversation history length:', conversationHistory.length, 'messages');
-        } else {
-          // Even without activeToken, log what context we're sending
-          log('📦 Context data available:', Object.keys(window.contextAwarenessData || {}));
-          log('💬 Conversation history length:', conversationHistory.length, 'messages');
-        }
+        console.log('📍 INSIDE inner try block!');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('🤖 Sending to Multi-Agent System');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         
-        if (hasContext && !useSearchFromStart) {
-          if (isSimplePriceQuery) {
-            log('⚡ AI WITH BUBBLE DATA: Letting AI respond conversationally with bubble context, no search');
-          } else {
-            log('⚡ FAST MODE: Using bubble context first, no search needed');
+        // Build conversation history for agent
+        const agentConversationHistory = messages.map(msg => ({
+          role: msg.type === 'user' ? 'user' : 'assistant',
+          content: msg.content
+        }));
+        
+        // ⚠️ CRITICAL: Use window.activeToken (synchronous) not React state (async)
+        const currentActiveToken = window.activeToken || activeToken;
+        
+        console.log('📝 Conversation history:', agentConversationHistory.length, 'messages');
+        console.log('🎯 Active token:', currentActiveToken);
+        console.log('💰 Wallet:', userData?.wallet_address || 'Guest user');
+        console.log('🚀 About to call agentService.chat...');
+        
+        // Call agent system
+        const agentResponse = await agentService.chat(
+          message,
+          agentConversationHistory,
+          currentActiveToken,
+          userData?.wallet_address || null
+        );
+        
+        console.log('✅ Agent response received');
+        console.log('   Intent type:', agentResponse.intent.intent_type);
+        console.log('   Confidence:', agentResponse.intent.confidence);
+        console.log('   API calls made:', agentResponse.debug.api_calls_made);
+        console.log('   API calls successful:', agentResponse.debug.api_calls_successful);
+        console.log('   Time taken:', agentResponse.debug.total_time + 'ms');
+        
+        const aiResponse = agentResponse.message;
+        
+        console.log('✅ AI response:', aiResponse.substring(0, 100) + '...');
+
+        // 🎈 CREATE BUBBLES FROM AGENT DATA
+        if (agentResponse.raw_data && agentResponse.raw_data.by_service) {
+          console.log('🎈 Creating bubbles from agent data sources...');
+          
+          // CoinGecko bubble
+          if (agentResponse.raw_data.by_service.coingecko && isPluginEnabled('coingecko')) {
+            const coinData = agentResponse.raw_data.by_service.coingecko[0];
+            if (coinData && coinData.id) {
+              console.log('🦎 Creating CoinGecko bubble from agent data');
+              const bubbleId = Date.now() + Math.random();
+              setCoinGeckoBubbles(prev => [...prev, {
+                id: bubbleId,
+                title: coinData.name || 'CoinGecko',
+                content: `Loading ${coinData.name} data...`,
+                loading: false,
+                coinData: coinData
+              }]);
+            }
           }
-        } else {
-          log('🌐 COMPLETE MODE: Enabling search for comprehensive answer');
+          
+          // Twitter bubble
+          if (agentResponse.raw_data.by_service.twitter && isPluginEnabled('twitter')) {
+            console.log('🐦 Creating Twitter bubble from agent data');
+            const bubbleId = Date.now() + Math.random();
+            setTwitterBubbles(prev => [...prev, {
+              id: bubbleId,
+              title: 'Twitter Sentiment',
+              content: 'Loading tweets...',
+              loading: false,
+              tweets: agentResponse.raw_data.by_service.twitter
+            }]);
+          }
+          
+          // CryptoPanic/News bubble
+          if (agentResponse.raw_data.by_service.cryptopanic && isPluginEnabled('websearch')) {
+            console.log('📰 Creating News bubble from agent data');
+            const bubbleId = Date.now() + Math.random();
+            setWebSearchBubbles(prev => [...prev, {
+              id: bubbleId,
+              title: 'Crypto News',
+              content: 'Loading news...',
+              loading: false,
+              articles: agentResponse.raw_data.by_service.cryptopanic
+            }]);
+          }
+          
+          console.log('✅ Bubbles created for', Object.keys(agentResponse.raw_data.by_service).length, 'data sources');
         }
-
-        // Call OpenAI API directly via HTTP
-        const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/openai/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`
-          },
-          body: JSON.stringify({
-            messages: conversationHistory,
-            contextAwarenessData: window.contextAwarenessData || {}
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        
-        // Check for error response first
-        if (data.error || !data.success) {
-          throw new Error(data.error || 'AI request failed');
-        }
-        
-        // Backend wraps response in data.data
-        const aiResponse = data.data?.choices?.[0]?.message?.content || data.message || 'Sorry, I couldn\'t process that.';
-
-        log('✅ AI response received:', aiResponse.substring(0, 50) + '...');
 
         // Add AI response to conversation
         setMessages(prev => [...prev, { type: 'ai', content: aiResponse }]);
@@ -3885,11 +3929,13 @@ export default function Home() {
           }
         }));
         
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+        
         setIsLoading(false);
         setShowInput(true);
 
       } catch (error) {
-        logError('❌ Failed to send message:', error);
+        console.error('❌ Failed to send message:', error);
         setMessages(prev => [...prev, { 
           type: 'ai', 
           content: 'Sorry, I\'m having trouble connecting to my AI service right now. Please try again in a moment. In the meantime, you can still see cryptocurrency data above!' 
@@ -3910,7 +3956,9 @@ export default function Home() {
       
       } catch (outerError) {
         // Outer catch for any errors in the setTimeout callback
-        logError('❌ Critical error in handleSendMessage:', outerError);
+        console.error('❌ CRITICAL ERROR in setTimeout:', outerError);
+        console.error('Error stack:', outerError.stack);
+        console.error('❌ Critical error in handleSendMessage:', outerError);
         setIsLoading(false);
         setShowInput(true);
       }
@@ -3983,7 +4031,8 @@ export default function Home() {
             data: coin.data // All the trending data
           };
           setActiveToken(tokenContext);
-          broadcastTokenToAllPlugins(tokenContext);
+          // ⚡ DISABLED: Agent system is now the ONLY data fetcher
+          // broadcastTokenToAllPlugins(tokenContext);
           
           // Format market data
           const priceChange = coin.data?.price_change_percentage_24h?.usd;

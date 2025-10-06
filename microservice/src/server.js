@@ -27,6 +27,8 @@ app.use(helmet({
       frameSrc: ["'self'", "https:"],
     },
   },
+  crossOriginResourcePolicy: { policy: "cross-origin" },  // ✅ Allow cross-origin reads (for frontend on different port)
+  crossOriginOpenerPolicy: { policy: "unsafe-none" },     // ✅ Allow cross-origin windows
   hsts: {
     maxAge: 31536000,
     includeSubDomains: true,

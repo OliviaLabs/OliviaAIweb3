@@ -1,4 +1,5 @@
 import express from 'express';
+import agentRoutes from './agentRoutes.js';
 import openaiRoutes from './openaiRoutes.js';
 import changeNowRoutes from './changeNowRoutes.js';
 import coinStatsRoutes from './coinStatsRoutes.js';
@@ -99,7 +100,10 @@ router.get('/portfolio/:address', async (req, res) => {
   }
 });
 
-// OpenAI routes
+// 🤖 MULTI-AGENT SYSTEM (NEW - Priority #1)
+router.use('/agent', agentRoutes);
+
+// OpenAI routes (legacy system - fallback)
 router.use('/openai', openaiRoutes);
 
 // ChangeNOW routes
@@ -139,10 +143,19 @@ router.use('/protokols', protokolsRoutes);
 router.get('/', (req, res) => {
   res.json({
     service: 'OpenAI Microservice',
-    version: '1.0.0',
+    version: '2.0.0',
     endpoints: {
       health: '/api/health',
       portfolio: '/api/portfolio/:address',
+      
+      // 🤖 NEW MULTI-AGENT SYSTEM
+      agent: {
+        chat: '/api/agent/chat (POST) - Main agent orchestration',
+        health: '/api/agent/health (GET) - Agent system status',
+        testIntent: '/api/agent/test-intent (POST) - Test intent classification'
+      },
+      
+      // Legacy OpenAI endpoints (fallback)
       openai: {
         chatCompletions: '/api/openai/chat/completions',
         extractTrading: '/api/openai/extract-trading',
