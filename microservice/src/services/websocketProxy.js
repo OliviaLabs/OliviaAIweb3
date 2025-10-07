@@ -227,6 +227,20 @@ export class WebSocketProxyService {
                 });
               }
               
+              // Process TON Center data
+              if (context.ton_center_data) {
+                contextString += '\n\n[TON Blockchain Data]:';
+                const tonData = context.ton_center_data;
+                if (tonData.blockchain) contextString += `\nBlockchain: ${tonData.blockchain}`;
+                if (tonData.popular_jettons && tonData.popular_jettons.length > 0) {
+                  contextString += '\n\nPopular TON Jettons (Tokens):';
+                  tonData.popular_jettons.forEach(jetton => {
+                    contextString += `\n• ${jetton.name} (${jetton.symbol})`;
+                  });
+                }
+                if (tonData.jettons_count) contextString += `\n\nTotal: ${tonData.jettons_count} popular tokens`;
+              }
+              
               // Add context to the message
               message.data.text = message.data.text + contextString;
               console.log(`💰 Enhanced message with cryptocurrency context for ${clientId}`);

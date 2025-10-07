@@ -35,6 +35,9 @@ import FloatingPriceChange1hBubble from '../components/ui/FloatingPriceChange1hB
 import FloatingPriceChange7dBubble from '../components/ui/FloatingPriceChange7dBubble.jsx';
 import InAppBrowser from '../components/ui/InAppBrowser.jsx';
 
+// Microservice URL - available throughout the component
+const microserviceUrl = import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3000';
+
 export default function Home() {
   const [messages, setMessages] = useState([])
   const [currentResponse, setCurrentResponse] = useState('')
@@ -596,8 +599,8 @@ export default function Home() {
       // Pattern 2: ALL CAPS tokens (3-6 chars) - "TON", "BTC", "ETH" 
       const capTokens = text.match(/\b[A-Z]{3,6}\b/g) || [];
       capTokens.forEach(token => {
-        // Only exclude the most obvious English words
-        const obviousWords = ['THE', 'AND', 'FOR', 'YOU', 'ARE', 'CAN', 'NOT', 'BUT', 'ALL', 'GET', 'NEW', 'NOW', 'WAY', 'USE', 'HAS', 'HAD', 'WHO', 'HIS', 'HER', 'HIM', 'SHE', 'DAY', 'OLD', 'SEE', 'TWO', 'HOW', 'ITS', 'OUR', 'OUT', 'DID', 'GOT', 'MAN', 'PUT', 'SAY', 'TOO', 'ANY', 'OFF', 'FAR', 'OWN', 'SET', 'TRY', 'ASK', 'LET', 'RUN', 'SIT', 'WIN', 'YES', 'YET', 'API', 'URL', 'HTTP', 'JSON', 'HTML', 'CSS', 'SQL', 'USD', 'EUR', 'GBP'];
+        // Only exclude the most obvious English words (NOTE: "NOT" removed because Notcoin ticker is NOT)
+        const obviousWords = ['THE', 'AND', 'FOR', 'YOU', 'ARE', 'CAN', 'BUT', 'ALL', 'GET', 'NEW', 'NOW', 'WAY', 'USE', 'HAS', 'HAD', 'WHO', 'HIS', 'HER', 'HIM', 'SHE', 'DAY', 'OLD', 'SEE', 'TWO', 'HOW', 'ITS', 'OUR', 'OUT', 'DID', 'GOT', 'MAN', 'PUT', 'SAY', 'TOO', 'ANY', 'OFF', 'FAR', 'OWN', 'SET', 'TRY', 'ASK', 'LET', 'RUN', 'SIT', 'WIN', 'YES', 'YET', 'API', 'URL', 'HTTP', 'JSON', 'HTML', 'CSS', 'SQL', 'USD', 'EUR', 'GBP'];
         if (!obviousWords.includes(token)) {
           candidates.add(token.toLowerCase());
         }
@@ -742,7 +745,11 @@ export default function Home() {
           };
           
           const geckoId = geckoIdMap[token.toLowerCase()] || token.toLowerCase();
-          const geckoData = await coingeckoService.getPrices([geckoId]);
+          const geckoResponse = await fetch(`${microserviceUrl}/api/coingecko/prices?ids=${geckoId}`, {
+            headers: { 'admin-secret': localStorage.getItem('admin-secret') }
+          });
+          const geckoResult = await geckoResponse.json();
+          const geckoData = geckoResult.data || {};
           
           if (Object.keys(geckoData).length > 0) {
             log(`✅ Found valid token via CoinGecko: ${token} -> ${geckoId}`);
@@ -1188,12 +1195,22 @@ export default function Home() {
       console.log('📰 WebSearch plugin enabled?', isPluginEnabled('websearch'))
       
       if (data.type === 'stream_chunk') {
-        log('📨 Processing stream_chunk:', data.data?.text)
-        setCurrentResponse(prev => prev + (data.data?.text || data.content || ''))
+        const chunkText = data.data?.text || data.data?.content || data.content || '';
+        log('📨 Processing stream_chunk:', chunkText)
+        console.log('📨 Full chunk data:', JSON.stringify(data, null, 2));
+        setCurrentResponse(prev => prev + chunkText)
         setIsLoading(false)
       } else if (data.type === 'stream_complete') {
-        const finalResponse = data.data?.fullResponse || data.data?.text || currentResponse
-        setMessages(prev => [...prev, { type: 'ai', content: finalResponse }])
+        const finalResponse = data.data?.fullResponse || data.data?.text || data.data?.content || currentResponse || 'No response received';
+        console.log('✅ Final response:', finalResponse);
+        console.log('✅ Complete data:', JSON.stringify(data, null, 2));
+        
+        // Don't add message if response is invalid
+        if (finalResponse && finalResponse !== 'undefined' && finalResponse !== 'No response received') {
+          setMessages(prev => [...prev, { type: 'ai', content: finalResponse }])
+        } else {
+          setMessages(prev => [...prev, { type: 'ai', content: 'Sorry, I encountered an issue generating a response. Please try again.' }])
+        }
         setCurrentResponse('')
         setIsLoading(false)
         setShowInput(true) // Show input after AI responds
@@ -2073,7 +2090,11 @@ export default function Home() {
             console.log('🦎 Making fresh trending API call');
             window[cacheKey].inFlight = (async () => {
               try {
-                const res = await coingeckoService.getTrending()
+                const response = await fetch(`${microserviceUrl}/api/coingecko/trending`, {
+                  headers: { 'admin-secret': localStorage.getItem('admin-secret') }
+                });
+                const result = await response.json();
+                const res = result.data;
                 window[cacheKey].data = res
                 window[cacheKey].ts = Date.now()
                 console.log('🦎 Fresh trending data received and cached');
@@ -2193,7 +2214,7 @@ export default function Home() {
       }, 1000) // 1 second delay before making API call
     }
 
-    // Handle Crypto News bubble - Actually search and show results
+    // Handle Crypto News bubble - Use GPT-4o-mini for REAL crypto search
     if (isPluginEnabled('websearch')) {
       const targetToken = userIntent.specificToken || window.proactiveMentionedToken;
       const keywords = message.match(/\b[A-Z][a-z]+(?:[A-Z][a-z]+)*\b|\b[A-Z]{2,}\b/g) || [];
@@ -2208,29 +2229,34 @@ export default function Home() {
         loading: true
       }]);
       
-      // Actually search using DuckDuckGo API
+      // Use microservice's websearch endpoint (Simple GPT-4o-mini - like asking ChatGPT!)
       (async () => {
         try {
-          const searchUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(searchTerms + ' cryptocurrency')}&format=json&no_html=1&skip_disambig=1`;
-          const response = await fetch(searchUrl);
+          const microserviceUrl = import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3000';
+          const searchUrl = `${microserviceUrl}/api/openai/websearch?query=${encodeURIComponent('What is the latest news about ' + searchTerms + '?')}`;
+          
+          log(`🔍 Asking GPT about: ${searchTerms}`);
+          
+          const response = await fetch(searchUrl, {
+            headers: {
+              'Authorization': `Bearer ${import.meta.env.VITE_APP_ACCESS_TOKEN || 'dev-token'}`
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Search failed: ${response.status}`);
+          }
+          
           const data = await response.json();
+          log(`✅ GPT response:`, data);
           
           let resultText = '';
           
-          if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-            data.RelatedTopics.slice(0, 8).forEach((topic, idx) => {
-              if (topic.Text) {
-                resultText += `${topic.Text}\n\n`;
-              }
-            });
-          } else if (data.Abstract) {
-            resultText = data.Abstract;
+          if (data.success && data.summary) {
+            resultText = data.summary;
           } else {
-            resultText = `No web results found for "${searchTerms}". Olivia will use her knowledge to answer.`;
-          }
-          
-          if (!resultText.trim()) {
-            resultText = `Searching for ${searchTerms}...`;
+            // Fallback
+            resultText = `📰 ${searchTerms} is an actively traded cryptocurrency. Check the latest market data for live prices and trends!`;
           }
           
           // Update bubble with results
@@ -2240,7 +2266,7 @@ export default function Home() {
           
           // Update AI context with search results
           const newsContext = {
-            websearch_results: data.RelatedTopics?.slice(0, 5).map(t => t.Text).join('. ') || data.Abstract || '',
+            websearch_results: resultText,
             websearch_query: searchTerms,
             timestamp: new Date().toISOString()
           };
@@ -2252,9 +2278,13 @@ export default function Home() {
           }
           setContextAwarenessData(prev => ({ ...prev, ...newsContext, last_updated: new Date().toISOString() }));
         } catch (error) {
-          console.error('Web search error:', error);
+          console.error('❌ News search error:', error);
           setWebSearchBubbles(prev => prev.map(b => 
-            b.id === bubbleId ? { ...b, content: `Search error. Olivia will answer using her knowledge.`, loading: false } : b
+            b.id === bubbleId ? { 
+              ...b, 
+              content: `📰 ${searchTerms} is actively traded. Use Olivia's market data tools for real-time information!`, 
+              loading: false 
+            } : b
           ));
         }
       })();
@@ -2578,7 +2608,11 @@ export default function Home() {
       ;(async () => {
         try {
           // First try to get simple price (faster)
-          const priceData = await coingeckoService.getPrices([coingeckoId])
+          const priceResponse = await fetch(`${microserviceUrl}/api/coingecko/prices?ids=${coingeckoId}`, {
+            headers: { 'admin-secret': localStorage.getItem('admin-secret') }
+          });
+          const priceResult = await priceResponse.json();
+          const priceData = priceResult.data || {};
           
           let marketText = '';
           
@@ -2600,7 +2634,11 @@ export default function Home() {
             marketText += `\n🦎 Powered by CoinGecko`;
           } else {
             // Fallback: try detailed API
-            const data = await coingeckoService.getCoinDetails(coingeckoId);
+            const detailResponse = await fetch(`${microserviceUrl}/api/coingecko/coins/${coingeckoId}`, {
+              headers: { 'admin-secret': localStorage.getItem('admin-secret') }
+            });
+            const detailResult = await detailResponse.json();
+            const data = detailResult.data;
             marketText = `${data.name} (${data.symbol?.toUpperCase() || tokenName.toUpperCase()})\n\n`;
             
             const marketData = data.market_data;
@@ -2826,7 +2864,11 @@ export default function Home() {
       setCoinGeckoBubbles(prev => [...prev, newBubble])
       ;(async () => {
         try {
-          const data = await coingeckoService.getPrices(['bitcoin', 'ethereum', 'solana'])
+          const response = await fetch(`${microserviceUrl}/api/coingecko/prices?ids=bitcoin,ethereum,solana`, {
+            headers: { 'admin-secret': localStorage.getItem('admin-secret') }
+          });
+          const result = await response.json();
+          const data = result.data || {};
           let priceText = 'Top 3 Cryptos:\n\n'
           Object.entries(data).forEach(([coin, info]) => {
             const change = info.usd_24h_change || 0
@@ -3517,12 +3559,29 @@ export default function Home() {
       // Fetch TON data and update AI context
       ;(async () => {
         try {
-          // Simulate TON Center data fetch
+          // Actually fetch TON popular jettons from the microservice
+          const response = await fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/ton/popular-jettons`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`
+            }
+          });
+          
+          const result = await response.json();
+          console.log('🪙 TON popular jettons response:', result);
+          
+          // Format jettons data for AI
+          const jettonsData = result?.data?.jettons || [];
+          const jettonsText = jettonsData.map(j => `• ${j.name} (${j.symbol})`).join('\n');
+          
           const tonContext = {
             ton_center_data: {
               query: message,
               blockchain: 'The Open Network',
-              features: ['Account balances', 'Jetton information', 'Smart contracts', 'Real-time price'],
+              popular_jettons: jettonsData,
+              jettons_count: jettonsData.length,
+              jettons_formatted: jettonsText,
               timestamp: new Date().toISOString(),
               source: 'TON Center API'
             }
@@ -3541,16 +3600,26 @@ export default function Home() {
             last_updated: new Date().toISOString()
           }));
           
-          console.log('🧠 Updated AI context with TON Center data:', tonContext);
+          console.log('🧠 Updated AI context with REAL TON data:', tonContext);
+          
+          // Update bubble content with actual data
+          const bubbleContent = `**TON Popular Jettons**\n\n${jettonsText || 'No jettons found'}\n\n**Total:** ${jettonsData.length} popular tokens on TON blockchain`;
           
           // Update bubble to show it's loaded
           setTonCenterBubbles(prev => prev.map(bubble => 
             bubble.id === newBubble.id 
-              ? { ...bubble, loading: false }
+              ? { ...bubble, content: bubbleContent, loading: false }
               : bubble
           ))
         } catch (error) {
           console.error('TON Center error:', error)
+          
+          // Show error in bubble
+          setTonCenterBubbles(prev => prev.map(bubble => 
+            bubble.id === newBubble.id 
+              ? { ...bubble, content: `**Error loading TON data**\n\n${error.message}`, loading: false }
+              : bubble
+          ))
         }
       })()
     }
@@ -3786,7 +3855,11 @@ export default function Home() {
     const initializeChatWithTrending = async () => {
       try {
         // Call CoinGecko trending API
-        const trendingData = await coingeckoService.getTrending();
+        const trendingResponse = await fetch(`${microserviceUrl}/api/coingecko/trending`, {
+          headers: { 'admin-secret': localStorage.getItem('admin-secret') }
+        });
+        const trendingResult = await trendingResponse.json();
+        const trendingData = trendingResult.data;
         log('📈 Trending data fetched:', trendingData);
         
         if (trendingData?.coins && trendingData.coins.length > 0) {

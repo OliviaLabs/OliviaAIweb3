@@ -182,10 +182,14 @@ const FloatingTONCenterBubble = ({ isOpen, onClose, title = 'TON Center', conten
   const loadTONData = async () => {
     setIsLoadingData(true);
     
-    // REAL API CALL - Use centralized CoinGecko service
+    // REAL API CALL - Use backend CoinGecko API
     try {
-      const { coingeckoService } = await import('../../api');
-      const priceData = await coingeckoService.getPrices(['the-open-network']);
+      const microserviceUrl = import.meta.env.VITE_MICROSERVICE_URL || 'http://localhost:3000';
+      const response = await fetch(`${microserviceUrl}/api/coingecko/prices?ids=the-open-network`, {
+        headers: { 'admin-secret': localStorage.getItem('admin-secret') }
+      });
+      const result = await response.json();
+      const priceData = result.data || {};
       
       if (priceData && priceData['the-open-network']) {
         setTonPrice({ 

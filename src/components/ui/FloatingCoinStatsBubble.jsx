@@ -224,7 +224,10 @@ const FloatingCoinStatsBubble = ({ isOpen, onClose, title = 'CoinStats', content
                             const fmtUsd = (v) => {
                               if (v == null || isNaN(v)) return 'N/A';
                               const n = Number(v);
-                              if (n < 1) return `$${n.toFixed(6)}`;
+                              // Handle very small prices (like NOT coin)
+                              if (n < 0.00001) return `$${n.toFixed(8)}`;  // 8 decimals for tiny prices
+                              if (n < 0.01) return `$${n.toFixed(6)}`;     // 6 decimals for small prices
+                              if (n < 1) return `$${n.toFixed(4)}`;        // 4 decimals for prices under $1
                               if (n < 1000) return `$${n.toFixed(2)}`;
                               if (n < 1e6) return `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
                               if (n < 1e9) return `$${(n/1e6).toFixed(2)}M`;

@@ -21,6 +21,17 @@ router.post('/chat/completions',
 );
 
 /**
+ * POST /api/openai/multi-agent
+ * Generate response using 3-agent pipeline (Reasoning → API Control → Frontend)
+ */
+router.post('/multi-agent',
+  openaiRateLimit,
+  authenticateAdmin,
+  validateOrigin,
+  OpenAIController.multiAgentChat
+);
+
+/**
  * POST /api/openai/extract-trading
  * Extract trading parameters from natural language input
  */
@@ -49,6 +60,17 @@ router.get('/token-info',
   authenticateAdmin,
   validateOrigin,
   OpenAIController.getTokenInfo
+);
+
+/**
+ * GET /api/openai/websearch
+ * Web search using GPT-4o-mini (NO DUCKDUCKGO!)
+ */
+router.get('/websearch',
+  openaiRateLimit,
+  authenticateAdmin,
+  validateOrigin,
+  OpenAIController.webSearch
 );
 
 export default router;

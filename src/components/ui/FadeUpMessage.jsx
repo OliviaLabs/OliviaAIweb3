@@ -2,7 +2,7 @@ import PropTypes from 'prop-types';
 
 const FadeUpMessage = ({ children }) => {
   return (
-    <div className="animate-fadeIn">
+    <div className="animate-floatUp">
       {children}
     </div>
   );

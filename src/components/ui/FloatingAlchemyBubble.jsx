@@ -31,9 +31,13 @@ const FloatingAlchemyBubble = ({
   const fetchTokenBalances = useCallback(async () => {
     if (!address || !isConnected) return;
     
-    // Helper function to get raw balance value
-    const getRawBalance = (balance, decimals = 18) => {
+    // Helper function to get raw balance value - CRITICAL: decimals must be correct!
+    const getRawBalance = (balance, decimals) => {
       if (!balance || balance === '0' || balance === '0x0') return 0;
+      if (!decimals && decimals !== 0) {
+        console.error('❌ CRITICAL: No decimals provided for balance calculation!', balance);
+        return 0; // Don't guess - return 0 if we don't know decimals
+      }
       
       let value;
       if (typeof balance === 'string' && balance.startsWith('0x')) {
@@ -74,9 +78,13 @@ const FloatingAlchemyBubble = ({
       if (data.success && data.data) {
         console.log('🔮 Alchemy Portfolio response:', data);
         
-        // Fetch prices for tokens with significant balances
+        // Fetch prices for tokens with significant balances - ONLY if we have valid decimals
         const tokensWithBalance = data.data.filter(token => {
-          const balance = getRawBalance(token.balance, token.decimals || 18);
+          if (!token.decimals && token.decimals !== 0) {
+            console.warn(`⚠️ Token ${token.symbol} missing decimals - skipping`);
+            return false;
+          }
+          const balance = getRawBalance(token.balance, token.decimals);
           return balance > 0.0001; // Filter out dust
         });
         
@@ -86,7 +94,11 @@ const FloatingAlchemyBubble = ({
             // Static prices for stablecoins
             const stablecoins = ['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDP'];
             if (stablecoins.includes(token.symbol?.toUpperCase())) {
-              const balance = getRawBalance(token.balance, token.decimals || 18);
+              if (!token.decimals && token.decimals !== 0) {
+                console.warn(`⚠️ Stablecoin ${token.symbol} missing decimals!`);
+                return token;
+              }
+              const balance = getRawBalance(token.balance, token.decimals);
               return { ...token, priceUSD: 1.00, valueUSD: balance };
             }
             
@@ -108,11 +120,19 @@ const FloatingAlchemyBubble = ({
             const coinId = symbolToId[token.symbol?.toUpperCase()];
             if (coinId) {
               try {
-                // Use centralized CoinGecko service
-                const { coingeckoService } = await import('../../api');
-                const priceData = await coingeckoService.getPrices([coinId]);
+                // Use backend CoinGecko API
+                const microserviceUrl = import.meta.env.VITE_MICROSERVICE_URL || 'http://localhost:3000';
+                const response = await fetch(`${microserviceUrl}/api/coingecko/prices?ids=${coinId}`, {
+                  headers: { 'admin-secret': localStorage.getItem('admin-secret') }
+                });
+                const result = await response.json();
+                const priceData = result.data || {};
                 const price = priceData[coinId]?.usd || 0;
-                const balance = getRawBalance(token.balance, token.decimals || 18);
+                if (!token.decimals && token.decimals !== 0) {
+                  console.warn(`⚠️ Token ${token.symbol} missing decimals for price calc!`);
+                  return token;
+                }
+                const balance = getRawBalance(token.balance, token.decimals);
                 const valueUSD = balance * price;
                 return { ...token, priceUSD: price, valueUSD: valueUSD };
               } catch (e) {
@@ -305,9 +325,13 @@ const FloatingAlchemyBubble = ({
   const bubbleWidth = isExpanded ? Math.min(500, window.innerWidth - 40) : bubbleSize;
   const bubbleHeight = isExpanded ? Math.min(400, window.innerHeight - 100) : bubbleSize;
   
-  // Get raw numeric balance value
-  const getRawBalance = (balance, decimals = 18) => {
+  // Get raw numeric balance value - CRITICAL: Must have correct decimals!
+  const getRawBalance = (balance, decimals) => {
     if (!balance || balance === '0' || balance === '0x0') return 0;
+    if (!decimals && decimals !== 0) {
+      console.error('❌ CRITICAL: No decimals provided for balance display!', balance);
+      return 0;
+    }
     
     // Handle different balance formats
     let value;
@@ -325,8 +349,11 @@ const FloatingAlchemyBubble = ({
     return value;
   };
   
-  // Format token display properly
-  const formatTokenBalance = (balance, decimals = 18) => {
+  // Format token display properly - REQUIRES correct decimals!
+  const formatTokenBalance = (balance, decimals) => {
+    if (!decimals && decimals !== 0) {
+      return 'Invalid decimals';
+    }
     const value = getRawBalance(balance, decimals);
     if (value === 0) return '0';
     if (value < 0.0001) return '<0.0001';
@@ -431,7 +458,7 @@ const FloatingAlchemyBubble = ({
                             <div className="grid grid-cols-3 gap-1 items-center">
                               <span className="text-white/70 truncate">{token.symbol || 'Token'}</span>
                               <span className="text-white font-medium text-right">
-                                {formatTokenBalance(token.balance, token.decimals || 18)}
+                                {token.decimals || token.decimals === 0 ? formatTokenBalance(token.balance, token.decimals) : 'No decimals'}
                               </span>
                               <span className="text-green-400 font-medium text-right">
                                 {formatUSDValue(token.valueUSD) || '$0'}

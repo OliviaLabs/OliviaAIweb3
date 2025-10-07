@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { coingeckoService } from '../../../api/services/coingecko.service';
 import { twitterService } from '../../../api/services/twitter.service';
 import FloatingBubbles from './FloatingBubbles';
+
+const microserviceUrl = import.meta.env.VITE_MICROSERVICE_URL || 'http://localhost:3000';
 
 export default function BubbleMapSection({ onTokenClick, loadingToken }) {
   const [bubbleIsLoading, setBubbleIsLoading] = useState(true);
@@ -34,7 +35,21 @@ export default function BubbleMapSection({ onTokenClick, loadingToken }) {
         
         // Fetch fresh data
         console.log('🔄 Fetching fresh CoinGecko data...');
-        const data = await coingeckoService.getBubbleMapData(timeframe);
+        const response = await fetch(`${microserviceUrl}/api/coingecko/markets?per_page=100&order=market_cap_desc&price_change_percentage=24h`, {
+          headers: { 'admin-secret': localStorage.getItem('admin-secret') }
+        });
+        const result = await response.json();
+        const marketData = result.data || [];
+        
+        // Transform to bubble format
+        const data = marketData.map(coin => ({
+          symbol: coin.symbol.toUpperCase(),
+          name: coin.name,
+          value: coin.market_cap,
+          priceChange: coin.price_change_percentage_24h || 0,
+          volume: coin.total_volume,
+          rank: coin.market_cap_rank
+        }));
         
         // Cache the data
         localStorage.setItem(CACHE_KEY, JSON.stringify({

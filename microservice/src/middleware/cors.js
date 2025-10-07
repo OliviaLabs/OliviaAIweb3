@@ -33,7 +33,7 @@ export const corsMiddleware = cors({
   },
   credentials: true,
   methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'admin-secret']
 });
 
 /**

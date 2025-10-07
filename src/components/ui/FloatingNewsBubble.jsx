@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import React, { useState, useEffect, useRef } from 'react';
+import useFloatToTop from '../../hooks/useFloatToTop';
 import newsIcon from '../../assets/OLIVIA NEWS.png';
 
 const FloatingNewsBubble = ({ isOpen, onClose, title = 'Trending Tokens', content = '', loading = false, addParticlesToSwarm }) => {
@@ -17,8 +18,10 @@ const FloatingNewsBubble = ({ isOpen, onClose, title = 'Trending Tokens', conten
   const [lastClickTime, setLastClickTime] = useState(0);
   const containerRef = useRef(null);
 
-  // Remove auto-floating
-  useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded, content]);
+  // Remove auto-floating movement
+  useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
+  // Gentle float to top with barrier, like other bubbles
+  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs: 80, bubbleWidth: 140, gap: 4, margin: 8 });
 
   // Create pop particles and add them to main swarm
   const createPopEffect = () => {

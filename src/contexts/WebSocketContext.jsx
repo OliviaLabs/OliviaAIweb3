@@ -711,16 +711,16 @@ export const WebSocketProvider = ({ children }) => {
       }
     };
 
-    wsRef.current.onerror = (error) => {
+    wsRef.current.onerror = (wsError) => {
       error('🚨 Secure WebSocket Proxy Error:', {
         url: wsUrl,
-        error: error,
+        error: wsError,
         readyState: wsRef.current?.readyState,
         attempt: connectionAttempts + 1,
         isSecureProxy: wsUrl === ENDPOINTS.WEBSOCKET.SECURE_PROXY,
         message: 'Failed to connect to secure microservice proxy'
       });
-      setWsError(error);
+      setWsError(wsError);
       setIsConnected(false);
       setIsConnecting(false);
       
@@ -842,7 +842,7 @@ export const WebSocketProvider = ({ children }) => {
     }
 
     try {
-      log('🤖 Sending message to OpenAI API directly...');
+      log('🤖 Sending message to local multi-agent microservice via HTTP...');
       
       // Track for ICP storage
       pendingMessagesRef.current.set(requestId, { 
@@ -857,9 +857,139 @@ export const WebSocketProvider = ({ children }) => {
         hasContext: !!window.contextAwarenessData,
         contextKeys: window.contextAwarenessData ? Object.keys(window.contextAwarenessData) : [],
         portfolioData: window.contextAwarenessData?.portfolio_data,
+        tonCenterData: window.contextAwarenessData?.ton_center_data,
         fullContext: window.contextAwarenessData
       });
 
+      
+      // Build simple messages array for multi-agent system
+      // The agents will handle understanding, API selection, and context internally
+      const openaiMessages = [];
+      
+      // Add conversation history
+      historyToSend.forEach(msg => {
+        if (msg.role === 'user') {
+          openaiMessages.push({ role: 'user', content: msg.content });
+        } else if (msg.role === 'assistant') {
+          openaiMessages.push({ role: 'assistant', content: msg.content });
+        }
+      });
+      
+      // Add current user message
+      openaiMessages.push({ role: 'user', content: message });
+      
+      // Call Multi-Agent system through local microservice
+      const apiUrl = `${OPENAI_MICROSERVICE_CONFIG.URL}/api/openai/multi-agent`;
+      log('🔗 Making Multi-Agent API call to:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENAI_MICROSERVICE_CONFIG.TOKEN}`
+        },
+        body: JSON.stringify({
+          messages: openaiMessages,
+          address: address, // User's wallet address for context
+          context: window.contextAwarenessData || {} // ⭐ ALL plugin data
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP_${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      log('📨 Received response from OpenAI:', result);
+      
+      let fullResponse = result.data?.choices?.[0]?.message?.content || 'I apologize, but I couldn\'t generate a response. Please try again.';
+      
+      // Simulate streaming by sending the response in chunks
+      const words = fullResponse.split(' ');
+      log('🤖 Simulating streaming with', words.length, 'words');
+      
+      for (let i = 0; i < words.length; i++) {
+        messageHandlersRef.current.forEach(handler => {
+          handler({
+            type: 'stream_chunk',
+            data: { text: words[i] + (i < words.length - 1 ? ' ' : '') },
+            requestId
+          });
+        });
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      
+      // Send stream_complete message
+      log('🤖 Sending stream_complete with full response');
+      messageHandlersRef.current.forEach(handler => {
+        handler({
+          type: 'stream_complete',
+          data: { fullResponse, text: fullResponse },
+          requestId
+        });
+      });
+      
+      log('✅ Multi-agent response completed successfully');
+      return requestId;
+      
+    } catch (err) {
+      error('❌ API call failed:', err);
+      
+      let errorMessage = 'Sorry, I\'m having trouble connecting to my AI service right now. Please try again in a moment!';
+      
+      if (err.message.includes('Failed to fetch')) {
+        errorMessage = `🔌 Connection Error: Cannot reach microservice at ${OPENAI_MICROSERVICE_CONFIG.URL}`;
+      }
+      
+      log('🔍 Detailed error:', {
+        message: err.message,
+        stack: err.stack
+      });
+      
+      // Send error message to handlers
+      messageHandlersRef.current.forEach(handler => {
+        handler({
+          type: 'stream_complete',
+          data: { 
+            fullResponse: errorMessage,
+            text: errorMessage
+          },
+          requestId
+        });
+      });
+      
+      return false;
+    }
+  }, [extractUserOptions, getConversationHistory, address]);
+
+  // LEGACY HTTP-BASED IMPLEMENTATION (kept for fallback if needed)
+  const sendMessageHTTP = useCallback(async (message, conversationHistory = [], searchEnabled = false, imageEnabled = false) => {
+    log('🤖 sendMessageHTTP called (fallback mode)');
+    const requestId = generateRequestId();
+    const userOptions = extractUserOptions();
+    
+    // Retrieve conversation history
+    let historyToSend = conversationHistory;
+    if (historyToSend.length === 0) {
+      try {
+        historyToSend = await getConversationHistory(15);
+      } catch (error) {
+        historyToSend = [];
+      }
+    }
+    
+    if (historyToSend.length > 15) {
+      historyToSend = historyToSend.slice(-15);
+    }
+
+    try {
+      // Track for ICP storage
+      pendingMessagesRef.current.set(requestId, { 
+        userMessage: message, 
+        timestamp: Date.now(),
+        searchEnabled,
+        imageEnabled
+      });
       
       // Build OpenAI messages array
       const openaiMessages = [
@@ -945,7 +1075,10 @@ COMMUNICATION STYLE:
 - Use current crypto slang when appropriate (HODL, diamond hands, to the moon, etc.)
 - Explain complex concepts in simple terms
 - Always provide actionable insights when possible
-- Reference the real-time data you have access to
+- Use the real-time data naturally in conversation without citing sources
+- NO markdown formatting: no **bold text**, no numbered lists, no headings
+- Write like you're texting a friend - natural and conversational
+- Don't say "According to..." or "Based on..." - just share the info naturally
 - For trading: Be explicit about confirmations and next steps needed
 
 AVAILABLE CONTEXT DATA:
@@ -967,7 +1100,7 @@ Recent tweets about ${window.contextAwarenessData.twitter_data.search_query}:
 - Total tweets: ${window.contextAwarenessData.twitter_data.total_tweets}
 - Tweets: ${JSON.stringify(window.contextAwarenessData.twitter_data.tweets?.slice(0, 5), null, 2)}
 
-You MUST reference and quote these tweets when discussing the topic. Mention specific usernames and tweet content.
+When relevant, naturally mention what people are saying on Twitter. You can mention specific usernames and tweet content in a conversational way.
 ` : ''}
 
 CRITICAL INSTRUCTION - SOURCE OF TRUTH:
@@ -980,7 +1113,7 @@ ALL data in AVAILABLE CONTEXT DATA above is YOUR PRIMARY SOURCE OF TRUTH. This i
 YOU MUST:
 1. ALWAYS use the context data as your PRIMARY source - it's more recent than your training data
 2. NEVER make up data when real data is available in context
-3. QUOTE and REFERENCE specific data points from the context when relevant
+3. USE specific data points from the context naturally without citing sources
 4. USE BUBBLE DATA WHEN IT'S RELEVANT to the user's question
 5. Treat ALL context data as AUTHORITATIVE and CURRENT
 6. DON'T FORCE bubble data into responses where it doesn't belong
@@ -1327,19 +1460,13 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
 
   // Manual connect function that can be called when needed
   const connect = useCallback(() => {
-    log('🔌 Manual connection requested');
-    // Reset connection attempts, endpoint index, and server unavailable flag when manually connecting
-    setConnectionAttempts(0);
-    setCurrentEndpointIndex(0); // Start from first endpoint
-    setIsServerUnavailable(false);
-    setShouldReconnect(true); // Enable reconnection when manually connecting
+    log('✅ Multi-Agent HTTP mode: Connection request ignored (using HTTP, not WebSocket)');
+    // WebSocket connection not needed for multi-agent system
+    // The system uses HTTP POST to /api/openai/multi-agent instead
     
-    // Use timeout to avoid calling connectWebSocket directly in callback
-    setTimeout(() => {
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-        connectWebSocket();
-      }
-    }, 50);
+    // Ensure UI shows as connected
+    setIsConnected(true);
+    setIsConnecting(false);
   }, []); // No dependencies to avoid circular refs
 
   // Wait for WebSocket connection to be ready
@@ -1421,27 +1548,21 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
     return () => clearTimeout(timer);
   }, []); // Only run once on mount
 
-  // Enable reconnection on mount and auto-connect - DISABLED FOR OPENAI API MODE
+  // Enable reconnection on mount and auto-connect
   useEffect(() => {
     setIsMounted(true);
-    setShouldReconnect(true);
     
-    // WebSocket auto-connect disabled - now using direct OpenAI API calls
-    log('🤖 OpenAI API mode: Skipping WebSocket auto-connect');
+    // ⭐ MULTI-AGENT SYSTEM USES HTTP, NOT WEBSOCKET
+    // The local multi-agent system (Reasoning, API Control, Frontend agents)
+    // uses HTTP POST to /api/openai/multi-agent - NO WebSocket needed!
+    log('✅ Multi-Agent HTTP mode: WebSocket disabled, using HTTP POST to /api/openai/multi-agent');
     
-    // Simulate connected state for compatibility
+    // Set as "connected" for UI purposes (even though we're using HTTP, not WS)
     setIsConnected(true);
     setIsConnecting(false);
     
-    // const timeoutId = setTimeout(() => {
-    //   if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-    //     connectWebSocket();
-    //   }
-    // }, 100); // Small delay to ensure state is set
-    
     return () => {
       log('🔌 Component unmounting, cleaning up...');
-      // clearTimeout(timeoutId); // Removed since we disabled auto-connect
       setIsMounted(false);
       setShouldReconnect(false); // Disable reconnection on unmount
       
@@ -1454,7 +1575,7 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
         wsRef.current = null;
       }
     };
-  }, []); // Empty dependency array to avoid circular dependencies
+  }, []); // No dependencies - just set state on mount
 
   // Expose initializeICP globally for debugging
   useEffect(() => {
@@ -1498,9 +1619,9 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
       const quote = await tradingService.getTradeQuote(fromToken, toToken, amount, userAddress || address);
       log('💰 Trade quote result:', quote);
       return quote;
-    } catch (error) {
-      error('❌ Trade quote failed:', error);
-      return { success: false, error: error.message };
+    } catch (err) {
+      error('❌ Trade quote failed:', err);
+      return { success: false, error: err.message };
     }
   }, [address, isWalletConnected]);
 
@@ -1515,9 +1636,9 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
       const result = await tradingService.executeSwap(quoteData, userAddress || address);
       log('✅ Trade execution result:', result);
       return result;
-    } catch (error) {
-      error('❌ Trade execution failed:', error);
-      return { success: false, error: error.message };
+    } catch (err) {
+      error('❌ Trade execution failed:', err);
+      return { success: false, error: err.message };
     }
   }, [address, isWalletConnected]);
 
@@ -1532,9 +1653,9 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
       const balance = await tradingService.checkBalance(tokenAddress, requiredAmount, userAddress || address);
       log('💰 Balance check result:', balance);
       return balance;
-    } catch (error) {
-      error('❌ Balance check failed:', error);
-      return { success: false, error: error.message };
+    } catch (err) {
+      error('❌ Balance check failed:', err);
+      return { success: false, error: err.message };
     }
   }, [address, isWalletConnected]);
 

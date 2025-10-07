@@ -36,8 +36,8 @@ const ChatMessages = ({
   console.log('🟦 ChatMessages rendering:', { messageCount: messages.length, messages: messages.map(m => ({ sender: m.sender, type: m.type, isExplanation: m.isExplanation, text: m.text?.substring(0, 50) })) });
   
   return (
-    <div className="flex  flex-col gap-4 h-full">
-      {messages.map((msg, index) => {
+    <div className="flex flex-col-reverse gap-4 h-full overflow-y-auto">
+      {messages.slice().reverse().map((msg, index) => {
         // Calculate fade: newest messages (highest index) = 100% opacity
         // Older messages (lower index) = fade out towards top
         const totalMessages = messages.length;

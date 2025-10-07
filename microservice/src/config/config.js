@@ -40,7 +40,7 @@ console.log('  - OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? 'SET' : 'MISSING
 console.log('  - OLIVIA_LABS_API_KEY:', process.env.OLIVIA_LABS_API_KEY ? 'SET' : 'MISSING');
 
 export const config = {
-  port: process.env.PORT || 3001,
+  port: process.env.PORT || 3000,
   nodeEnv: process.env.NODE_ENV || 'development',
   adminAccessSecret: process.env.ADMIN_ACCESS_SECRET,
   openaiApiKey: process.env.OPENAI_API_KEY,

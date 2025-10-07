@@ -3,15 +3,17 @@ import { config } from '../config/config.js';
 import { getSwapPrice, getSwapQuote } from './zeroXController.js';
 import { TOKENS, resolveTokenStrict } from '../lib/tokens.js';
 import { formatSwapFrom0x } from '../lib/quoteFormatter.js';
+import { AgentOrchestrator } from '../agents/orchestrator.js';
 
-export const ALLOWED_TOOLS = new Set(["getSwapPrice", "getSwapQuote", "executeSwap", "webSearch"]);
+export const ALLOWED_TOOLS = new Set(["getSwapPrice", "getSwapQuote", "executeSwap", "webSearch", "getTONJettons", "getTrendingTokens"]);
 export const TOOL_POLICY_SYSTEM = `
-You may call: getSwapPrice, getSwapQuote, executeSwap, webSearch.
+You may call: getSwapPrice, getSwapQuote, executeSwap, webSearch, getTONJettons, getTrendingTokens.
 For crypto prices and market data, use webSearch to get real-time information.
+When users ask about TON tokens or jettons, use getTONJettons to get popular tokens on The Open Network.
+When users ask about trending or good tokens in general, use getTrendingTokens to get current trending cryptocurrencies.
 Never invent prices or fees; only display values from API responses.
 Always treat buyAmount/sellAmount as base units and convert with token decimals.
 When user confirms a swap, call executeSwap to prepare the transaction data.
-Use webSearch for trending tokens, market analysis, and current crypto news.
 `;
 
 // Helper to call Express‑style controllers in‑process and capture JSON
@@ -37,7 +39,7 @@ export async function handleToolCall({ functionName, functionArgs, session }) {
     return { status: 400, success: false, error: `Tool ${functionName} not allowed` };
   }
 
-  // For webSearch, we don't need token resolution
+  // For webSearch, use OpenAI to get latest information
   if (functionName === "webSearch") {
     console.log('🔍 webSearch called with args:', functionArgs);
     
@@ -51,27 +53,31 @@ export async function handleToolCall({ functionName, functionArgs, session }) {
         };
       }
 
-      const searchUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(searchQuery)}&format=json&no_html=1&skip_disambig=1`;
-      const response = await fetch(searchUrl);
-      const data = await response.json();
-      
-      let searchResults = {
-        query: searchQuery,
-        results: []
-      };
+      const searchResponse = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a web search assistant. Provide concise, factual information about cryptocurrency news and trends. Format as bullet points.'
+          },
+          {
+            role: 'user',
+            content: `Provide the latest information about: ${searchQuery}`
+          }
+        ],
+        max_tokens: 400,
+        temperature: 0.7
+      });
 
-      if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-        searchResults.results = data.RelatedTopics.slice(0, 5).map((topic, index) => ({
-          title: topic.Text || `Result ${index + 1}`,
-          snippet: topic.Text || 'No description available',
-          url: topic.FirstURL || '#'
-        }));
-      }
+      const searchSummary = searchResponse.choices[0]?.message?.content || 'No results found.';
 
       return {
         success: true,
-        data: searchResults,
-        message: `I found information about "${searchQuery}". ${searchResults.results[0]?.snippet || 'No results found.'}`
+        data: {
+          query: searchQuery,
+          summary: searchSummary
+        },
+        message: searchSummary
       };
     } catch (error) {
       console.error('Web search error:', error);
@@ -733,6 +739,480 @@ export class OpenAIController {
       res.status(500).json({
         error: 'Internal server error',
         code: 'INTERNAL_ERROR'
+      });
+    }
+  }
+
+  /**
+   * Multi-Agent Chat Completion
+   * Uses 3-agent pipeline: Reasoning → API Control → Frontend
+   */
+  static async multiAgentChat(req, res) {
+    try {
+      const { messages, address, context } = req.body;
+
+      console.log('🤖 [Multi-Agent] Processing request...');
+      console.log('🧠 [Multi-Agent] Context received:', {
+        hasContext: !!context,
+        contextKeys: context ? Object.keys(context) : []
+      });
+
+      // Validate required fields
+      if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        return res.status(400).json({
+          error: 'Messages array is required and cannot be empty',
+          code: 'INVALID_MESSAGES'
+        });
+      }
+
+      // Extract user message (last message should be from user)
+      const userMessage = messages[messages.length - 1].content;
+      
+      // Extract conversation history (all messages except the last one)
+      const conversationHistory = messages.slice(0, -1);
+
+      // User context (wallet address + all plugin data)
+      const userContext = {
+        address: address || null,
+        pluginData: context || {},
+        // Extract key data for easy access by agents
+        activeToken: context?.active_token,
+        marketData: context?.market_data,
+        sentimentData: context?.sentiment_data,
+        portfolioData: context?.portfolio_data,
+        tonCenterData: context?.ton_center_data,
+        twitterData: context?.twitter_data,
+        coingeckoData: context?.coingecko_price_data,
+        coinStatsData: context?.coinstats_data,
+        blockchainData: context?.blockchain_data,
+        exchangeData: context?.exchange_data
+      };
+      
+      console.log('🧠 [Multi-Agent] User context built:', {
+        hasAddress: !!userContext.address,
+        hasTONData: !!userContext.tonCenterData,
+        hasTwitterData: !!userContext.twitterData,
+        hasMarketData: !!userContext.marketData,
+        hasPortfolioData: !!userContext.portfolioData
+      });
+
+      // API Fetcher function - makes actual HTTP calls to your microservice APIs
+      const apiFetcher = async (endpoint, params) => {
+        console.log(`📡 [Multi-Agent] Fetching: ${endpoint}`, params);
+        
+        try {
+          // Import required controllers
+          const { tonCenterController } = await import('./tonCenterController.js');
+          const { twitterController } = await import('./twitterController.js');
+          const { coinStatsController } = await import('./coinStatsController.js');
+          const { lurkyController } = await import('./lurkyController.js');
+          const { protokolsController } = await import('./protokolsController.js');
+          const AlchemyController = (await import('./alchemyController.js')).default;
+          const { okxController } = await import('./okxController.js');
+          const { chainbaseController } = await import('./chainbaseController.js');
+          
+          // Map endpoints to controller methods
+          const routeMap = {
+            '/api/ton/popular-jettons': () => {
+              return new Promise((resolve) => {
+                const mockReq = { query: {} };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                tonCenterController.getPopularJettons(mockReq, mockRes);
+              });
+            },
+            '/api/ton/price': () => {
+              return new Promise((resolve) => {
+                const mockReq = { query: {} };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                tonCenterController.getPrice(mockReq, mockRes);
+              });
+            },
+            '/api/twitter/search': () => {
+              return new Promise((resolve) => {
+                const mockReq = { query: { query: params.query || 'crypto' } };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                twitterController.search(mockReq, mockRes);
+              });
+            },
+            '/api/websearch': async () => {
+              // Web search using OpenAI with current web knowledge
+              try {
+                const searchQuery = params.query || 'crypto';
+                console.log('🔍 [Web Search] Searching for:', searchQuery);
+                
+                const searchResponse = await openai.chat.completions.create({
+                  model: 'gpt-4o-mini',
+                  messages: [
+                    {
+                      role: 'system',
+                      content: 'You are a web search assistant. Provide concise, factual information with the latest news and updates. Format your response as bullet points with key facts.'
+                    },
+                    {
+                      role: 'user',
+                      content: `Search the web and provide the latest information about: ${searchQuery}\n\nProvide 5-8 key facts or news items as bullet points.`
+                    }
+                  ],
+                  max_tokens: 500,
+                  temperature: 0.7
+                });
+
+                const searchSummary = searchResponse.choices[0]?.message?.content || 'No results found.';
+                
+                console.log('✅ [Web Search] Got summary for:', searchQuery);
+                
+                // Return simple structure: just the text summary
+                return {
+                  success: true,
+                  summary: searchSummary,
+                  query: searchQuery
+                };
+              } catch (error) {
+                console.error('❌ [Web Search] Error:', error);
+                return {
+                  success: false,
+                  error: error.message,
+                  summary: 'Could not fetch search results at this time.'
+                };
+              }
+            },
+            '/api/coinstats/search': () => {
+              return new Promise((resolve) => {
+                const mockReq = { query: { query: params.query || 'BTC' } };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                coinStatsController.searchCoins(mockReq, mockRes);
+              });
+            },
+            '/api/coingecko/trending': async () => {
+              const { CoinGeckoController } = await import('./coingeckoController.js');
+              return new Promise((resolve) => {
+                const mockReq = { query: {} };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                CoinGeckoController.getTrending(mockReq, mockRes);
+              });
+            },
+            '/api/coingecko/prices': async () => {
+              const { CoinGeckoController } = await import('./coingeckoController.js');
+              return new Promise((resolve) => {
+                const mockReq = { query: { ids: params.ids || params.query } };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                CoinGeckoController.getPrices(mockReq, mockRes);
+              });
+            },
+            '/api/coingecko/markets': async () => {
+              const { CoinGeckoController } = await import('./coingeckoController.js');
+              return new Promise((resolve) => {
+                const mockReq = { 
+                  query: { 
+                    per_page: params.per_page || 10, 
+                    order: params.order || 'market_cap_desc',
+                    category: params.category || null,  // ⭐ Pass category parameter
+                    page: params.page || 1
+                  } 
+                };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                CoinGeckoController.getMarkets(mockReq, mockRes);
+              });
+            },
+            '/api/coingecko/search': async () => {
+              const { CoinGeckoController } = await import('./coingeckoController.js');
+              return new Promise((resolve) => {
+                const mockReq = { query: { query: params.query } };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                CoinGeckoController.search(mockReq, mockRes);
+              });
+            },
+            '/api/coingecko/coins/:coinId': async () => {
+              const { CoinGeckoController } = await import('./coingeckoController.js');
+              return new Promise((resolve) => {
+                const mockReq = { params: { coinId: params.coinId } };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                CoinGeckoController.getCoinDetails(mockReq, mockRes);
+              });
+            },
+            '/api/lurky/trending': () => {
+              return new Promise((resolve) => {
+                const mockReq = { query: {} };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                lurkyController.getTrending(mockReq, mockRes);
+              });
+            },
+            '/api/protokols/kol/trending': () => {
+              return new Promise((resolve) => {
+                const mockReq = { query: {} };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                protokolsController.getTrendingKOLs(mockReq, mockRes);
+              });
+            },
+            '/api/protokols/narratives': () => {
+              return new Promise((resolve) => {
+                const mockReq = { query: {} };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                protokolsController.getNarratives(mockReq, mockRes);
+              });
+            },
+            '/api/protokols/projects/trending': () => {
+              return new Promise((resolve) => {
+                const mockReq = { query: {} };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                protokolsController.getTrendingProjects(mockReq, mockRes);
+              });
+            },
+            '/api/coinstats/coins': () => {
+              return new Promise((resolve) => {
+                const mockReq = { query: { limit: params.limit || 10, sortBy: params.sortBy || 'volume' } };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                coinStatsController.getCoins(mockReq, mockRes);
+              });
+            },
+            '/api/portfolio/:address': () => {
+              return new Promise((resolve) => {
+                const mockReq = { body: { address: params.address, network: 'eth-mainnet' } };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                AlchemyController.getTokenBalances(mockReq, mockRes);
+              });
+            },
+            '/api/zerox/quote': () => {
+              return new Promise(async (resolve) => {
+                try {
+                  const result = await getSwapQuote({
+                    query: {
+                      sellToken: params.sellToken,
+                      buyToken: params.buyToken,
+                      sellAmount: params.sellAmount
+                    }
+                  }, {
+                    json: (data) => resolve(data),
+                    status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                  });
+                } catch (err) {
+                  resolve({ success: false, error: err.message });
+                }
+              });
+            },
+            '/api/okx/popular-pairs': () => {
+              return new Promise((resolve) => {
+                const mockReq = { query: {} };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                okxController.getPopularPairs(mockReq, mockRes);
+              });
+            }
+          };
+          
+          // Find and execute the matching route
+          const routeHandler = routeMap[endpoint];
+          
+          if (routeHandler) {
+            const result = await routeHandler();
+            console.log(`✅ [Multi-Agent] Got data from ${endpoint}`);
+            return result;
+          } else {
+            console.warn(`⚠️ [Multi-Agent] No handler for ${endpoint}`);
+            return {
+              success: false,
+              error: `No handler implemented for ${endpoint}`
+            };
+          }
+          
+        } catch (error) {
+          console.error(`❌ [Multi-Agent] Error fetching ${endpoint}:`, error);
+          return {
+            success: false,
+            error: error.message
+          };
+        }
+      };
+
+      // Process through multi-agent pipeline
+      const result = await AgentOrchestrator.process(
+        userMessage,
+        userContext,
+        conversationHistory,
+        apiFetcher
+      );
+
+      if (result.success) {
+        // Return response in OpenAI-compatible format
+        res.json({
+          success: true,
+          data: {
+            choices: [{
+              message: {
+                role: 'assistant',
+                content: result.response
+              },
+              finish_reason: 'stop'
+            }],
+            metadata: result.metadata
+          }
+        });
+      } else {
+        res.status(500).json({
+          error: result.error || 'Multi-agent processing failed',
+          code: 'MULTI_AGENT_ERROR'
+        });
+      }
+
+    } catch (error) {
+      console.error('❌ [Multi-Agent] Error:', error);
+      
+      res.status(500).json({
+        error: 'Internal server error',
+        code: 'INTERNAL_ERROR',
+        details: error.message
+      });
+    }
+  }
+
+  /**
+   * Web Search - Simple GPT-4o-mini query (like asking ChatGPT directly)
+   */
+  static async webSearch(req, res) {
+    try {
+      const { query } = req.query;
+
+      if (!query) {
+        return res.status(400).json({
+          success: false,
+          error: 'Query parameter is required'
+        });
+      }
+
+      console.log('🔍 [WebSearch] User query:', query);
+
+      // Just ask GPT-4o-mini directly, as if user asked ChatGPT
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a knowledgeable crypto news assistant. Provide concise, up-to-date information about cryptocurrency topics. Format your response as clear bullet points with key facts. Be specific and factual.'
+          },
+          {
+            role: 'user',
+            content: `Tell me about: ${query}`
+          }
+        ],
+        max_tokens: 500,
+        temperature: 0.7
+      });
+
+      const summary = response.choices[0]?.message?.content || 'No information available.';
+
+      console.log('✅ [WebSearch] Response generated');
+
+      res.json({
+        success: true,
+        summary: summary,
+        query: query
+      });
+
+    } catch (error) {
+      console.error('❌ [WebSearch] Error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Search failed',
+        details: error.message
+      });
+    }
+  }
+
+  /**
+   * Simple web search - just GPT-4o-mini answering like ChatGPT
+   */
+  static async webSearch(req, res) {
+    try {
+      const { query } = req.query;
+
+      if (!query) {
+        return res.status(400).json({
+          success: false,
+          error: 'Query parameter is required'
+        });
+      }
+
+      console.log('🔍 [Web Search] Query:', query);
+
+      // Simple GPT-4o-mini call - just answer the question!
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a helpful crypto news assistant. Provide concise, factual information about cryptocurrency news and updates. Format your response with bullet points for key facts. Be informative but brief (5-8 bullet points max).'
+          },
+          {
+            role: 'user',
+            content: query
+          }
+        ],
+        max_tokens: 500,
+        temperature: 0.7
+      });
+
+      const answer = response.choices[0]?.message?.content || 'No information available.';
+
+      console.log('✅ [Web Search] Response generated');
+
+      res.json({
+        success: true,
+        summary: answer,
+        query: query
+      });
+
+    } catch (error) {
+      console.error('❌ [Web Search] Error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        summary: 'Unable to fetch news at this time.'
       });
     }
   }

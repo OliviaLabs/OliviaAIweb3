@@ -61,9 +61,13 @@ const FloatingPortfolioBubble = ({
   // Fetch PEPE price from CoinGecko
   const fetchPepePrice = useCallback(async () => {
     try {
-      // Use centralized CoinGecko service
-      const { coingeckoService } = await import('../../api');
-      const data = await coingeckoService.getPrices(['pepe']);
+      // Use backend CoinGecko API
+      const microserviceUrl = import.meta.env.VITE_MICROSERVICE_URL || 'http://localhost:3000';
+      const response = await fetch(`${microserviceUrl}/api/coingecko/prices?ids=pepe`, {
+        headers: { 'admin-secret': localStorage.getItem('admin-secret') }
+      });
+      const result = await response.json();
+      const data = result.data || {};
       setPepePrice(data.pepe?.usd);
     } catch (error) {
       console.error('Error fetching PEPE price:', error);
@@ -139,7 +143,14 @@ const FloatingPortfolioBubble = ({
                 const metadataData = await metadataResponse.json();
                 const metadata = metadataData.result;
                 const balance = parseInt(token.tokenBalance, 16);
-                const decimals = metadata?.decimals || 18;
+                const decimals = metadata?.decimals;
+                
+                // CRITICAL: Only process if we have valid decimals
+                if (!decimals && decimals !== 0) {
+                  console.warn(`⚠️ Token at ${token.contractAddress} missing decimals - skipping`);
+                  return null;
+                }
+                
                 const formattedBalance = (balance / Math.pow(10, decimals)).toFixed(6);
                 
                 return {

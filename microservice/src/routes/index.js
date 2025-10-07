@@ -2,6 +2,7 @@ import express from 'express';
 import openaiRoutes from './openaiRoutes.js';
 import changeNowRoutes from './changeNowRoutes.js';
 import coinStatsRoutes from './coinStatsRoutes.js';
+import coingeckoRoutes from './coingeckoRoutes.js';
 import lurkyRoutes from './lurkyRoutes.js';
 import okxRoutes from './okxRoutes.js';
 import zeroXRoutes from './zeroXRoutes.js';
@@ -107,6 +108,9 @@ router.use('/changenow', changeNowRoutes);
 
 // CoinStats routes
 router.use('/coinstats', coinStatsRoutes);
+
+// CoinGecko routes
+router.use('/coingecko', coingeckoRoutes);
 
 // Lurky routes
 router.use('/lurky', lurkyRoutes);

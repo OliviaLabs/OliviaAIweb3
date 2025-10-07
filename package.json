@@ -4,8 +4,8 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 3000",
-    "dev:frontend-only": "vite --port 3000",
+    "dev": "vite --port 3001",
+    "dev:frontend-only": "vite --port 3001",
     "prebuild": "node optimize-assets.js",
     "postbuild": "node restore-assets.js",
     "build": "NODE_OPTIONS=\"--max-old-space-size=2048\" vite build",
@@ -30,6 +30,7 @@
     "@dfinity/identity": "^2.4.1",
     "@dfinity/principal": "^2.4.1",
     "@heroui/react": "^2.8.4",
+    "@heroui/theme": "^2.4.23",
     "@reown/appkit": "^1.7.20",
     "@reown/appkit-adapter-wagmi": "^1.7.20",
     "@reown/appkit-siwe": "^1.7.20",
