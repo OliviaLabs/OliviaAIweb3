@@ -1,4 +1,4 @@
-import { useState, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Input } from "@heroui/react";
 import { Send, X } from 'lucide-react';
 import PropTypes from 'prop-types';

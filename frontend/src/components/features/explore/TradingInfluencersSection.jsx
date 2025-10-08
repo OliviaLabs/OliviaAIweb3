@@ -4,7 +4,6 @@ import BubbleMap from './BubbleMap';
 import { socialService } from '../../../api';
 import { ScrollShadow, useDisclosure, Drawer, DrawerContent, DrawerHeader, DrawerBody } from "@heroui/react";
 import Button from '../../ui/Button';
-import { startOliviaChat } from '../../../utils/olivia';
 import { useTokenInfluencer } from '../../../contexts/TokenInfluencerContext';
 import { useAuth } from '../../../contexts/AuthContext';
 
@@ -240,12 +239,9 @@ export default function TradingInfluencersSection({ selectedToken, tokenTweets, 
                         <Button
                           className="flex-1 bg-gradient-to-r rounded-full from-[#31F46E] to-[#0AFDE1] hover:opacity-90 gap-2 text-black"
                           size="md"
-                          onPress={() => startOliviaChat({
-                            action: "quick_chat",
-                            message: `Can you tell me more about ${selectedInfluencer.handle} on X?`,
-                            suggestions: ["Portfolio overview", "Market analysis", "Trading opportunities"],
-                            sendMessage: true
-                          })}
+                          onPress={() => {
+                            // No-op: chat trigger removed to stabilize Explore page
+                          }}
                         >
                           Profile Summary
                         </Button>
@@ -346,12 +342,7 @@ export default function TradingInfluencersSection({ selectedToken, tokenTweets, 
                                   console.log("currentInfluencer: ", currentInfluencer)
                                   console.log("userData: ", userData)
                                   // Continue with the chat
-                                  startOliviaChat({
-                                    action: "quick_chat",
-                                    message: `Can you tell me more about $${token.cashtag}`,
-                                    suggestions: ["Portfolio overview", "Market analysis", "Trading opportunities"],
-                                    sendMessage: true
-                                  });
+                                  // No-op: chat trigger removed to stabilize Explore page
                                 }}
                               >
                                 <div className="w-10 h-10 rounded-full overflow-hidden border-[#2D394A] border-solid border-2 flex items-center justify-center">

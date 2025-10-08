@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
 import { useChatContext } from '../../contexts/ChatContext';
-import { getExtraData, setWebsocketRunning } from '../../utils/olivia';
+import { getExtraData, setWebsocketRunning, initializeChat } from '../../utils/olivia';
 import ChatInput from './ChatInput';
 import ChatMessages from './ChatMessages';
 import useAudioWebSocket from '../../hooks/useAudioWebSocket';
@@ -26,6 +26,11 @@ const ChatModal = () => {
   
   // Import upgrade tracking hook
   const { trackMessage } = useAccountUpgrade();
+  // Register chat opener so other pages can open/send programmatically
+  useEffect(() => {
+    initializeChat(setIsOpen);
+  }, [setIsOpen]);
+
   
   // New streaming states
   const [useStreamingMode, setUseStreamingMode] = useState(true); // Toggle between old and new system

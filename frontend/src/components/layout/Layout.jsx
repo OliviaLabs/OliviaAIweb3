@@ -102,6 +102,7 @@ export default function Layout() {
         onClose={dismissUpgradePrompt}
         onUpgradeSuccess={handleUpgradeSuccess}
       />
+
     </div>
   )
 }
