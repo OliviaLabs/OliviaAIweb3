@@ -183,16 +183,19 @@ export async function handleToolCall({ functionName, functionArgs, session }) {
       sellInfo, buyInfo, chainLabel
     });
 
+    // Support both shapes: { transaction: { to, data, ... } } and top-level { to, data, ... }
+    const tx = raw?.data?.transaction || raw?.data || {};
+
     const result = {
       success: true,
       data: raw.data,
       ui: formatted,
       transactionData: {
-        to: raw.data.transaction?.to,
-        data: raw.data.transaction?.data,
-        value: raw.data.transaction?.value || '0',
-        gasPrice: raw.data.transaction?.gasPrice,
-        gas: raw.data.transaction?.gas
+        to: tx.to,
+        data: tx.data,
+        value: tx.value ?? '0x0',
+        gasPrice: tx.gasPrice,
+        gas: tx.gas
       },
       // Special flag to trigger wallet transaction
       requiresWalletApproval: true,
@@ -803,7 +806,7 @@ export class OpenAIController {
         try {
           // Import required controllers
           const { tonCenterController } = await import('./tonCenterController.js');
-          const { twitterController } = await import('./twitterController.js');
+          const { searchTwitter } = await import('./twitterController.js');
           const { coinStatsController } = await import('./coinStatsController.js');
           const { lurkyController } = await import('./lurkyController.js');
           const { protokolsController } = await import('./protokolsController.js');
@@ -835,12 +838,12 @@ export class OpenAIController {
             },
             '/api/twitter/search': () => {
               return new Promise((resolve) => {
-                const mockReq = { query: { query: params.query || 'crypto' } };
+                const mockReq = { body: { query: params.query || 'crypto', search_type: params.search_type || 'Top' } };
                 const mockRes = {
                   json: (data) => resolve(data),
                   status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
                 };
-                twitterController.search(mockReq, mockRes);
+                searchTwitter(mockReq, mockRes);
               });
             },
             '/api/websearch': async () => {

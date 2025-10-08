@@ -78,7 +78,7 @@ export async function getSwapPrice(req, res) {
 
 export async function getSwapQuote(req, res) {
   try {
-    const { sellToken, buyToken, sellAmount, chainId = 1, taker, slippageBps = 50 } = req.query;
+    const { sellToken, buyToken, sellAmount, chainId = 1, taker, takerAddress, slippageBps = 50 } = req.query;
 
     if (!sellToken || !buyToken || !sellAmount) {
       return res.status(400).json({ success: false, error: 'Missing required: sellToken, buyToken, sellAmount' });
@@ -101,7 +101,8 @@ export async function getSwapQuote(req, res) {
       sellAmount: sellAmountWei,
       slippageBps: String(slippageBps),
     });
-    if (taker) qs.set('taker', String(taker));
+    const takerParam = taker || takerAddress;
+    if (takerParam) qs.set('taker', String(takerParam));
 
     const url = `${API}/swap/allowance-holder/quote?${qs.toString()}`;
     const r = await axios.get(url, { headers: headers() });
@@ -109,6 +110,67 @@ export async function getSwapQuote(req, res) {
     return res.json({ success: true, data: r.data });
   } catch (error) {
     console.error('[0x Quote] Error', error.response?.data || error.message);
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      error: error.message,
+      details: error.response?.data,
+    });
+  }
+}
+
+/**
+ * GET /api/zerox/prepare-transaction
+ * Returns a wallet-ready transaction object from 0x quote
+ * Required params: sellToken, buyToken, sellAmount
+ * Optional params: chainId, taker or takerAddress, slippageBps
+ */
+export async function getPreparedTransaction(req, res) {
+  try {
+    const { sellToken, buyToken, sellAmount, chainId = 1, taker, takerAddress, slippageBps = 50 } = req.query;
+
+    if (!sellToken || !buyToken || !sellAmount) {
+      return res.status(400).json({ success: false, error: 'Missing required: sellToken, buyToken, sellAmount' });
+    }
+    const n = sanitizeAmountOr400(res, sellAmount); if (n === null) return;
+
+    const cid = Number(chainId);
+    const sellInfo = resolveTokenStrict(cid, sellToken);
+    const buyInfo  = resolveTokenStrict(cid, buyToken);
+
+    const sellAmountWei = toBaseUnits(sellAmount, sellInfo.decimals);
+
+    const sellParam = normalizeFor0x(sellInfo.address);
+    const buyParam  = normalizeFor0x(buyInfo.address);
+
+    const qs = new URLSearchParams({
+      chainId: String(cid),
+      sellToken: String(sellParam),
+      buyToken: String(buyParam),
+      sellAmount: sellAmountWei,
+      slippageBps: String(slippageBps),
+    });
+    const takerParam = taker || takerAddress;
+    if (takerParam) qs.set('taker', String(takerParam));
+
+    const url = `${API}/swap/allowance-holder/quote?${qs.toString()}`;
+    const r = await axios.get(url, { headers: headers() });
+
+    const payload = r.data || {};
+    const tx = payload.transaction || payload;
+
+    return res.json({
+      success: true,
+      data: {
+        to: tx.to,
+        data: tx.data,
+        value: tx.value ?? '0x0',
+        gas: tx.gas,
+        gasPrice: tx.gasPrice,
+      },
+      quote: payload,
+    });
+  } catch (error) {
+    console.error('[0x Prepare Tx] Error', error.response?.data || error.message);
     return res.status(error.response?.status || 500).json({
       success: false,
       error: error.message,

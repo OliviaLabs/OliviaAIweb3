@@ -1,5 +1,5 @@
 import express from 'express';
-import { getSwapPrice, getSwapQuote, getTokens, getGasPrice, getOrderBook } from '../controllers/zeroXController.js';
+import { getSwapPrice, getSwapQuote, getTokens, getGasPrice, getOrderBook, getPreparedTransaction } from '../controllers/zeroXController.js';
 import { authenticateAdmin } from '../middleware/auth.js';
 import { validateOrigin } from '../middleware/cors.js';
 import { createRateLimiter } from '../middleware/rateLimiter.js';
@@ -74,6 +74,17 @@ router.get('/orderbook',
   authenticateAdmin,
   validateOrigin,
   getOrderBook
+);
+
+/**
+ * GET /api/zerox/prepare-transaction
+ * Returns wallet-ready tx for execution
+ */
+router.get('/prepare-transaction',
+  zeroXRateLimit,
+  authenticateAdmin,
+  validateOrigin,
+  getPreparedTransaction
 );
 
 export default router;
