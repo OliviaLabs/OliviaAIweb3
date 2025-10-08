@@ -68,8 +68,8 @@ const __dirname = path.dirname(__filename);
 // dist folder = /opt/render/project/src/dist
 // So we need to go up 2 levels from src/microservice/src to src, then into dist
 const distPath = process.env.NODE_ENV === 'production' 
-  ? path.resolve(__dirname, '../../dist')  // Go up 2 levels then into dist
-  : path.join(__dirname, '../../dist');     // same for dev
+  ? path.resolve(__dirname, '../../frontend/dist')  // Go up 2 levels then into frontend/dist
+  : path.join(__dirname, '../../frontend/dist');     // same for dev
 
 console.log('🗂️ Serving static files from:', distPath);
 console.log('🗂️ Current directory:', process.cwd());

@@ -348,3 +348,6 @@ export class CoinStatsController {
     }
   }
 }
+
+// Provide default export for modules expecting an object/class with methods
+export default CoinStatsController;

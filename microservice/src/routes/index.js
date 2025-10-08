@@ -1,16 +1,6 @@
 import express from 'express';
 import openaiRoutes from './openaiRoutes.js';
-import changeNowRoutes from './changeNowRoutes.js';
-import coinStatsRoutes from './coinStatsRoutes.js';
-import coingeckoRoutes from './coingeckoRoutes.js';
-import lurkyRoutes from './lurkyRoutes.js';
-import okxRoutes from './okxRoutes.js';
-import zeroXRoutes from './zeroXRoutes.js';
-import alchemyRoutes from './alchemyRoutes.js';
-import twitterRoutes from './twitterRoutes.js';
-import protokolsRoutes from './protokolsRoutes.js';
-import tonCenterRoutes from './tonCenterRoutes.js';
-import chainbaseRoutes from './chainbaseRoutes.js';
+import pluginsRouter from '../plugins/router.js';
 // Commented out until database is set up
 // import exploreRoutes from './exploreRoutes.js';
 import { OpenAIController } from '../controllers/openaiController.js';
@@ -103,38 +93,8 @@ router.get('/portfolio/:address', async (req, res) => {
 // OpenAI routes
 router.use('/openai', openaiRoutes);
 
-// ChangeNOW routes
-router.use('/changenow', changeNowRoutes);
-
-// CoinStats routes
-router.use('/coinstats', coinStatsRoutes);
-
-// CoinGecko routes
-router.use('/coingecko', coingeckoRoutes);
-
-// Lurky routes
-router.use('/lurky', lurkyRoutes);
-
-// OKX DEX routes
-router.use('/okx', okxRoutes);
-
-// TON Center routes
-router.use('/ton', tonCenterRoutes);
-
-// Chainbase routes
-router.use('/chainbase', chainbaseRoutes);
-
-// 0x Protocol routes
-router.use('/zerox', zeroXRoutes);
-
-// Alchemy routes
-router.use('/alchemy', alchemyRoutes);
-
-// Twitter routes
-router.use('/twitter', twitterRoutes);
-
-// Protokols routes
-router.use('/protokols', protokolsRoutes);
+// Mount all plugin routes via plugin framework
+router.use(pluginsRouter);
 
 // Explore routes (for Explore page only) - Commented out until database is set up
 // router.use('/explore', exploreRoutes);

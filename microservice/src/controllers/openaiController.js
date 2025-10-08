@@ -3,7 +3,7 @@ import { config } from '../config/config.js';
 import { getSwapPrice, getSwapQuote } from './zeroXController.js';
 import { TOKENS, resolveTokenStrict } from '../lib/tokens.js';
 import { formatSwapFrom0x } from '../lib/quoteFormatter.js';
-import { AgentOrchestrator } from '../agents/orchestrator.js';
+import { AgentOrchestrator } from '../agents/orchestrator/index.js';
 
 export const ALLOWED_TOOLS = new Set(["getSwapPrice", "getSwapQuote", "executeSwap", "webSearch", "getTONJettons", "getTrendingTokens"]);
 export const TOOL_POLICY_SYSTEM = `
