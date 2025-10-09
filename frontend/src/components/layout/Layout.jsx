@@ -46,6 +46,14 @@ export default function Layout() {
     }
   }, [forceShowUpgrade]);
 
+  // Reset stale welcome on each page load; use runtime flag for this load
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem('inline_welcome_text');
+      window.__inlineWelcomeShown = false;
+    } catch (_) {}
+  }, []);
+
   useEffect(() => {
     // Don't show welcome drawer for guest users
     if (isGuestUser) {

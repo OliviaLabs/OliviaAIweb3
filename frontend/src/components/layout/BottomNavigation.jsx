@@ -23,6 +23,7 @@ export default function BottomNavigation({
   const navigate = useNavigate();
   const location = useLocation();
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false); // Collapse global chat (bubbles + input)
   const [pluginCounts, setPluginCounts] = useState(getPluginCounts());
   // Deprecated local state; use shared context so bubbles persist across routes
   const sentPreviewTimeoutRef = useRef(null);
@@ -181,9 +182,28 @@ export default function BottomNavigation({
 
       <div className="fixed bottom-0 left-0 right-0 z-40">
         {/* Unified Module: AI Input + Navigation Bar */}
-        <div className="bg-black/50 backdrop-blur-md border-t border-white/20">
+        <div className="bg-black/50 backdrop-blur-md border-t border-white/20 relative">
+          {/* Collapse/expand handle */}
+          <button
+            type="button"
+            aria-label={isCollapsed ? 'Expand chat' : 'Collapse chat'}
+            onClick={() => setIsCollapsed(prev => !prev)}
+            className="absolute -top-3 right-4 w-6 h-6 rounded-full bg-black/70 border border-white/30 flex items-center justify-center"
+            style={{ zIndex: 1 }}
+          >
+            {/* White triangle: down when expanded (to hide), up when collapsed (to show) */}
+            {isCollapsed ? (
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 8l6 8H6l6-8z" />
+              </svg>
+            ) : (
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 16L6 8h12l-6 8z" />
+              </svg>
+            )}
+          </button>
           {/* Sent bubbles stack (newest at bottom, push older up) */}
-          {showInput && inlineBubbles.length > 0 && (
+          {showInput && !isCollapsed && inlineBubbles.length > 0 && (
             <div className="px-4 pt-3 pb-2 space-y-2">
               {[...inlineBubbles].slice(-6).map(b => (
                 <div key={b.id} className={`flex ${b.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -215,10 +235,20 @@ export default function BottomNavigation({
               )}
             </div>
           )}
+          {/* Show thinking.gif even when there are no bubbles yet */}
+          {showInput && !isCollapsed && inlineBubbles.length === 0 && isStreamingResponse && (
+            <div className="px-4 pt-3 pb-2">
+              <div className="flex justify-start">
+                <div className="max-w-[85%] px-3.5 py-2.5 rounded-2xl border border-green-300/25 bg-green-500/8 shadow-lg backdrop-blur-sm">
+                  <img src="/thinking.gif" alt="Thinking" className="h-4 opacity-90" />
+                </div>
+              </div>
+            </div>
+          )}
           {/* Removed decorative accent line above input per request */}
           
           {/* AI Input Section */}
-          {showInput && (
+          {showInput && !isCollapsed && (
             <div className="px-4 pt-2 pb-3">
               <div className="relative">
                 <input
