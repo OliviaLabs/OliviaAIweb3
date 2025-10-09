@@ -247,9 +247,8 @@ const ChatMessages = ({
         </div>
         );
       })}
-      {/* Enhanced thinking indicator - shows real processing state */}
-      {/* Show thinking indicator immediately when chat opens, even with no messages */}
-      {(isBotResponding || isStreamingResponse || isWarmingUp) && (
+      {/* Global chat handles thinking state; disable center indicator */}
+      {false && (
         <ThinkingIndicator
           processingMessage={processingMessage}
           currentAction={currentAction}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import BubbleMapSection from '../components/features/explore/BubbleMapSection'
 import TradingInfluencersSection from '../components/features/explore/TradingInfluencersSection'
 import { useHomeInput } from '../contexts/HomeInputContext'
-import { startOliviaChat } from '../utils/olivia'
+import { useWebSocket } from '../contexts/WebSocketContext'
 
 export default function Explore() {
   const [selectedToken, setSelectedToken] = useState(null);
@@ -10,6 +10,7 @@ export default function Explore() {
   const [isSearching, setIsSearching] = useState(false);
   const [loadingToken, setLoadingToken] = useState(null);
   const { setShowInput, userInput, setUserInput, handleSendMessageRef } = useHomeInput();
+  const { sendMessage } = useWebSocket();
 
   const handleTokenClick = (tokenSymbol, tweets) => {
     // Show loading immediately when bubble is clicked
@@ -35,13 +36,18 @@ export default function Explore() {
     setLoadingToken(null);
   };
 
-  // Provide a send handler for BottomNavigation on Explore, mirroring Home
-  const handleSendMessage = useCallback(() => {
+  // Provide a send handler for BottomNavigation on Explore that sends via global AI
+  const handleSendMessage = useCallback(async () => {
     const text = (userInput || '').trim();
     if (!text) return;
-    startOliviaChat({ action: 'quick_chat', message: text, sendMessage: true });
+    // Send through global multi-agent service; inline bubbles are mirrored by BottomNavigation
+    try {
+      await sendMessage(text, [], false, false);
+    } catch (err) {
+      console.error('Explore sendMessage failed:', err);
+    }
     setUserInput('');
-  }, [userInput, setUserInput]);
+  }, [userInput, setUserInput, sendMessage]);
 
   useEffect(() => {
     // Show the input on Explore and wire the send ref

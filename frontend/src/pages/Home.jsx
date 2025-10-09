@@ -48,7 +48,7 @@ export default function Home() {
   const [particles, setParticles] = useState([])
   
   // Use the shared input context
-  const { showInput, setShowInput, userInput, setUserInput, inputRef, handleSendMessageRef } = useHomeInput()
+  const { showInput, setShowInput, userInput, setUserInput, inputRef, handleSendMessageRef, addInlineBubble } = useHomeInput()
   
   // 🎯 ACTIVE TOKEN - Single source of truth for what's being discussed
   const [activeToken, setActiveToken] = useState(null);
@@ -1200,6 +1200,7 @@ export default function Home() {
         console.log('📨 Full chunk data:', JSON.stringify(data, null, 2));
         setCurrentResponse(prev => prev + chunkText)
         setIsLoading(false)
+        // Inline bubble mirroring now handled globally in BottomNavigation
       } else if (data.type === 'stream_complete') {
         const finalResponse = data.data?.fullResponse || data.data?.text || data.data?.content || currentResponse || 'No response received';
         console.log('✅ Final response:', finalResponse);
@@ -1208,12 +1209,14 @@ export default function Home() {
         // Don't add message if response is invalid
         if (finalResponse && finalResponse !== 'undefined' && finalResponse !== 'No response received') {
           setMessages(prev => [...prev, { type: 'ai', content: finalResponse }])
+          // Inline bubble finalization handled globally
         } else {
           setMessages(prev => [...prev, { type: 'ai', content: 'Sorry, I encountered an issue generating a response. Please try again.' }])
         }
         setCurrentResponse('')
         setIsLoading(false)
         setShowInput(true) // Show input after AI responds
+        // Inline bubble end handled globally
         
         // Parse AI response for coin mentions
         parseAIResponseForCoins(finalResponse);
@@ -1260,6 +1263,7 @@ export default function Home() {
       } else if (data.type === 'text') {
         const response = data.data?.text || data.content || data.message || ''
         setMessages(prev => [...prev, { type: 'ai', content: response }])
+        addInlineBubble({ role: 'ai', text: response });
         setCurrentResponse('')
         setIsLoading(false)
         setShowInput(true) // Show input after AI responds
@@ -1877,7 +1881,8 @@ export default function Home() {
     // Add user message to conversation
     setMessages(prev => [...prev, { type: 'user', content: message }])
     setUserInput('')
-    setShowInput(false)
+    // Keep the bottom input visible so the preview bubble can show above it
+    setShowInput(true)
     setIsLoading(true)
     setCurrentResponse('')
 
@@ -3935,10 +3940,16 @@ export default function Home() {
           
           proactiveMessage += closings[Math.floor(Math.random() * closings.length)];
           
-          setMessages([{
-            type: 'ai',
-            content: proactiveMessage
-          }]);
+          // Only emit welcome once per session
+          try {
+            const shown = sessionStorage.getItem('inline_welcome_shown_v1') === '1';
+            if (!shown) {
+              setMessages([{ type: 'ai', content: proactiveMessage }]);
+              sessionStorage.setItem('inline_welcome_text', proactiveMessage);
+              sessionStorage.setItem('inline_welcome_shown_v1', '1');
+              addInlineBubble({ role: 'ai', text: proactiveMessage });
+            }
+          } catch (_) {}
           
           
           // 🚀 CRITICAL: Pre-trigger ALL relevant plugins for this token so data is ready
@@ -4383,20 +4394,30 @@ export default function Home() {
           
           setIsLoading(false);
         } else {
-          // Fallback if no trending data
-          setMessages([{
-            type: 'ai',
-            content: "Hey! Just scanned the crypto markets for you. What would you like to know about? I can help with live prices, trading insights, or anything Web3!"
-          }]);
+          // Fallback welcome only if not already shown
+          try {
+            const shown = sessionStorage.getItem('inline_welcome_shown_v1') === '1';
+            if (!shown) {
+              setMessages([{ type: 'ai', content: "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!" }]);
+              sessionStorage.setItem('inline_welcome_text', "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!");
+              sessionStorage.setItem('inline_welcome_shown_v1', '1');
+              addInlineBubble({ role: 'ai', text: "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!" });
+            }
+          } catch (_) {}
           setIsLoading(false);
         }
       } catch (error) {
         logError('Failed to fetch trending data:', error);
-        // Fallback message on error
-        setMessages([{
-          type: 'ai',
-          content: "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!"
-        }]);
+        // Fallback on error only if not already shown
+        try {
+          const shown = sessionStorage.getItem('inline_welcome_shown_v1') === '1';
+          if (!shown) {
+            setMessages([{ type: 'ai', content: "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!" }]);
+            sessionStorage.setItem('inline_welcome_text', "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!");
+            sessionStorage.setItem('inline_welcome_shown_v1', '1');
+            addInlineBubble({ role: 'ai', text: "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!" });
+          }
+        } catch (_) {}
         setIsLoading(false);
       }
     };
@@ -4458,10 +4479,10 @@ export default function Home() {
             
             {/* Chat Messages - Scroll up and fade older messages */}
             <div className="space-y-3 mb-6 overflow-y-auto overflow-x-hidden scrollbar-hide" style={{ maxHeight: '40vh' }}>
-              {messages.map((msg, index) => {
+              {messages.filter(m => m.type !== 'user' && m.type !== 'ai').map((msg, index, arr) => {
                 // Calculate fade: newest messages (highest index) = 100% opacity
                 // Older messages (lower index) = fade and become smaller
-                const totalMessages = messages.length;
+                const totalMessages = arr.length;
                 const messageAge = totalMessages - index - 1; // 0 = newest, higher = older
                 const fadeOpacity = Math.max(0.1, 1 - (messageAge * 0.12)); // Keep minimum visibility
                 const scale = Math.max(0.85, 1 - (messageAge * 0.05)); // Slightly shrink older messages
@@ -4549,9 +4570,7 @@ export default function Home() {
                 {currentResponse}
               </div>
             ) : messages.length === 0 && (
-              <div className="text-white/50 text-sm">
-                Starting conversation...
-              </div>
+              null
             )}
             
             {/* AI Input is now part of BottomNavigation component */}

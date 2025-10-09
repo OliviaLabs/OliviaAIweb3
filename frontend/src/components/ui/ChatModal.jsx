@@ -16,6 +16,8 @@ import SourcesDrawer from './SourcesDrawer';
 import { getFastCryptoUpdate, getCryptoInsights } from '../../utils/cryptoNewsCache';
 
 const ChatModal = () => {
+  // Disable center chat entirely; use global bottom chat only
+  return null;
   const { isOpen, setIsOpen } = useChatContext();
   const [messages, setMessages] = useState([]);
   const [processingMessage, setProcessingMessage] = useState(null);
@@ -147,37 +149,9 @@ const ChatModal = () => {
     }
   }, [isOpen, icpInitialized, initializeICP]);
 
-  // Handle warming up state when chat is first opened
+  // Disable modal warm-up/startup message; global chat handles status now
   useEffect(() => {
-    if (isOpen) {
-      console.log('🔥 Chat opened - immediately showing thinking indicator');
-      setIsWarmingUp(true);
-      // IMMEDIATELY set streaming response to show thinking indicator
-      setIsStreamingResponse(true);
-      
-      // Add an immediate startup message to show something is happening
-      const startupMessage = {
-        id: 'startup_' + Date.now(),
-        text: "Starting up Olivia AI...",
-        sender: 'assistant',
-        timestamp: new Date().toISOString(),
-        type: 'text',
-        isStartup: true
-      };
-      
-      setMessages([startupMessage]);
-      
-      // Safety timeout to clear warming up state after 15 seconds
-      const warmupTimeout = setTimeout(() => {
-        console.log('🔥 Warmup timeout - clearing warming up state');
-        setIsWarmingUp(false);
-      }, 15000);
-      
-      return () => {
-        clearTimeout(warmupTimeout);
-      };
-    } else {
-      console.log('🔥 Chat closed - clearing all states');
+    if (!isOpen) {
       setIsWarmingUp(false);
       setIsStreamingResponse(false);
       setMessages([]);
