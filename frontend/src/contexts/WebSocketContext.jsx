@@ -875,6 +875,14 @@ export const WebSocketProvider = ({ children }) => {
         }
       });
       
+      // Prepend the welcome that the UI showed, so the AI has the same context
+      try {
+        const welcome = sessionStorage.getItem('inline_welcome_text');
+        if (welcome && !openaiMessages.some(m => m.role === 'assistant' && m.content === welcome)) {
+          openaiMessages.push({ role: 'assistant', content: welcome });
+        }
+      } catch (_) {}
+      
       // Add current user message
       openaiMessages.push({ role: 'user', content: message });
       
@@ -1173,6 +1181,14 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
           openaiMessages.push({ role: 'assistant', content: msg.content });
         }
       });
+      
+      // Prepend the welcome that the UI showed, so the AI has the same context
+      try {
+        const welcome = sessionStorage.getItem('inline_welcome_text');
+        if (welcome && !openaiMessages.some(m => m.role === 'assistant' && m.content === welcome)) {
+          openaiMessages.push({ role: 'assistant', content: welcome });
+        }
+      } catch (_) {}
       
       // Add current user message
       openaiMessages.push({ role: 'user', content: message });

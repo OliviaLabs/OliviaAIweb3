@@ -85,7 +85,7 @@ export default function BottomNavigation({
   useEffect(() => {
     if (window.__inlineWelcomeShown) return;
     let attempts = 0;
-    const maxAttempts = 20; // ~10s at 500ms
+    const maxAttempts = 60; // wait up to ~30s for trending text
     const interval = setInterval(() => {
       // If another part of the app already showed the welcome, stop polling
       if (window.__inlineWelcomeShown) {
@@ -102,11 +102,26 @@ export default function BottomNavigation({
         }
         clearInterval(interval);
       } else if (attempts >= maxAttempts) {
-        // Only add fallback if no other welcome was added
-        if (!window.__inlineWelcomeShown) {
-          addInlineBubble({ role: 'ai', text: "Hey there! How's it going? Want to chat about crypto or something else in the crypto world?" });
-          window.__inlineWelcomeShown = true;
-        }
+        // If trending text isn't set yet, synthesize a welcome from the active token
+        try {
+          const ctx = window.contextAwarenessData || {};
+          const t = ctx.active_token || ctx.proactive_token;
+          if (!window.__inlineWelcomeShown && t && (t.name || t.symbol)) {
+            const name = t.name || t.symbol || 'this token';
+            const rank = t.rank || t.market_cap_rank;
+            const change = (t.priceChange !== undefined ? t.priceChange : (t.data?.price_change_percentage_24h?.usd));
+            const changeNum = Number(change);
+            const sign = isFinite(changeNum) ? (changeNum >= 0 ? 'up' : 'down') : null;
+            const pct = isFinite(changeNum) ? Math.abs(changeNum).toFixed(2) : null;
+            const parts = [];
+            parts.push(`Interesting action on ${name}${t.symbol ? ` (${String(t.symbol).toUpperCase()})` : ''} right now.`);
+            if (rank) parts.push(`It's sitting at #${rank}`);
+            if (pct && sign) parts.push(`and ${sign} ${pct}% in the last 24 hours.`);
+            const msg = parts.join(' ') + (parts.length ? ' ' : '') + 'Want to dig into what\'s driving it?';
+            addInlineBubble({ role: 'ai', text: msg });
+            window.__inlineWelcomeShown = true;
+          }
+        } catch (_) {}
         clearInterval(interval);
       }
     }, 500);

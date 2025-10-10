@@ -3940,15 +3940,9 @@ export default function Home() {
           
           proactiveMessage += closings[Math.floor(Math.random() * closings.length)];
           
-          // Only emit welcome once per session
+          // Write welcome text; bottom nav will inject it once per load
           try {
-            const shown = sessionStorage.getItem('inline_welcome_shown_v1') === '1';
-            if (!shown) {
-              setMessages([{ type: 'ai', content: proactiveMessage }]);
-              sessionStorage.setItem('inline_welcome_text', proactiveMessage);
-              sessionStorage.setItem('inline_welcome_shown_v1', '1');
-              addInlineBubble({ role: 'ai', text: proactiveMessage });
-            }
+            sessionStorage.setItem('inline_welcome_text', proactiveMessage);
           } catch (_) {}
           
           
@@ -4394,29 +4388,17 @@ export default function Home() {
           
           setIsLoading(false);
         } else {
-          // Fallback welcome only if not already shown
+          // Fallback write only; global nav will inject if needed
           try {
-            const shown = sessionStorage.getItem('inline_welcome_shown_v1') === '1';
-            if (!shown) {
-              setMessages([{ type: 'ai', content: "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!" }]);
-              sessionStorage.setItem('inline_welcome_text', "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!");
-              sessionStorage.setItem('inline_welcome_shown_v1', '1');
-              addInlineBubble({ role: 'ai', text: "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!" });
-            }
+            sessionStorage.setItem('inline_welcome_text', "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!");
           } catch (_) {}
           setIsLoading(false);
         }
       } catch (error) {
         logError('Failed to fetch trending data:', error);
-        // Fallback on error only if not already shown
+        // Fallback write only; global nav will inject if needed
         try {
-          const shown = sessionStorage.getItem('inline_welcome_shown_v1') === '1';
-          if (!shown) {
-            setMessages([{ type: 'ai', content: "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!" }]);
-            sessionStorage.setItem('inline_welcome_text', "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!");
-            sessionStorage.setItem('inline_welcome_shown_v1', '1');
-            addInlineBubble({ role: 'ai', text: "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!" });
-          }
+          sessionStorage.setItem('inline_welcome_text', "Hey there! Ready to dive into the crypto world together? Ask me anything about trading, tokens, or what's hot in Web3 right now!");
         } catch (_) {}
         setIsLoading(false);
       }
