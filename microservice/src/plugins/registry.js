@@ -12,6 +12,7 @@ import changenow from './changenow/manifest.js';
 import alchemy from './alchemy/manifest.js';
 import twitter from './twitter/manifest.js';
 import icp from './icp/manifest.js';
+import binance from './binance/manifest.js';
 
 const manifests = [
   coingecko,
@@ -25,7 +26,8 @@ const manifests = [
   changenow,
   alchemy,
   twitter,
-  icp
+  icp,
+  binance
 ];
 
 export const getPluginManifests = () => manifests.filter(p => p.enabled !== false);

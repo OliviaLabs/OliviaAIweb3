@@ -1,3 +1,1 @@
-export { APIControlAgent } from '../apiControlAgent.js';
-
-
+export { APIControlAgent } from './apiControlAgent.js';

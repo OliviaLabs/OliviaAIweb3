@@ -14,6 +14,7 @@ import changenowRoutes from './changenow/routes.js';
 import alchemyRoutes from './alchemy/routes.js';
 import twitterRoutes from './twitter/routes.js';
 import icpRoutes from './icp/routes.js';
+import binanceRoutes from './binance/routes.js';
 
 const router = express.Router();
 
@@ -29,7 +30,8 @@ const routesMap = {
   changenow: changenowRoutes,
   alchemy: alchemyRoutes,
   twitter: twitterRoutes,
-  icp: icpRoutes
+  icp: icpRoutes,
+  binance: binanceRoutes
 };
 
 router.get('/plugins', (req, res) => {

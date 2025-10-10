@@ -1,3 +1,1 @@
-export { AgentOrchestrator } from '../orchestrator.js';
-
-
+export { AgentOrchestrator } from './orchestrator.js';

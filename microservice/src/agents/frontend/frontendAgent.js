@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
-import { config } from '../config/config.js';
+import { config } from '../../config/config.js';
+import { DataAnalyzer } from '../utils/dataAnalyzer.js';
 
 const openai = new OpenAI({ apiKey: config.openaiApiKey });
 
@@ -28,9 +29,12 @@ export class FrontendAgent {
         ...filteredData.filtered    // Fresh data from API calls
       };
       
+      // Analyze data relationships for comprehensive insights
+      const dataAnalysis = DataAnalyzer.analyzeDataRelationships(allAvailableData, understanding);
+      
       // Convert merged data to a readable format
       const dataContext = Object.keys(allAvailableData).length > 0
-        ? `\n\nAVAILABLE DATA (from plugins + APIs):\n${JSON.stringify(allAvailableData, null, 2)}`
+        ? `\n\nAVAILABLE DATA (from plugins + APIs):\n${JSON.stringify(allAvailableData, null, 2)}\n\n${dataAnalysis.comprehensiveSummary}`
         : '\n\nNo specific data available, provide general guidance.';
       
       const response = await openai.chat.completions.create({
@@ -62,6 +66,15 @@ YOUR JOB:
 - Keep it conversational and flowing like a text message
 - Be enthusiastic about crypto but realistic
 - When showing lists (tokens, coins, etc.): Show 10-15 items, not just 5 - give comprehensive info!
+
+COMPREHENSIVE ANALYSIS REQUIRED:
+- Analyze ALL available data holistically across multiple sources
+- Identify patterns, correlations, and insights across different data sources
+- Provide comprehensive analysis with multiple data points and examples
+- Connect different data sources to tell a complete story
+- Give users "many points" and "examples" as requested
+- Look for relationships between price data, sentiment, volume, and trending information
+- Cross-reference data from different APIs to provide deeper insights
 
 📋 CONVERSATION CONTINUITY (CRITICAL):
 - Check conversation history to see what you ALREADY mentioned
@@ -134,3 +147,4 @@ Respond naturally to the user's question using the available data.`
     }
   }
 }
+

@@ -107,13 +107,13 @@ export default function Login() {
 
       <div className="relative z-10 w-full max-w-[420px] flex flex-col items-center px-8">
         {/* Premium Logo Section */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-16 flex flex-col items-center justify-center">
           <img
-            src="/olivia-logo-white.png"
+            src="/thinking.gif"
             alt="Olivia AI"
-            className="w-auto h-[48px] mb-4 drop-shadow-2xl"
+            className="w-auto h-[160px] mb-6 drop-shadow-2xl mx-auto"
           />
-          <div className="h-px w-24 bg-gradient-to-r from-transparent via-white/20 to-transparent mx-auto"></div>
+          <div className="h-px w-32 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
         </div>
 
 

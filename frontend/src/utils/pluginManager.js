@@ -14,6 +14,7 @@ import chainbaseLogo from '../assets/download-1.png';
 import kolsIcon from '../assets/KOLS.png';
 import newsIcon from '../assets/OLIVIA NEWS.png';
 import twitterIcon from '../assets/x-icon.png';
+import binanceIcon from '../assets/plugins/binance.png';
 
 // Define available plugins with metadata
 export const AVAILABLE_PLUGINS = {
@@ -151,6 +152,15 @@ export const AVAILABLE_PLUGINS = {
     logo: kolsIcon,
     category: 'Analytics',
     color: 'purple'
+  },
+  binance: {
+    id: 'binance',
+    name: 'Binance',
+    description: 'Real-time exchange data from the world\'s largest crypto exchange',
+    detailedDescription: 'Binance is the world\'s largest cryptocurrency exchange by trading volume, serving over 120 million users globally. Get real-time price data, 24h ticker information, order book data, and trading history for thousands of trading pairs.',
+    logo: binanceIcon,
+    category: 'Exchange',
+    color: 'yellow'
   }
 };
 
@@ -166,7 +176,7 @@ export const getPluginStates = () => {
   }
   
   // Default: enable core trading and portfolio plugins
-  const defaultEnabledPlugins = ['zerox', 'okx', 'toncenter', 'chainbase', 'portfolio', 'changenow', 'twitter', 'coingecko', 'coinstats', 'lurky', 'websearch'];
+  const defaultEnabledPlugins = ['zerox', 'okx', 'toncenter', 'chainbase', 'portfolio', 'changenow', 'twitter', 'coingecko', 'coinstats', 'lurky', 'websearch', 'binance'];
   return Object.keys(AVAILABLE_PLUGINS).reduce((acc, pluginId) => {
     acc[pluginId] = defaultEnabledPlugins.includes(pluginId);
     return acc;

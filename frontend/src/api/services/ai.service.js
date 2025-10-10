@@ -9,12 +9,12 @@ class AiService {
         this.AGENT_ID = import.meta.env.VITE_AGENT_ID || 'e66ea468-98a4-40a9-a9fd-803a39574e0e';
         this.MODEL_NAME = 'gpt-4.1';
         // Use environment variable for WebSocket URL, fallback to local microservice
-        const wsBase = import.meta.env.VITE_WEBSOCKET_URL || (import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3001').replace('http', 'ws');
+        const wsBase = import.meta.env.VITE_WEBSOCKET_URL || (import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3000').replace('http', 'ws');
         
         // Try different WebSocket endpoints based on the API structure
         // Start with the known working endpoint first
         this.WS_ENDPOINTS = [
-            import.meta.env.VITE_AI_WEBSOCKET_URL || `${(import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3001').replace('http', 'ws')}/ws/secure-proxy` // WebSocket endpoint via environment variable
+            import.meta.env.VITE_AI_WEBSOCKET_URL || `${(import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3000').replace('http', 'ws')}/ws/secure-proxy` // WebSocket endpoint via environment variable
         ];
         
         this.WS_URL = this.WS_ENDPOINTS[0]; // Start with the first endpoint (working one)

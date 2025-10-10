@@ -19,7 +19,7 @@ export default function BottomNavigation({
 }) {
   const { telegramUser } = useAuth();
   const { addInlineBubble, inlineBubbles, beginAIBubble, appendToAIBubble, setAIBubbleText, endAIBubble } = useHomeInput();
-  const { subscribe, isStreamingResponse, currentAction, actionStatus } = useWebSocket();
+  const { subscribe, isStreamingResponse, currentAction, actionStatus, isLoading, loadingText } = useWebSocket();
   const navigate = useNavigate();
   const location = useLocation();
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
@@ -232,10 +232,17 @@ export default function BottomNavigation({
                 </div>
               ))}
               {/* Thinking indicator while AI is preparing the first chunk */}
-              {isStreamingResponse && (
+              {(isStreamingResponse || isLoading) && (
                 <div className="flex justify-start">
                   <div className="max-w-[85%] px-3.5 py-2.5 rounded-2xl border border-green-300/25 bg-green-500/8 shadow-lg backdrop-blur-sm">
-                    <img src="/thinking.gif" alt="Thinking" className="h-4 opacity-90" />
+                    <div className="flex items-center gap-2">
+                      <img src="/thinking .gif" alt="Thinking" className="h-4 opacity-90" />
+                      {isLoading && (
+                        <div className="text-white/80 text-xs">
+                          {loadingText}...
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -251,11 +258,18 @@ export default function BottomNavigation({
             </div>
           )}
           {/* Show thinking.gif even when there are no bubbles yet */}
-          {showInput && !isCollapsed && inlineBubbles.length === 0 && isStreamingResponse && (
+          {showInput && !isCollapsed && inlineBubbles.length === 0 && (isStreamingResponse || isLoading) && (
             <div className="px-4 pt-3 pb-2">
               <div className="flex justify-start">
                 <div className="max-w-[85%] px-3.5 py-2.5 rounded-2xl border border-green-300/25 bg-green-500/8 shadow-lg backdrop-blur-sm">
-                  <img src="/thinking.gif" alt="Thinking" className="h-4 opacity-90" />
+                  <div className="flex items-center gap-2">
+                    <img src="/thinking .gif" alt="Thinking" className="h-4 opacity-90" />
+                    {isLoading && (
+                      <div className="text-white/80 text-xs">
+                        {loadingText}...
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

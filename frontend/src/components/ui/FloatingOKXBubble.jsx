@@ -9,7 +9,7 @@ import okxLogo from '../../assets/OKx.png';
 // OKX DEX Trading Parameter Extraction Service
 const extractTradingParameters = async (input) => {
   try {
-    const response = await fetch(`${import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3001'}/api/openai/extract-trading`, {
+    const response = await fetch(`${import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3000'}/api/openai/extract-trading`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -33,7 +33,7 @@ const extractTradingParameters = async (input) => {
 const okxDexService = {
   async getSupportedChains() {
     try {
-      const response = await fetch(`${import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3001'}/api/okx/chains`, {
+      const response = await fetch(`${import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3000'}/api/okx/chains`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

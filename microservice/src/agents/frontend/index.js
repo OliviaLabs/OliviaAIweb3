@@ -1,3 +1,1 @@
-export { FrontendAgent } from '../frontendAgent.js';
-
-
+export { FrontendAgent } from './frontendAgent.js';

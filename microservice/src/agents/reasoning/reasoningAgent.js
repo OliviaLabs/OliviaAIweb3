@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { config } from '../config/config.js';
+import { config } from '../../config/config.js';
 
 const openai = new OpenAI({ apiKey: config.openaiApiKey });
 
@@ -99,6 +99,8 @@ AVAILABLE DATA TYPES:
 - blockchainData: Which blockchain/chain a token is on, platform info, network data, on-chain metrics
 - kols: Influencer/KOL opinions
 
+STRATEGY: Request ALL data types that could provide valuable insights, not just the obvious ones. Be comprehensive in your data requests to ensure the AI has maximum context for analysis.
+
 RESPOND WITH JSON:
 {
   "user_wants": "<In your own words, what does the user actually want?>",
@@ -180,7 +182,14 @@ Be intelligent. Understand nuance. Track conversation flow. Recognize follow-ups
       'kols': 'kolsData'
     };
     
-    // Only include data that was identified as needed AND exists in raw data
+    // Include ALL successfully fetched data for comprehensive analysis
+    Object.entries(rawData).forEach(([key, value]) => {
+      if (value && Object.keys(value).length > 0) {
+        filtered[key] = value;
+      }
+    });
+    
+    // Also include needed data for backward compatibility
     needed.forEach(dataType => {
       const rawDataKey = dataTypeMap[dataType];
       if (rawDataKey && rawData[rawDataKey]) {
@@ -195,7 +204,9 @@ Be intelligent. Understand nuance. Track conversation flow. Recognize follow-ups
       filtered,
       userIntent: understanding.user_wants,
       reasoning: understanding.reasoning,
-      urgency: understanding.urgency
+      urgency: understanding.urgency,
+      dataSources: Object.keys(filtered).length // Track how many data sources we have
     };
   }
 }
+

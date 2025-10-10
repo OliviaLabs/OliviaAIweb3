@@ -26,6 +26,7 @@ import FloatingZeroXBubble from '../components/ui/bubbles/zerox';
 import FloatingOKXBubble from '../components/ui/bubbles/okx';
 import FloatingTONCenterBubble from '../components/ui/bubbles/toncenter';
 import FloatingChainbaseBubble from '../components/ui/bubbles/chainbase';
+import FloatingBinanceBubble from '../components/ui/FloatingBinanceBubble.jsx';
 import FloatingLiquidityScoreBubble from '../components/ui/FloatingLiquidityScoreBubble.jsx';
 import FloatingVolatilityScoreBubble from '../components/ui/FloatingVolatilityScoreBubble.jsx';
 import FloatingMarketCapScoreBubble from '../components/ui/FloatingMarketCapScoreBubble.jsx';
@@ -41,14 +42,15 @@ const microserviceUrl = import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://
 export default function Home() {
   const [messages, setMessages] = useState([])
   const [currentResponse, setCurrentResponse] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef(null)
-  const [loadingText, setLoadingText] = useState('Analyzing')
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const [particles, setParticles] = useState([])
   
   // Use the shared input context
   const { showInput, setShowInput, userInput, setUserInput, inputRef, handleSendMessageRef, addInlineBubble } = useHomeInput()
+  
+  // Use WebSocket context for loading state
+  const { isLoading, setIsLoading, loadingText } = useWebSocket()
   
   // 🎯 ACTIVE TOKEN - Single source of truth for what's being discussed
   const [activeToken, setActiveToken] = useState(null);
@@ -238,6 +240,7 @@ export default function Home() {
   const [supplyBubbles, setSupplyBubbles] = useState([])
   const [priceChange1hBubbles, setPriceChange1hBubbles] = useState([])
   const [priceChange7dBubbles, setPriceChange7dBubbles] = useState([])
+  const [binanceBubbles, setBinanceBubbles] = useState([])
 
   // Removed random metric bubble seeding: metric bubbles are created only for extracted tokens
 
@@ -390,7 +393,7 @@ export default function Home() {
       // Fetch portfolio data immediately without showing bubble
       (async () => {
         try {
-          const response = await fetch(`${import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3001'}/api/portfolio/${walletAddress}`);
+          const response = await fetch(`${import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3000'}/api/portfolio/${walletAddress}`);
           
           if (response.ok) {
             const data = await response.json();
@@ -566,20 +569,6 @@ export default function Home() {
     });
   };
 
-  // Cycling loading text
-  useEffect(() => {
-    if (!isLoading) return
-    
-    const loadingStates = ['Analyzing', 'Researching', 'Processing', 'Searching', 'Thinking']
-    let currentIndex = 0
-    
-    const interval = setInterval(() => {
-      currentIndex = (currentIndex + 1) % loadingStates.length
-      setLoadingText(loadingStates[currentIndex])
-    }, 800)
-    
-    return () => clearInterval(interval)
-  }, [isLoading])
 
   // Parse AI responses for coin mentions and show bubbles - DYNAMIC EXTRACTION
   const parseAIResponseForCoins = useCallback(async (aiMessage) => {
@@ -590,14 +579,17 @@ export default function Home() {
     const extractPotentialTokens = (text) => {
       const candidates = new Set();
       
+      // Normalize possessives: "Aster's" -> "Aster"
+      const normalized = (text || '').replace(/'s\b/g, '');
+      
       // Pattern 1: Explicit token mentions with $ prefix - "$PEPE", "$BTC", "$TON"
-      const dollarTokens = text.match(/\$[A-Za-z]{2,15}\b/g) || [];
+      const dollarTokens = normalized.match(/\$[A-Za-z]{2,15}\b/g) || [];
       dollarTokens.forEach(token => {
         candidates.add(token.substring(1).toLowerCase()); // Remove $ prefix
       });
       
       // Pattern 2: ALL CAPS tokens (3-6 chars) - "TON", "BTC", "ETH" 
-      const capTokens = text.match(/\b[A-Z]{3,6}\b/g) || [];
+      const capTokens = normalized.match(/\b[A-Z]{3,6}\b/g) || [];
       capTokens.forEach(token => {
         // Only exclude the most obvious English words (NOTE: "NOT" removed because Notcoin ticker is NOT)
         const obviousWords = ['THE', 'AND', 'FOR', 'YOU', 'ARE', 'CAN', 'BUT', 'ALL', 'GET', 'NEW', 'NOW', 'WAY', 'USE', 'HAS', 'HAD', 'WHO', 'HIS', 'HER', 'HIM', 'SHE', 'DAY', 'OLD', 'SEE', 'TWO', 'HOW', 'ITS', 'OUR', 'OUT', 'DID', 'GOT', 'MAN', 'PUT', 'SAY', 'TOO', 'ANY', 'OFF', 'FAR', 'OWN', 'SET', 'TRY', 'ASK', 'LET', 'RUN', 'SIT', 'WIN', 'YES', 'YET', 'API', 'URL', 'HTTP', 'JSON', 'HTML', 'CSS', 'SQL', 'USD', 'EUR', 'GBP'];
@@ -607,7 +599,7 @@ export default function Home() {
       });
       
       // Pattern 3: Token names in parentheses - "Aster (ASTER)", "Bitcoin (BTC)", "Hyperliquid (HYPE)"
-      const parenTokens = text.match(/\b[A-Za-z]+\s*\([A-Z]{2,10}\)/g) || [];
+      const parenTokens = normalized.match(/\b[A-Za-z]+\s*\([A-Z]{2,10}\)/g) || [];
       console.log('🔍 Found parentheses tokens:', parenTokens);
       parenTokens.forEach(match => {
         const symbol = match.match(/\(([A-Z]{2,10})\)/);
@@ -623,9 +615,9 @@ export default function Home() {
       });
       
       // Pattern 4: Direct mentions of known crypto tokens ONLY
-      const knownCryptoTokens = ['ton', 'toncoin', 'btc', 'bitcoin', 'eth', 'ethereum', 'sol', 'solana', 'ada', 'cardano', 'dot', 'polkadot', 'link', 'chainlink', 'uni', 'uniswap', 'avax', 'avalanche', 'matic', 'polygon', 'atom', 'cosmos', 'near', 'algo', 'algorand', 'fil', 'filecoin', 'icp', 'hbar', 'hedera', 'vet', 'vechain', 'trx', 'tron', 'xlm', 'stellar', 'xrp', 'ripple', 'bnb', 'binance', 'doge', 'dogecoin', 'shib', 'shiba', 'pepe', 'usdc', 'usdt', 'dai', 'busd', 'mkr', 'maker', 'comp', 'compound', 'aave', 'snx', 'synthetix', 'crv', 'curve', 'bal', 'balancer', 'yfi', 'sushi', 'sushiswap', 'cake', 'pancakeswap'];
+      const knownCryptoTokens = ['ton', 'toncoin', 'btc', 'bitcoin', 'eth', 'ethereum', 'sol', 'solana', 'ada', 'cardano', 'dot', 'polkadot', 'link', 'chainlink', 'uni', 'uniswap', 'avax', 'avalanche', 'matic', 'polygon', 'atom', 'cosmos', 'near', 'algo', 'algorand', 'fil', 'filecoin', 'icp', 'hbar', 'hedera', 'vet', 'vechain', 'trx', 'tron', 'xlm', 'stellar', 'xrp', 'ripple', 'bnb', 'binance', 'doge', 'dogecoin', 'shib', 'shiba', 'pepe', 'usdc', 'usdt', 'dai', 'busd', 'mkr', 'maker', 'comp', 'compound', 'aave', 'snx', 'synthetix', 'crv', 'curve', 'bal', 'balancer', 'yfi', 'sushi', 'sushiswap', 'cake', 'pancakeswap', 'aster', 'aster-2'];
       
-      const words = text.toLowerCase().match(/\b[a-z]{3,12}\b/g) || [];
+      const words = normalized.toLowerCase().match(/\b[a-z]{3,12}\b/g) || [];
       words.forEach(word => {
         if (knownCryptoTokens.includes(word)) {
           candidates.add(word);
@@ -633,6 +625,17 @@ export default function Home() {
       });
       
       const candidateArray = Array.from(candidates);
+      
+      // FALLBACK: If no tokens found via parsing, use the already-detected active token
+      if (candidateArray.length === 0 && window.activeToken) {
+        console.log('🔄 No tokens found via parsing, using active token:', window.activeToken);
+        const activeToken = window.activeToken;
+        const fallbackTokens = new Set();
+        if (activeToken.symbol) fallbackTokens.add(activeToken.symbol.toLowerCase());
+        if (activeToken.name) fallbackTokens.add(activeToken.name.toLowerCase());
+        if (activeToken.id) fallbackTokens.add(activeToken.id.toLowerCase());
+        return Array.from(fallbackTokens);
+      }
       console.log('🎯 All extracted candidates:', candidateArray);
       
       // Priority sort: $ prefixed tokens first, then capitalized, then known tokens
@@ -2857,6 +2860,137 @@ export default function Home() {
         }
       })()
       } // Close the if (!existingBubble) block
+    }
+    
+    // Handle Binance bubble logic - trigger for ANY token mention!
+    if (userIntent.specificToken && isPluginEnabled('binance')) {
+      // Create Binance bubble for token
+      const tokenName = userIntent.specificToken;
+      
+      // Check if we already have a bubble for this token (prevent spam)
+      const existingBubble = binanceBubbles.find(bubble => 
+        bubble.title.toLowerCase().includes(tokenName.toLowerCase())
+      );
+      
+      if (!existingBubble) {
+        // Map common token names to Binance symbols
+        const binanceSymbolMap = {
+          'btc': 'BTCUSDT',
+          'bitcoin': 'BTCUSDT',
+          'eth': 'ETHUSDT',
+          'ethereum': 'ETHUSDT',
+          'bnb': 'BNBUSDT',
+          'usdc': 'USDCUSDT',
+          'usdt': 'USDTUSDT',
+          'ada': 'ADAUSDT',
+          'dot': 'DOTUSDT',
+          'matic': 'MATICUSDT',
+          'avax': 'AVAXUSDT',
+          'link': 'LINKUSDT',
+          'uni': 'UNIUSDT',
+          'atom': 'ATOMUSDT',
+          'xlm': 'XLMUSDT',
+          'vet': 'VETUSDT',
+          'trx': 'TRXUSDT',
+          'algo': 'ALGOUSDT',
+          'fil': 'FILUSDT',
+          'near': 'NEARUSDT',
+          'apt': 'APTUSDT',
+          'inj': 'INJUSDT',
+          'rndr': 'RNDRUSDT'
+        };
+        
+        // Validate Binance symbol - only create valid symbols (no dashes, special chars)
+        const rawSymbol = tokenName.toUpperCase();
+        const looksValidBinance = /^[A-Z]{2,}$/.test(rawSymbol) && !rawSymbol.includes('-');
+        const binanceSymbol = binanceSymbolMap[tokenName.toLowerCase()] || (looksValidBinance ? `${rawSymbol}USDT` : null);
+        
+        const newBubble = {
+          id: `binance-${Date.now()}`,
+          title: `${tokenName.toUpperCase()} - Binance`,
+          content: 'Loading Binance data...',
+          loading: true,
+          originalQuery: message
+        }
+        
+        setBinanceBubbles(prev => [...prev, newBubble])
+      
+        // Fetch Binance data
+        ;(async () => {
+          try {
+            // Skip Binance if symbol is invalid (contains dashes, special chars, etc.)
+            if (!binanceSymbol) {
+              console.log(`⚠️ Skipping Binance for ${tokenName} - invalid symbol format`);
+              setBinanceBubbles(prev => prev.map(bubble => 
+                bubble.id === `binance-${Date.now()}` 
+                  ? { ...bubble, content: 'Binance not available for this token', loading: false }
+                  : bubble
+              ));
+              return;
+            }
+            
+            // Fetch both price and ticker data
+            const [priceResponse, tickerResponse] = await Promise.all([
+              fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/binance/price?symbol=${binanceSymbol}`, {
+                headers: {
+                  'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                }
+              }),
+              fetch(`${OPENAI_MICROSERVICE_CONFIG.URL}/api/binance/ticker?symbol=${binanceSymbol}`, {
+                headers: {
+                  'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                }
+              })
+            ]);
+            
+            if (!priceResponse.ok || !tickerResponse.ok) {
+              throw new Error(`Failed to fetch Binance data: ${priceResponse.statusText || tickerResponse.statusText}`)
+            }
+            
+            const priceResult = await priceResponse.json()
+            const tickerResult = await tickerResponse.json()
+            
+            const priceData = priceResult.data || priceResult
+            const tickerData = tickerResult.data || tickerResult
+            
+            // Update bubble with data
+            setBinanceBubbles(prev => prev.map(bubble => 
+              bubble.id === newBubble.id 
+                ? { 
+                    ...bubble, 
+                    content: `Binance Exchange Data for ${binanceSymbol}`,
+                    loading: false,
+                    priceData: priceData,
+                    tickerData: tickerData
+                  }
+                : bubble
+            ))
+            
+            // Update AI context with Binance data
+            if (window.contextAwarenessData && (priceData || tickerData)) {
+              window.contextAwarenessData.binance_data = {
+                symbol: binanceSymbol,
+                price: priceData?.price || tickerData?.lastPrice,
+                change24h: tickerData?.priceChangePercent,
+                volume: tickerData?.volume,
+                high: tickerData?.highPrice,
+                low: tickerData?.lowPrice
+              }
+              setContextAwarenessData(prev => ({
+                ...prev,
+                binance_data: window.contextAwarenessData.binance_data
+              }))
+            }
+          } catch (error) {
+            console.error('Failed to fetch Binance data:', error)
+            setBinanceBubbles(prev => prev.map(bubble => 
+              bubble.id === newBubble.id 
+                ? { ...bubble, content: `Failed to fetch Binance data: ${error.message}`, loading: false }
+                : bubble
+            ))
+          }
+        })()
+      } // Close the if (!existingBubble) block
     } else if (mentionsPrice && isPluginEnabled('coingecko')) {
       // Fallback: show general market overview if no specific coin mentioned
       const newBubble = {
@@ -3238,7 +3372,7 @@ export default function Home() {
             const formattedSwap = finalSwapInfo;
             
             // Get swap price from 0x API
-            const swapData = await fetch(`${import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3001'}/api/zerox/price?chainId=1&sellToken=${formattedSwap.sellToken}&buyToken=${formattedSwap.buyToken}&sellAmount=${formattedSwap.sellAmount}`, {
+            const swapData = await fetch(`${import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3000'}/api/zerox/price?chainId=1&sellToken=${formattedSwap.sellToken}&buyToken=${formattedSwap.buyToken}&sellAmount=${formattedSwap.sellAmount}`, {
               method: 'GET',
               headers: {
                 'Content-Type': 'application/json',
@@ -3391,7 +3525,7 @@ export default function Home() {
           // Handle token holder queries
           if (userIntent.wantsTokenHolders && userIntent.specificToken) {
             try {
-              const response = await fetch(`${import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3001'}/api/okx/token-holders-query`, {
+              const response = await fetch(`${import.meta.env.VITE_OPENAI_MICROSERVICE_URL || 'http://localhost:3000'}/api/okx/token-holders-query`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -4535,19 +4669,8 @@ export default function Home() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Current Response or Loading */}
-            {isLoading ? (
-              <div className="flex flex-col items-center gap-3">
-                <img 
-                  src="/THINKING ICON.gif" 
-                  alt="Thinking" 
-                  className="w-12 h-12"
-                />
-                <div className="text-white/80 text-sm">
-                  {loadingText}...
-                </div>
-              </div>
-            ) : currentResponse ? (
+            {/* Current Response */}
+            {currentResponse ? (
               <div className="text-white text-sm opacity-90">
                 {currentResponse}
               </div>
@@ -4783,6 +4906,22 @@ export default function Home() {
           originalQuery={bubble.originalQuery}
           transactionData={bubble.transactionData}
           detectedChain={bubble.detectedChain}
+        />
+      ))}
+      
+      {/* Render all Binance bubble instances - only if plugin enabled */}
+      {isPluginEnabled('binance') && binanceBubbles.map(bubble => (
+        <FloatingBinanceBubble
+          key={bubble.id}
+          isOpen={true}
+          onClose={() => setBinanceBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+          title={bubble.title}
+          content={bubble.content}
+          loading={bubble.loading}
+          addParticlesToSwarm={addParticlesToSwarm}
+          priceData={bubble.priceData}
+          tickerData={bubble.tickerData}
+          originalQuery={bubble.originalQuery}
         />
       ))}
       

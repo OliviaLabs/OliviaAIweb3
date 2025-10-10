@@ -50,6 +50,8 @@ export const WebSocketProvider = ({ children }) => {
   const [currentAction, setCurrentAction] = useState(null);
   const [actionStatus, setActionStatus] = useState(null);
   const [isStreamingResponse, setIsStreamingResponse] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingText, setLoadingText] = useState('Analyzing');
   const [shouldReconnect, setShouldReconnect] = useState(false);
   const [isServerUnavailable, setIsServerUnavailable] = useState(false);
   const [isMounted, setIsMounted] = useState(true);
@@ -112,6 +114,21 @@ export const WebSocketProvider = ({ children }) => {
   useEffect(() => {
     log('🟦 ICP State Changed:', { icpInitialized, hasIcpUser: !!icpUser, hasConversationId: !!conversationId });
   }, [icpInitialized, icpUser, conversationId]);
+
+  // Cycling loading text effect
+  useEffect(() => {
+    if (!isLoading) return;
+    
+    const loadingStates = ['Analyzing', 'Researching', 'Processing', 'Searching', 'Thinking'];
+    let currentIndex = 0;
+    
+    const interval = setInterval(() => {
+      currentIndex = (currentIndex + 1) % loadingStates.length;
+      setLoadingText(loadingStates[currentIndex]);
+    }, 800);
+    
+    return () => clearInterval(interval);
+  }, [isLoading]);
   
   const { userData, userAuthenticated, isGuestUser } = useAuth();
 
@@ -1695,6 +1712,10 @@ Remember: You have access to live market data, sentiment analysis, exchange rate
     currentAction,
     actionStatus,
     isStreamingResponse,
+    isLoading,
+    setIsLoading,
+    loadingText,
+    setLoadingText,
     shouldReconnect,
     isServerUnavailable,
     currentEndpointIndex,

@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { config } from '../config/config.js';
 import { getSwapPrice, getSwapQuote } from './zeroXController.js';
+import { BinanceController } from './binanceController.js';
 import { TOKENS, resolveTokenStrict } from '../lib/tokens.js';
 import { formatSwapFrom0x } from '../lib/quoteFormatter.js';
 import { AgentOrchestrator } from '../agents/orchestrator/index.js';
@@ -1045,6 +1046,57 @@ export class OpenAIController {
                   status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
                 };
                 okxController.getPopularPairs(mockReq, mockRes);
+              });
+            },
+            // Binance MCP routes
+            '/api/binance/price': () => {
+              return new Promise((resolve) => {
+                const mockReq = { query: { symbol: params.symbol } };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                BinanceController.getPrice(mockReq, mockRes);
+              });
+            },
+            '/api/binance/ticker': () => {
+              return new Promise((resolve) => {
+                const mockReq = { query: { symbol: params.symbol } };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                BinanceController.get24hrTicker(mockReq, mockRes);
+              });
+            },
+            '/api/binance/orderbook': () => {
+              return new Promise((resolve) => {
+                const mockReq = { query: { symbol: params.symbol, limit: params.limit } };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                BinanceController.getOrderBook(mockReq, mockRes);
+              });
+            },
+            '/api/binance/trades': () => {
+              return new Promise((resolve) => {
+                const mockReq = { query: { symbol: params.symbol, limit: params.limit } };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                BinanceController.getRecentTrades(mockReq, mockRes);
+              });
+            },
+            '/api/binance/klines': () => {
+              return new Promise((resolve) => {
+                const mockReq = { query: { symbol: params.symbol, interval: params.interval, limit: params.limit } };
+                const mockRes = {
+                  json: (data) => resolve(data),
+                  status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+                };
+                BinanceController.getKlines(mockReq, mockRes);
               });
             }
           };

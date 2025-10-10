@@ -23,7 +23,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "https:", "wss:", "ws:"],
+      connectSrc: ["'self'", "https:", "wss:", "ws:", "http://localhost:*"],
       frameSrc: ["'self'", "https:"],
     },
   },
@@ -39,6 +39,12 @@ app.set('trust proxy', 1);
 
 // CORS middleware
 app.use(corsMiddleware);
+
+// Add headers for Coinbase Wallet SDK
+app.use((req, res, next) => {
+  res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
+  next();
+});
 
 // Rate limiting middleware (applied globally)
 const globalRateLimit = createRateLimiter();
