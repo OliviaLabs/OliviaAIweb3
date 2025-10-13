@@ -4,6 +4,7 @@ import TopNavigation from './TopNavigation'
 import BottomNavigation from './BottomNavigation'
 import WelcomeDrawer from '../ui/WelcomeDrawer'
 import AccountUpgradePrompt from '../ui/AccountUpgradePrompt'
+import ResponsiveHomeWrapper from './ResponsiveHomeWrapper'
 import { useAuth } from '../../contexts/AuthContext'
 import { useHomeInput } from '../../contexts/HomeInputContext'
 import { useAccountUpgrade } from '../../hooks/useAccountUpgrade';
@@ -79,17 +80,29 @@ export default function Layout() {
     setShowWelcomeDrawer(isNewUser || false)
   }, [userData, telegramUser, isGuestUser])
 
+  // Apply desktop layout to main app pages (Home, Explore, Plugins, Profile)
+  const desktopPages = ['/home', '/explore', '/plugins', '/profile'];
+  const useDesktopLayout = desktopPages.includes(location.pathname);
+
   return (
     <div className={`h-screen hide-scrollbar w-full flex flex-col relative`}>
-      {/* Top Navigation */}
-      <TopNavigation />
+      {/* Top Navigation - Hidden on desktop (≥1024px) for main pages */}
+      <div className={useDesktopLayout ? "lg:hidden" : ""}>
+        <TopNavigation />
+      </div>
 
       {/* Main content */}
-      <main className={`flex-1 px-4 overflow-y-auto`}>
-        <Outlet />
+      <main className={`flex-1 ${useDesktopLayout ? 'overflow-hidden p-0' : 'overflow-y-auto px-4'}`}>
+        {useDesktopLayout ? (
+          <ResponsiveHomeWrapper>
+            <Outlet />
+          </ResponsiveHomeWrapper>
+        ) : (
+          <Outlet />
+        )}
       </main>
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation - Always visible */}
       <BottomNavigation 
         showInput={showInput}
         userInput={userInput}

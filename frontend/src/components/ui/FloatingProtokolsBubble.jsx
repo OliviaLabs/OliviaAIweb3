@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import ReactMarkdown from 'react-markdown';
-import { createPortal } from 'react-dom';
+
 import React, { useState, useEffect } from 'react';
 import kolsIcon from '../../assets/KOLS.png';
 
@@ -137,7 +137,7 @@ const FloatingProtokolsBubble = ({
   
   const bubble = (
     <div 
-      className={`fixed pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isDragging ? '' : 'transition-all duration-150 ease-in-out'}`}
+      className={`absolute pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isDragging ? '' : 'transition-all duration-1000 ease-in-out'}`}
       style={{ 
         left: `${position.x}px`,
         top: `${position.y}px`,
@@ -243,7 +243,7 @@ const FloatingProtokolsBubble = ({
       </div>
     </div>
   );
-  return createPortal(bubble, document.body);
+  return bubble;
 };
 
 FloatingProtokolsBubble.propTypes = {

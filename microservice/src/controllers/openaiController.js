@@ -5,6 +5,8 @@ import { BinanceController } from './binanceController.js';
 import { TOKENS, resolveTokenStrict } from '../lib/tokens.js';
 import { formatSwapFrom0x } from '../lib/quoteFormatter.js';
 import { AgentOrchestrator } from '../agents/orchestrator/index.js';
+import { normalizeAndClassify, isInputSafe } from '../agents/utils/inputNormalizer.js';
+import { generateTraceId, createTraceContext, globalMetrics } from '../utils/trace.js';
 
 export const ALLOWED_TOOLS = new Set(["getSwapPrice", "getSwapQuote", "executeSwap", "webSearch", "getTONJettons", "getTrendingTokens"]);
 export const TOOL_POLICY_SYSTEM = `
@@ -40,7 +42,7 @@ export async function handleToolCall({ functionName, functionArgs, session }) {
     return { status: 400, success: false, error: `Tool ${functionName} not allowed` };
   }
 
-  // For webSearch, use OpenAI to get latest information
+  // For webSearch, use REAL web search (Brave Search API)
   if (functionName === "webSearch") {
     console.log('🔍 webSearch called with args:', functionArgs);
     
@@ -54,31 +56,100 @@ export async function handleToolCall({ functionName, functionArgs, session }) {
         };
       }
 
-      const searchResponse = await openai.chat.completions.create({
+      // Use Brave Search API for real web results
+      const braveApiKey = config.braveSearchApiKey || process.env.BRAVE_SEARCH_API_KEY;
+      
+      if (!braveApiKey) {
+        console.warn('⚠️ BRAVE_SEARCH_API_KEY not set, falling back to GPT summary');
+        // Fallback to GPT (but warn it's not real-time)
+        const searchResponse = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a cryptocurrency news assistant. Provide recent crypto news based on your training data. ALWAYS mention that this is based on training data and may not reflect the very latest events. Format as bullet points.'
+            },
+            {
+              role: 'user',
+              content: `Provide information about: ${searchQuery}`
+            }
+          ],
+          max_tokens: 400,
+          temperature: 0.7
+        });
+
+        const summary = searchResponse.choices[0]?.message?.content || 'No results found.';
+        return {
+          success: true,
+          data: {
+            query: searchQuery,
+            summary: '⚠️ Using AI knowledge (not live web search):\n\n' + summary,
+            isRealTime: false
+          },
+          message: '⚠️ Using AI knowledge (not live web search):\n\n' + summary
+        };
+      }
+
+      // Real web search using Brave API
+      const braveResponse = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(searchQuery)}&count=5`, {
+        headers: {
+          'Accept': 'application/json',
+          'X-Subscription-Token': braveApiKey
+        }
+      });
+
+      if (!braveResponse.ok) {
+        throw new Error(`Brave Search API error: ${braveResponse.status}`);
+      }
+
+      const braveData = await braveResponse.json();
+      const results = braveData.web?.results || [];
+
+      if (results.length === 0) {
+        return {
+          success: true,
+          data: {
+            query: searchQuery,
+            summary: 'No recent news found for this query.',
+            results: []
+          },
+          message: 'No recent news found for this query.'
+        };
+      }
+
+      // Format search results
+      const formattedResults = results.slice(0, 5).map((result, i) => 
+        `${i + 1}. **${result.title}**\n   ${result.description}\n   Source: ${result.url}`
+      ).join('\n\n');
+
+      // Use GPT to summarize the search results
+      const summaryResponse = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
-            content: 'You are a web search assistant. Provide concise, factual information about cryptocurrency news and trends. Format as bullet points.'
+            content: 'You are a crypto news analyst. Summarize the following web search results into a concise, factual summary. Focus on key events, price movements, and market sentiment. Format as bullet points.'
           },
           {
             role: 'user',
-            content: `Provide the latest information about: ${searchQuery}`
+            content: `Query: ${searchQuery}\n\nSearch Results:\n${formattedResults}\n\nProvide a concise summary:`
           }
         ],
         max_tokens: 400,
         temperature: 0.7
       });
 
-      const searchSummary = searchResponse.choices[0]?.message?.content || 'No results found.';
+      const summary = summaryResponse.choices[0]?.message?.content || formattedResults;
 
       return {
         success: true,
         data: {
           query: searchQuery,
-          summary: searchSummary
+          summary: `🌐 Live Web Search Results:\n\n${summary}`,
+          results: results.slice(0, 5),
+          isRealTime: true
         },
-        message: searchSummary
+        message: `🌐 Live Web Search Results:\n\n${summary}`
       };
     } catch (error) {
       console.error('Web search error:', error);
@@ -848,21 +919,66 @@ export class OpenAIController {
               });
             },
             '/api/websearch': async () => {
-              // Web search using OpenAI with current web knowledge
+              // REAL web search using Perplexity AI
               try {
                 const searchQuery = params.query || 'crypto';
                 console.log('🔍 [Web Search] Searching for:', searchQuery);
                 
+                const perplexityKey = process.env.PERPLEXITY_API_KEY;
+                
+                if (perplexityKey) {
+                  console.log('🌐 Using Perplexity AI for REAL web search');
+                  const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${perplexityKey}`,
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                      model: 'llama-3.1-sonar-small-128k-online',
+                      messages: [
+                        {
+                          role: 'system',
+                          content: 'You are a cryptocurrency news assistant. Provide concise, factual information from the latest web sources. Format as bullet points with key facts. Be specific about recent events and include dates.'
+                        },
+                        {
+                          role: 'user',
+                          content: searchQuery
+                        }
+                      ],
+                      max_tokens: 500,
+                      temperature: 0.2,
+                      return_citations: true
+                    })
+                  });
+
+                  if (perplexityResponse.ok) {
+                    const perplexityData = await perplexityResponse.json();
+                    const answer = perplexityData.choices[0]?.message?.content || 'No information found.';
+                    
+                    console.log('✅ [Web Search] Perplexity response received');
+                    
+                    return {
+                      success: true,
+                      summary: `🌐 Real-time Web Search:\n\n${answer}`,
+                      query: searchQuery,
+                      source: 'perplexity'
+                    };
+                  }
+                }
+                
+                // Fallback to OpenAI (but clearly mark it as not real-time)
+                console.warn('⚠️ PERPLEXITY_API_KEY not set - using GPT fallback (NOT real-time)');
                 const searchResponse = await openai.chat.completions.create({
                   model: 'gpt-4o-mini',
                   messages: [
                     {
                       role: 'system',
-                      content: 'You are a web search assistant. Provide concise, factual information with the latest news and updates. Format your response as bullet points with key facts.'
+                      content: 'You are a crypto assistant. IMPORTANT: You do NOT have access to real-time web search. Provide information based on your training data, but ALWAYS start your response with "⚠️ Based on training data (not live):" to be transparent.'
                     },
                     {
                       role: 'user',
-                      content: `Search the web and provide the latest information about: ${searchQuery}\n\nProvide 5-8 key facts or news items as bullet points.`
+                      content: searchQuery
                     }
                   ],
                   max_tokens: 500,
@@ -871,13 +987,13 @@ export class OpenAIController {
 
                 const searchSummary = searchResponse.choices[0]?.message?.content || 'No results found.';
                 
-                console.log('✅ [Web Search] Got summary for:', searchQuery);
+                console.log('⚠️ [Web Search] Using GPT fallback (not real-time)');
                 
-                // Return simple structure: just the text summary
                 return {
                   success: true,
                   summary: searchSummary,
-                  query: searchQuery
+                  query: searchQuery,
+                  source: 'gpt-fallback'
                 };
               } catch (error) {
                 console.error('❌ [Web Search] Error:', error);
@@ -1125,12 +1241,16 @@ export class OpenAIController {
         }
       };
 
-      // Process through multi-agent pipeline
+      // Generate trace ID for observability
+      const traceId = generateTraceId();
+      
+      // Process through multi-agent pipeline with tracing
       const result = await AgentOrchestrator.process(
         userMessage,
         userContext,
         conversationHistory,
-        apiFetcher
+        apiFetcher,
+        traceId
       );
 
       if (result.success) {
@@ -1167,60 +1287,206 @@ export class OpenAIController {
   }
 
   /**
-   * Web Search - Simple GPT-4o-mini query (like asking ChatGPT directly)
+   * Smart Chat - Intelligent routing between trading and multi-agent paths
+   * Uses input normalization, classification, and full observability
    */
-  static async webSearch(req, res) {
+  static async smartChat(req, res) {
+    const traceId = generateTraceId();
+    const trace = createTraceContext(traceId, 'smart-chat');
+    
     try {
-      const { query } = req.query;
+      const { messages, address, context } = req.body;
 
-      if (!query) {
+      trace.info('Smart chat request received', {
+        messagesCount: messages?.length,
+        hasAddress: !!address,
+        hasContext: !!context
+      });
+
+      // Validate required fields
+      if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        trace.warn('Invalid messages array');
         return res.status(400).json({
-          success: false,
-          error: 'Query parameter is required'
+          error: 'Messages array is required and cannot be empty',
+          code: 'INVALID_MESSAGES',
+          traceId
         });
       }
 
-      console.log('🔍 [WebSearch] User query:', query);
+      // Extract user message
+      const userMessage = messages[messages.length - 1].content;
+      
+      // Safety check
+      if (!isInputSafe(userMessage)) {
+        trace.warn('Unsafe input detected');
+        return res.status(400).json({
+          error: 'Input contains suspicious content',
+          code: 'UNSAFE_INPUT',
+          traceId
+        });
+      }
 
-      // Just ask GPT-4o-mini directly, as if user asked ChatGPT
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a knowledgeable crypto news assistant. Provide concise, up-to-date information about cryptocurrency topics. Format your response as clear bullet points with key facts. Be specific and factual.'
-          },
-          {
-            role: 'user',
-            content: `Tell me about: ${query}`
+      // Normalize and classify input
+      const { text, language, kind } = normalizeAndClassify(userMessage);
+      
+      trace.info('Input classified', { language, kind, textLength: text.length });
+
+      // Route based on classification
+      if (kind === 'trade') {
+        trace.info('Routing to trading path');
+        
+        // Use existing generateChatCompletion for trading
+        return OpenAIController.generateChatCompletion({
+          ...req,
+          body: {
+            ...req.body,
+            messages: [
+              ...messages.slice(0, -1),
+              { role: 'user', content: text }
+            ]
           }
-        ],
-        max_tokens: 500,
-        temperature: 0.7
-      });
+        }, res);
+      }
 
-      const summary = response.choices[0]?.message?.content || 'No information available.';
+      // Multi-agent info path
+      trace.info('Routing to multi-agent path');
 
-      console.log('✅ [WebSearch] Response generated');
+      const conversationHistory = messages.slice(0, -1);
+      const userContext = {
+        address: address || null,
+        pluginData: context || {},
+        language, // Pass detected language
+        activeToken: context?.active_token,
+        marketData: context?.market_data,
+        sentimentData: context?.sentiment_data,
+        portfolioData: context?.portfolio_data,
+        tonCenterData: context?.ton_center_data,
+        twitterData: context?.twitter_data,
+        coingeckoData: context?.coingecko_price_data,
+        coinStatsData: context?.coinstats_data,
+        blockchainData: context?.blockchain_data,
+        exchangeData: context?.exchange_data
+      };
 
-      res.json({
+      // Build API fetcher (reuse from multiAgentChat)
+      const apiFetcher = await this._buildApiFetcher();
+
+      // Process through multi-agent pipeline
+      const result = await AgentOrchestrator.process(
+        text,
+        userContext,
+        conversationHistory,
+        apiFetcher,
+        traceId
+      );
+
+      if (!result.success) {
+        trace.error('Multi-agent processing failed', new Error(result.error));
+        return res.status(500).json({
+          error: result.error || 'Multi-agent processing failed',
+          code: 'MULTI_AGENT_ERROR',
+          traceId
+        });
+      }
+
+      trace.complete({ responseLength: result.response.length });
+
+      // Log metrics
+      globalMetrics.logSummary(traceId);
+
+      return res.json({
         success: true,
-        summary: summary,
-        query: query
+        data: {
+          choices: [{
+            message: { role: 'assistant', content: result.response },
+            finish_reason: 'stop'
+          }],
+          metadata: result.metadata
+        },
+        traceId
       });
 
     } catch (error) {
-      console.error('❌ [WebSearch] Error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Search failed',
-        details: error.message
+      trace.error('Smart chat failed', error);
+      return res.status(500).json({
+        error: 'Internal server error',
+        code: 'INTERNAL_ERROR',
+        details: error.message,
+        traceId
       });
     }
   }
 
   /**
-   * Simple web search - just GPT-4o-mini answering like ChatGPT
+   * Build API fetcher function (extracted for reuse)
+   * @private
+   */
+  static async _buildApiFetcher() {
+    return async (endpoint, params) => {
+      try {
+        // Import required controllers
+        const { tonCenterController } = await import('./tonCenterController.js');
+        const { searchTwitter } = await import('./twitterController.js');
+        const { coinStatsController } = await import('./coinStatsController.js');
+        const { lurkyController } = await import('./lurkyController.js');
+        const { protokolsController } = await import('./protokolsController.js');
+        const AlchemyController = (await import('./alchemyController.js')).default;
+        const { okxController } = await import('./okxController.js');
+        
+        // Map endpoints to controller methods (abbreviated - reuse from multiAgentChat)
+        const routeMap = {
+          '/api/ton/popular-jettons': () => {
+            return new Promise((resolve) => {
+              const mockReq = { query: {} };
+              const mockRes = {
+                json: (data) => resolve(data),
+                status: (code) => ({ json: (data) => resolve({ status: code, ...data }) })
+              };
+              tonCenterController.getPopularJettons(mockReq, mockRes);
+            });
+          },
+          '/api/websearch': async () => {
+            const searchQuery = params.query || 'crypto';
+            const searchResponse = await openai.chat.completions.create({
+              model: 'gpt-4o-mini',
+              messages: [
+                {
+                  role: 'system',
+                  content: 'You are a web search assistant. Provide concise, factual information with the latest news and updates. Format your response as bullet points with key facts.'
+                },
+                {
+                  role: 'user',
+                  content: `Search the web and provide the latest information about: ${searchQuery}\n\nProvide 5-8 key facts or news items as bullet points.`
+                }
+              ],
+              max_tokens: 500,
+              temperature: 0.7
+            });
+            return {
+              success: true,
+              summary: searchResponse.choices[0]?.message?.content || 'No results found.',
+              query: searchQuery
+            };
+          }
+          // Add more routes as needed - reuse the full routeMap from multiAgentChat
+        };
+        
+        const routeHandler = routeMap[endpoint];
+        if (routeHandler) {
+          return await routeHandler();
+        } else {
+          return { success: false, error: `No handler implemented for ${endpoint}` };
+        }
+        
+      } catch (error) {
+        console.error(`❌ [API Fetcher] Error fetching ${endpoint}:`, error);
+        return { success: false, error: error.message };
+      }
+    };
+  }
+
+  /**
+   * Web Search using Perplexity AI - REAL web search with citations
    */
   static async webSearch(req, res) {
     try {
@@ -1233,19 +1499,102 @@ export class OpenAIController {
         });
       }
 
-      console.log('🔍 [Web Search] Query:', query);
+      console.log('🔍 [Web Search] User query:', query);
 
-      // Simple GPT-4o-mini call - just answer the question!
+      // STEP 1: Use reasoning agent to convert casual query into optimized search query
+      const today = new Date().toISOString().split('T')[0]; // e.g., "2025-10-13"
+      const reasoningResponse = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a search query optimizer. Convert the user's casual question into a precise search query.
+
+Today's date: ${today}
+
+Rules:
+1. Add current date context if user mentions "today", "this week", "this weekend", "recently"
+2. Add "cryptocurrency" or "crypto" if not already present
+3. Add relevant keywords like "news", "market", "price", "crash", "rally" based on context
+4. Keep it concise (5-10 words max)
+5. Return ONLY the optimized search query, nothing else
+
+Examples:
+User: "what happened this weekend to crypto" → "cryptocurrency market news October 13 2025"
+User: "bitcoin" → "bitcoin price news today"
+User: "why is eth crashing" → "ethereum crash reason October 2025"`
+          },
+          {
+            role: 'user',
+            content: query
+          }
+        ],
+        max_tokens: 50,
+        temperature: 0.3
+      });
+
+      const optimizedQuery = reasoningResponse.choices[0]?.message?.content?.trim() || query;
+      console.log('🧠 [Reasoning] Optimized search query:', optimizedQuery);
+
+      // STEP 2: Use Perplexity API for REAL web search with citations
+      const perplexityKey = process.env.PERPLEXITY_API_KEY;
+      
+      if (perplexityKey) {
+        console.log('🌐 Using Perplexity AI for REAL web search');
+        const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${perplexityKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'llama-3.1-sonar-small-128k-online',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a cryptocurrency news assistant. Provide concise, factual information from the latest web sources. Format as bullet points with key facts. Be specific about recent events and include dates when possible.'
+              },
+              {
+                role: 'user',
+                content: optimizedQuery // Use optimized query!
+              }
+            ],
+            max_tokens: 500,
+            temperature: 0.2,
+            return_citations: true
+          })
+        });
+
+        if (perplexityResponse.ok) {
+          const perplexityData = await perplexityResponse.json();
+          const answer = perplexityData.choices[0]?.message?.content || 'No information found.';
+          const citations = perplexityData.citations || [];
+          
+          console.log('✅ [Web Search] Perplexity response with citations');
+          
+          return res.json({
+            success: true,
+            summary: `🌐 Real-time Web Search:\n\n${answer}`,
+            citations: citations,
+            originalQuery: query,
+            optimizedQuery: optimizedQuery,
+            source: 'perplexity'
+          });
+        }
+      }
+      
+      // Fallback to OpenAI (but clearly mark it as not real-time)
+      console.warn('⚠️ PERPLEXITY_API_KEY not set - using GPT fallback (NOT real-time)');
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful crypto news assistant. Provide concise, factual information about cryptocurrency news and updates. Format your response with bullet points for key facts. Be informative but brief (5-8 bullet points max).'
+            content: 'You are a crypto assistant. IMPORTANT: You do NOT have access to real-time web search. Provide information based on your training data, but ALWAYS start your response with "⚠️ Based on training data (not live web search):" to be transparent with users. Then provide what you know about crypto news and trends.'
           },
           {
             role: 'user',
-            content: query
+            content: optimizedQuery // Use optimized query even in fallback
           }
         ],
         max_tokens: 500,
@@ -1254,12 +1603,14 @@ export class OpenAIController {
 
       const answer = response.choices[0]?.message?.content || 'No information available.';
 
-      console.log('✅ [Web Search] Response generated');
+      console.log('⚠️ [Web Search] Using GPT fallback (not real-time)');
 
       res.json({
         success: true,
         summary: answer,
-        query: query
+        originalQuery: query,
+        optimizedQuery: optimizedQuery,
+        source: 'gpt-fallback'
       });
 
     } catch (error) {

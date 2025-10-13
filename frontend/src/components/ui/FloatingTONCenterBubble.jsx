@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { createPortal } from 'react-dom';
+
 import React, { useState, useEffect } from 'react';
 import useFloatToTop from '../../hooks/useFloatToTop';
 import ReactMarkdown from 'react-markdown';
@@ -323,7 +323,7 @@ const FloatingTONCenterBubble = ({ isOpen, onClose, title = 'TON Center', conten
 
   const bubble = (
     <div 
-      className={`fixed pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+      className={`absolute pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
       style={{ 
         left: `${position.x}px`, 
         top: `${position.y}px`,
@@ -453,7 +453,7 @@ const FloatingTONCenterBubble = ({ isOpen, onClose, title = 'TON Center', conten
       </div>
     </div>
   );
-  return createPortal(bubble, document.body);
+  return bubble;
 };
 
 FloatingTONCenterBubble.propTypes = {

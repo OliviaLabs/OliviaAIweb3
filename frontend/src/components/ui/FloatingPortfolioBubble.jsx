@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import useFloatToTop from '../../hooks/useFloatToTop';
-import { createPortal } from 'react-dom';
+
 import PropTypes from 'prop-types';
 import { Wallet, TrendingUp, TrendingDown, DollarSign, Coins } from 'lucide-react';
 import { useAccount, useBalance } from 'wagmi';
@@ -399,7 +399,7 @@ const FloatingPortfolioBubble = ({
   const bubble = (
     <div 
       ref={containerRef}
-      className={`fixed pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isDragging ? '' : 'transition-all duration-150 ease-in-out'}`}
+      className={`absolute pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isDragging ? '' : 'transition-all duration-1000 ease-in-out'}`}
       style={{ 
         left: `${position.x}px`,
         top: `${position.y}px`,
@@ -501,7 +501,7 @@ const FloatingPortfolioBubble = ({
       </div>
     </div>
   );
-  return createPortal(bubble, document.body);
+  return bubble;
 };
 
 FloatingPortfolioBubble.propTypes = {

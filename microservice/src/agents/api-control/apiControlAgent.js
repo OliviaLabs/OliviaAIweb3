@@ -1,9 +1,10 @@
 import { TokenResolverAgent } from '../token-resolver/index.js';
+import { withResilience } from '../utils/resilience.js';
 
 /**
  * API Control Agent (Refactored to Executor Only)
  * Executes API calls selected by the API Selection Agent
- * Handles caching, token resolution, and parallel execution
+ * Handles caching, token resolution, parallel execution, and resilience
  */
 export class APIControlAgent {
   
@@ -12,17 +13,40 @@ export class APIControlAgent {
   static CACHE_TTL = 5 * 60 * 1000; // 5 minutes
   
   /**
-   * Generate cache key based on dataType and entities
-   * Example: "trending-TON", "price-BTC", "trending-Solana"
+   * Generate cache key based on call details (dataType, endpoint, params, entities)
+   * This creates a unique, collision-resistant cache key
    */
-  static generateCacheKey(dataType, entities) {
-    const tokens = entities.tokens?.join(',') || '';
-    const blockchains = entities.blockchains?.join(',') || '';
-    const other = entities.other?.join(',') || '';
+  static generateCacheKey(call) {
+    // Base key: dataType + endpoint + params
+    const base = [
+      call.dataType || 'unknown',
+      call.endpoint || '',
+      JSON.stringify(call.params || {})
+    ].join('|');
+
+    // Entity signature (optional, but makes key more specific)
+    const entities = call.entities || {};
+    const entitySignature = JSON.stringify({
+      t: (entities.tokens || []).sort(),
+      b: (entities.blockchains || []).sort(),
+      o: (entities.other || []).sort()
+    });
+
+    const fullKey = entitySignature ? `${base}|${entitySignature}` : base;
     
-    // Create unique key
-    const parts = [dataType, blockchains, tokens, other].filter(Boolean);
-    return parts.join('-');
+    // Hash long keys to keep them manageable
+    if (fullKey.length > 200) {
+      // Simple hash for logging purposes
+      let hash = 0;
+      for (let i = 0; i < fullKey.length; i++) {
+        const char = fullKey.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return `${call.dataType}_${Math.abs(hash).toString(16)}`;
+    }
+
+    return fullKey;
   }
   
   /**
@@ -77,12 +101,12 @@ export class APIControlAgent {
     
     const promises = apiCalls.map(async (call) => {
       try {
-        // 🧠 STEP 1: Check cache first
-        const cacheKey = this.generateCacheKey(call.dataType, call.entities);
+        // 🧠 STEP 1: Check cache first with new collision-resistant key
+        const cacheKey = this.generateCacheKey(call);
         const cachedData = this.getCachedData(cacheKey);
         
         if (cachedData) {
-          console.log(`⚡ [API Control Agent] Using cached data for ${call.dataType}`);
+          console.log(`⚡ [API Control Agent] Cache hit: ${call.dataType} (key: ${cacheKey.slice(0, 50)}...)`);
           return {
             dataType: call.dataType,
             data: cachedData,
@@ -95,12 +119,21 @@ export class APIControlAgent {
         const enhancedParams = await TokenResolverAgent.enhanceParams(
           call.endpoint, 
           call.params, 
-          call.entities
+          call.entities || {}
         );
         
-        // 🌐 STEP 3: Make the API call with enhanced params
-        console.log(`📡 [API Control Agent] Fetching fresh data for ${call.dataType}`);
-        const result = await fetchFunction(call.endpoint, enhancedParams);
+        // 🌐 STEP 3: Make the API call with enhanced params + resilience
+        console.log(`📡 [API Control Agent] Fetching: ${call.dataType} from ${call.endpoint}`);
+        
+        const result = await withResilience(
+          () => fetchFunction(call.endpoint, enhancedParams),
+          call.endpoint,
+          {
+            timeoutMs: 5000,
+            maxRetries: 2,
+            useCircuitBreaker: true
+          }
+        );
         
         // 💾 STEP 4: Store in cache
         this.setCachedData(cacheKey, result);

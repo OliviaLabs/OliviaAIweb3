@@ -1,34 +1,27 @@
 import PropTypes from 'prop-types';
-import { createPortal } from 'react-dom';
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import useFloatToTop from '../../hooks/useFloatToTop';
 
 const FloatingPriceChange1hBubble = ({ isOpen, onClose, title = '1h Change', change = 0, tokenName = '', addParticlesToSwarm }) => {
   const bubbleId = useState(() => `price1h-${Date.now()}-${Math.random()}`)[0];
-  const [position, setPosition] = useState(() => ({
-    x: Math.random() * (window.innerWidth - 300) + 100,
-    y: window.innerHeight - Math.random() * 300 - 100
-  }));
+  const delayMs = useState(() => 80 + Math.random() * 100)[0]; // Stable random delay
+  const [position, setPosition] = useState(() => {
+    const startX = Math.random() * (window.innerWidth - 300) + 100;
+    const startY = window.innerHeight - Math.random() * 300 - 100; // Random between bottom 100-400px
+    return { x: startX, y: startY };
+  });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isExpanded, setIsExpanded] = useState(false);
   const [lastClickTime, setLastClickTime] = useState(0);
+  const containerRef = useRef(null);
 
-  useFloatToTop({
-    id: bubbleId,
-    isOpen,
-    isDragging,
-    isExpanded,
-    position,
-    setPosition,
-    topBarrier: 20,
-    speed: 0.2,
-    delayMs: 0,
-    bubbleWidth: 140,
-    gap: 4,
-    margin: 8
-  });
+  // Remove auto-floating
+  useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
+
+  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs, bubbleWidth: 140, gap: 4, margin: 8 });
 
   const createPopEffect = () => {
     const bubbleSize = isExpanded ? 280 : 140;
@@ -96,20 +89,18 @@ const FloatingPriceChange1hBubble = ({ isOpen, onClose, title = '1h Change', cha
   const Icon = isPositive ? TrendingUp : TrendingDown;
   
   const bubble = (
-    <div 
-      className={`fixed pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isDragging ? '' : 'transition-all duration-150 ease-in-out'}`}
-      style={{ 
+    <div
+      ref={containerRef}
+      className={`absolute z-50 pointer-events-auto transition-all duration-1000 ease-in-out ${
+        isExpanded ? 'w-48 h-48' : 'w-36 h-36'
+      } ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} select-none`}
+      style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        width: `${bubbleSize}px`,
-        height: `${bubbleSize}px`,
-        zIndex: 2147483638,
-        willChange: isDragging ? 'transform' : 'auto'
+        transform: isDragging ? 'scale(1.05)' : 'scale(1)',
       }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
-      data-bubble="price-1h"
-      data-bubble-id={bubbleId}
     >
       <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-0 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: `0 0 30px ${scoreColor}, inset 0 0 20px ${scoreColor}33`}}>
         <div className="absolute inset-0 rounded-full border-0/60 animate-pulse" style={{boxShadow: `0 0 25px ${scoreColor}, 0 0 50px ${scoreColor}4d`}}></div>
@@ -133,12 +124,12 @@ const FloatingPriceChange1hBubble = ({ isOpen, onClose, title = '1h Change', cha
                 </div>
                 <div className="text-[12px] font-bold" style={{color: scoreColor}}>{tokenName}</div>
               </div>
-              <div className="flex-1 px-4 overflow-y-auto flex items-center justify-center">
-                <div className="text-center space-y-3">
-                  <div className="text-[28px] font-bold" style={{color: scoreColor}}>
+              <div className="flex-1 px-4 flex items-center justify-center">
+                <div className="text-center space-y-2">
+                  <div className="text-[20px] font-bold" style={{color: scoreColor}}>
                     {isPositive ? '+' : ''}{change.toFixed(2)}%
                   </div>
-                  <p className="text-[16px] text-white/90 font-semibold">Last 1 hour</p>
+                  <p className="text-[11px] text-white/90 font-semibold">Last 1 hour</p>
                 </div>
               </div>
             </div>
@@ -147,7 +138,7 @@ const FloatingPriceChange1hBubble = ({ isOpen, onClose, title = '1h Change', cha
       </div>
     </div>
   );
-  return createPortal(bubble, document.body);
+  return bubble;
 };
 
 FloatingPriceChange1hBubble.propTypes = {

@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { createPortal } from 'react-dom';
+
 import React, { useState, useEffect, useRef } from 'react';
 import useFloatToTop from '../../hooks/useFloatToTop';
 
@@ -17,8 +17,10 @@ const FloatingBinanceBubble = ({
   const bubbleId = useState(() => `binance-${Date.now()}-${Math.random()}`)[0]; // Unique ID for this bubble instance
   const [position, setPosition] = useState(() => {
     // Spread bubbles across the bottom third of screen
-    const startX = Math.random() * (window.innerWidth - 300) + 100;
-    const startY = window.innerHeight - Math.random() * 300 - 100; // Random between bottom 100-400px
+    // Use container bounds if available (HARD WALL for desktop columns)
+    const bounds = window.bubbleContainerBounds || { width: window.innerWidth, height: window.innerHeight };
+    const startX = Math.random() * (bounds.width - 300) + 100;
+    const startY = bounds.height - Math.random() * 300 - 100; // Random between bottom 100-400px
     return { x: startX, y: startY };
   });
   const [isDragging, setIsDragging] = useState(false);
@@ -84,10 +86,18 @@ const FloatingBinanceBubble = ({
   const handleMouseMove = (e) => {
     if (!isDragging) return;
     
-    setPosition({
-      x: e.clientX - dragOffset.x,
-      y: e.clientY - dragOffset.y
-    });
+    const bounds = window.bubbleContainerBounds || { width: window.innerWidth, height: window.innerHeight, left: 0, top: 0 };
+    const bubbleSize = isExpanded ? 192 : 144; // w-48 h-48 : w-36 h-36
+    
+    // Calculate new position relative to container
+    let newX = e.clientX - dragOffset.x - (bounds.left || 0);
+    let newY = e.clientY - dragOffset.y - (bounds.top || 0);
+    
+    // HARD WALL: Clamp position within container bounds
+    newX = Math.max(0, Math.min(newX, bounds.width - bubbleSize));
+    newY = Math.max(0, Math.min(newY, bounds.height - bubbleSize));
+    
+    setPosition({ x: newX, y: newY });
   };
 
   const handleMouseUp = () => {
@@ -144,7 +154,7 @@ const FloatingBinanceBubble = ({
   const bubbleContent = (
     <div
       ref={containerRef}
-      className={`fixed z-50 transition-all duration-300 ease-out ${
+      className={`absolute z-50 pointer-events-auto transition-all duration-1000 ease-in-out ${
         isExpanded ? 'w-48 h-48' : 'w-36 h-36'
       } ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} select-none`}
       style={{
@@ -184,8 +194,8 @@ const FloatingBinanceBubble = ({
           <span className="text-black font-bold text-sm hidden">B</span>
         </div>
 
-        {/* Spherical Content Area - Centered */}
-        <div className="absolute inset-8 flex items-center justify-center">
+        {/* Spherical Content Area - Centered with proper layout */}
+        <div className="absolute inset-8 flex flex-col items-center justify-center">
           {loading ? (
             <div className="text-center">
               <div className="text-white/80 text-xs font-medium">Loading...</div>
@@ -229,7 +239,7 @@ const FloatingBinanceBubble = ({
           )}
 
           {/* Footer */}
-          <div className="mt-auto text-center">
+          <div className="mt-auto text-center pt-2">
             <div className="text-yellow-400/80 text-xs font-medium">Binance Exchange</div>
             {originalQuery && (
               <div className="text-white/50 text-xs mt-1 truncate">"{originalQuery}"</div>
@@ -243,7 +253,7 @@ const FloatingBinanceBubble = ({
     </div>
   );
 
-  return createPortal(bubbleContent, document.body);
+  return bubbleContent;
 };
 
 FloatingBinanceBubble.propTypes = {

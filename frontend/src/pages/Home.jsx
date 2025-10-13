@@ -45,6 +45,48 @@ export default function Home() {
   const messagesEndRef = useRef(null)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const [particles, setParticles] = useState([])
+  const bubbleContainerRef = useRef(null)
+  const [containerBounds, setContainerBounds] = useState(null)
+  
+  // Set global container bounds for bubbles (HARD WALL - desktop only)
+  useEffect(() => {
+    const updateContainerBounds = () => {
+      // Only set bounds on desktop (lg breakpoint = 1024px)
+      const isDesktop = window.innerWidth >= 1024;
+      
+      if (bubbleContainerRef.current && isDesktop) {
+        const rect = bubbleContainerRef.current.getBoundingClientRect();
+        const bounds = {
+          width: rect.width,
+          height: rect.height,
+          left: rect.left,
+          top: rect.top
+        };
+        setContainerBounds(bounds);
+        // Set global for bubbles to access
+        window.bubbleContainerBounds = bounds;
+        console.log('🔒 [Bubble Container] Hard wall set (desktop):', bounds);
+      } else {
+        // Clear bounds on mobile
+        delete window.bubbleContainerBounds;
+        setContainerBounds(null);
+      }
+    };
+
+    updateContainerBounds();
+    window.addEventListener('resize', updateContainerBounds);
+    
+    const observer = new ResizeObserver(updateContainerBounds);
+    if (bubbleContainerRef.current) {
+      observer.observe(bubbleContainerRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateContainerBounds);
+      observer.disconnect();
+      delete window.bubbleContainerBounds;
+    };
+  }, []);
   
   // Use the shared input context
   const { showInput, setShowInput, userInput, setUserInput, inputRef, handleSendMessageRef, addInlineBubble } = useHomeInput()
@@ -3979,11 +4021,13 @@ export default function Home() {
   useEffect(() => {
     // Prevent double initialization (React StrictMode runs useEffect twice)
     if (hasInitialized.current) {
-      log('⚠️ Already initialized, skipping duplicate');
+      console.warn('⚠️ [Home.jsx] Already initialized, skipping duplicate - THIS SHOULD NOT HAPPEN!');
+      console.trace('⚠️ Stack trace for duplicate init:');
       return;
     }
     
-    log('🚀 Home.jsx: Auto-initializing chat with trending data');
+    console.log('🚀 [Home.jsx] FIRST INIT - Auto-initializing chat with trending data');
+    console.log('🔍 [Home.jsx] Component instance ID:', Math.random().toString(36).substr(2, 9));
     hasInitialized.current = true;
     
     setIsLoading(true) // Show loading while fetching trending data
@@ -4544,11 +4588,11 @@ export default function Home() {
 
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-black overflow-hidden">
+    <div className="relative flex flex-col h-full bg-black overflow-visible lg:overflow-hidden">
       
       {/* WebSocket Status Debug (bottom-right) - Development Only */}
       {import.meta.env.VITE_NODE === 'development' && (
-        <div className={`fixed bottom-4 right-4 text-white p-2 text-xs z-50 rounded ${
+        <div className={`absolute bottom-4 right-4 text-white p-2 text-xs z-50 rounded ${
           isConnected ? 'bg-green-600' : isConnecting ? 'bg-yellow-600' : 'bg-red-600'
         }`}>
           {isConnected ? '🟢 AI Connected' : 
@@ -4572,7 +4616,7 @@ export default function Home() {
 
       
       {/* Animated Particles Background */}
-      <div className="fixed inset-0 pointer-events-none z-0">
+      <div className="absolute inset-0 pointer-events-none z-0">
         {particles.map(particle => (
           <div
             key={particle.id}
@@ -4589,8 +4633,8 @@ export default function Home() {
         ))}
       </div>
 
-      {/* Conversation Display - Properly centered with safe area */}
-      <div className="flex-1 flex items-center justify-center px-4 relative z-10 pt-8 pb-36">
+      {/* Conversation Display - HIDDEN - Only show chat in bottom nav */}
+      <div className="hidden flex-1 flex items-center justify-center px-4 relative z-10 pt-8 pb-36">
         <div className="text-center max-w-xl w-full">
             
             {/* Chat Messages - Scroll up and fade older messages */}
@@ -4681,6 +4725,9 @@ export default function Home() {
             {/* AI Input is now part of BottomNavigation component */}
           </div>
         </div>
+
+      {/* BUBBLE CONTAINER - Hard boundaries for desktop column only */}
+      <div ref={bubbleContainerRef} className="absolute inset-0 lg:overflow-hidden pointer-events-none" style={{ isolation: 'isolate', zIndex: 100 }}>
       {/* Render all Lurky bubble instances - only if plugin enabled */}
       {isPluginEnabled('lurky') && lurkyBubbles.map(bubble => (
         <FloatingLurkyBubble
@@ -4987,6 +5034,8 @@ export default function Home() {
             addParticlesToSwarm={addParticlesToSwarm}
           />
         ))}
+      </div>
+      {/* End of BUBBLE CONTAINER */}
       
       {/* In-App Browser */}
       <InAppBrowser

@@ -57,26 +57,6 @@ const Plugins = () => {
     setPluginCounts(getPluginCounts());
   };
 
-  const handlePlanSelect = (plan) => {
-    setSelectedPlan(plan);
-    // Save selected plan to localStorage
-    localStorage.setItem('olivia-selected-plan', plan);
-    
-    // If switching to a plan with fewer plugins, disable excess plugins
-    const maxPlugins = plan === 'free' ? 2 : plan === 'starter' ? 4 : plan === 'pro' ? 8 : Infinity;
-    const currentEnabled = Object.entries(pluginStates).filter(([_, enabled]) => enabled);
-    
-    if (currentEnabled.length > maxPlugins && maxPlugins !== Infinity) {
-      // Disable excess plugins (keep the first N enabled)
-      const pluginsToDisable = currentEnabled.slice(maxPlugins);
-      pluginsToDisable.forEach(([pluginId, _]) => {
-        togglePlugin(pluginId);
-      });
-      setPluginStates(getPluginStates());
-      setPluginCounts(getPluginCounts());
-    }
-  };
-
   const handleEnableAll = () => {
     enableAllPlugins();
     setPluginStates(getPluginStates());
@@ -95,9 +75,9 @@ const Plugins = () => {
   );
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-black overflow-x-hidden">
+    <div className="flex flex-col h-full bg-black overflow-hidden">
       {/* Content */}
-      <div className="h-screen text-white overflow-x-hidden flex flex-col relative z-10">
+      <div className="flex-1 text-white overflow-hidden flex flex-col relative z-10">
       {/* Fixed Header */}
       <div className="flex-shrink-0 bg-black/95 backdrop-blur-sm border-b border-white/20 z-10 px-4 py-3">
         <div className="flex items-center justify-between">
@@ -123,35 +103,6 @@ const Plugins = () => {
           <p className="text-sm text-white/70">
             Enable plugins to give Olivia AI access to real-time data. You'll see her thoughts displayed as bubbles with the data she's using.
           </p>
-        </div>
-
-        {/* Simple Plan Selection */}
-        <div className="mb-6">
-          <h3 className="text-sm font-semibold text-white mb-3">Choose Your Plan</h3>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { id: 'free', name: 'Free', price: '$0', plugins: '2 Plugins' },
-              { id: 'starter', name: 'Starter', price: '$5', plugins: '4 Plugins' },
-              { id: 'pro', name: 'Pro', price: '$10', plugins: '8 Plugins' },
-              { id: 'unlimited', name: 'Unlimited', price: '$15', plugins: 'All Plugins' }
-            ].map(plan => (
-              <div
-                key={plan.id}
-                className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                  selectedPlan === plan.id
-                    ? 'bg-white/10 border-white/30'
-                    : 'bg-white/5 border-white/10 hover:bg-white/10'
-                }`}
-                onClick={() => handlePlanSelect(plan.id)}
-              >
-                <div className="text-center">
-                  <h4 className="font-semibold text-white text-sm">{plan.name}</h4>
-                  <div className="text-lg font-bold text-white mt-1">{plan.price}</div>
-                  <div className="text-xs text-white/70 mt-1">{plan.plugins}</div>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* Plugin Stats */}

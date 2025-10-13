@@ -47,6 +47,8 @@ export const config = {
   changeNowApiKey: process.env.CHANGENOW_API_KEY,
   coinStatsApiKey: process.env.COINSTATS_API_KEY,
   lurkyApiKey: process.env.LURKY_API_KEY,
+  braveSearchApiKey: process.env.BRAVE_SEARCH_API_KEY,
+  perplexityApiKey: process.env.PERPLEXITY_API_KEY,
   lurkyApiBaseUrl: process.env.LURKY_API_BASE_URL || 'https://api.lurky.app',
   okxApiKey: process.env.OKX_API_KEY,
   oliviaLabsApiKey: process.env.OLIVIA_LABS_API_KEY,

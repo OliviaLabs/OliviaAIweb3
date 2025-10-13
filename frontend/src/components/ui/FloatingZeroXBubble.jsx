@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { createPortal } from 'react-dom';
+
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { log, error as logError } from '../../utils/logger.js';
@@ -135,7 +135,7 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
   
   const bubble = (
     <div 
-      className={`fixed pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+      className={`absolute pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
       style={{ 
         left: `${position.x}px`, 
         top: `${position.y}px`,
@@ -340,7 +340,7 @@ const FloatingZeroXBubble = ({ isOpen, onClose, title = '0x Protocol', content =
       </div>
     </div>
   );
-  return createPortal(bubble, document.body);
+  return bubble;
 };
 
 FloatingZeroXBubble.propTypes = {

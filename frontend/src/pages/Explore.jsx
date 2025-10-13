@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import BubbleMapSection from '../components/features/explore/BubbleMapSection'
 import TradingInfluencersSection from '../components/features/explore/TradingInfluencersSection'
 import { useHomeInput } from '../contexts/HomeInputContext'
@@ -9,36 +9,36 @@ export default function Explore() {
   const [tokenTweets, setTokenTweets] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [loadingToken, setLoadingToken] = useState(null);
-  const { setShowInput, userInput, setUserInput, handleSendMessageRef } = useHomeInput();
+  
+  // Get what we need from context - DON'T get userInput to avoid re-renders!
+  const { setShowInput, setUserInput, handleSendMessageRef, inputRef } = useHomeInput();
   const { sendMessage } = useWebSocket();
 
-  const handleTokenClick = (tokenSymbol, tweets) => {
-    // Show loading immediately when bubble is clicked
+  // Stable function - won't recreate on re-renders
+  const handleTokenClick = useCallback((tokenSymbol, tweets) => {
     if (tweets === 'loading') {
       setLoadingToken(tokenSymbol);
       setSelectedToken(tokenSymbol);
       setIsSearching(true);
       setTokenTweets([]);
     } else {
-      // Results are ready
       setLoadingToken(null);
       setSelectedToken(tokenSymbol);
       setTokenTweets(tweets);
       setIsSearching(false);
     }
-    // No auto-scroll - user can freely scroll up or down
-  };
+  }, []);
 
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     setSelectedToken(null);
     setTokenTweets([]);
     setIsSearching(false);
     setLoadingToken(null);
-  };
+  }, []);
 
   // Provide a send handler for BottomNavigation on Explore that sends via global AI
   const handleSendMessage = useCallback(async () => {
-    const text = (userInput || '').trim();
+    const text = (inputRef?.current?.value || '').trim();
     if (!text) return;
     // Send through global multi-agent service; inline bubbles are mirrored by BottomNavigation
     try {
@@ -47,7 +47,7 @@ export default function Explore() {
       console.error('Explore sendMessage failed:', err);
     }
     setUserInput('');
-  }, [userInput, setUserInput, sendMessage]);
+  }, [inputRef, setUserInput, sendMessage]); // Stable - inputRef is stable!
 
   useEffect(() => {
     // Show the input on Explore and wire the send ref
@@ -56,11 +56,16 @@ export default function Explore() {
     return () => {
       // leave input visibility decisions to routing; do not clear ref here to avoid race on nav
     };
-  }, [setShowInput, handleSendMessageRef, handleSendMessage]);
+  }, [setShowInput, handleSendMessageRef, handleSendMessage]); // handleSendMessage is now stable (uses ref for input)
 
   return (
     <div className="flex flex-col gap-6 relative pb-10">
-      <BubbleMapSection onTokenClick={handleTokenClick} loadingToken={loadingToken} />
+      <BubbleMapSection 
+        onTokenClick={handleTokenClick} 
+        loadingToken={loadingToken}
+        setUserInput={setUserInput}
+        handleSendMessageRef={handleSendMessageRef}
+      />
       <TradingInfluencersSection 
         selectedToken={selectedToken}
         tokenTweets={tokenTweets}

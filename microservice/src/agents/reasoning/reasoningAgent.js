@@ -51,6 +51,68 @@ export class ReasoningAgent {
     }
     
     try {
+      // Define structured intent extraction tool
+      const intentTool = {
+        type: "function",
+        function: {
+          name: "extract_intent",
+          description: "Extracts user intent, required data types, and entities from the user message with full conversation context",
+          parameters: {
+            type: "object",
+            properties: {
+              user_wants: {
+                type: "string",
+                description: "In your own words, what does the user actually want?"
+              },
+              to_answer_need: {
+                type: "array",
+                items: { type: "string" },
+                description: "List of data types needed (price, volume, marketCap, trending, news, sentiment, portfolio, swapQuote, blockchainData, kols)"
+              },
+              entities_mentioned: {
+                type: "object",
+                properties: {
+                  tokens: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Any tokens/coins mentioned"
+                  },
+                  blockchains: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Any blockchains/chains mentioned"
+                  },
+                  other: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Any other relevant entities"
+                  }
+                },
+                required: ["tokens", "blockchains", "other"]
+              },
+              urgency: {
+                type: "string",
+                enum: ["high", "medium", "low"],
+                description: "Is this time-sensitive?"
+              },
+              reasoning: {
+                type: "string",
+                description: "Why you chose these data types"
+              },
+              is_follow_up: {
+                type: "boolean",
+                description: "Is this a follow-up to the previous answer?"
+              },
+              continuation_context: {
+                type: "string",
+                description: "If follow-up: what was the previous topic/entities they were asking about?"
+              }
+            },
+            required: ["user_wants", "to_answer_need", "entities_mentioned", "urgency", "reasoning"]
+          }
+        }
+      };
+
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
@@ -101,21 +163,6 @@ AVAILABLE DATA TYPES:
 
 STRATEGY: Request ALL data types that could provide valuable insights, not just the obvious ones. Be comprehensive in your data requests to ensure the AI has maximum context for analysis.
 
-RESPOND WITH JSON:
-{
-  "user_wants": "<In your own words, what does the user actually want?>",
-  "to_answer_need": ["<list of data types needed>"],
-  "entities_mentioned": {
-    "tokens": ["<any tokens/coins mentioned>"],
-    "blockchains": ["<any chains mentioned>"],
-    "other": ["<anything else relevant>"]
-  },
-  "urgency": "<high/medium/low - is this time-sensitive?>",
-  "reasoning": "<Why you chose these data types>",
-  "is_follow_up": <true/false - is this a follow-up to the previous answer?>,
-  "continuation_context": "<If follow-up: what was the previous topic/entities they were asking about?>"
-}
-
 Be intelligent. Understand nuance. Track conversation flow. Recognize follow-ups.`
           },
           ...conversationHistory.map(msg => ({
@@ -127,17 +174,50 @@ Be intelligent. Understand nuance. Track conversation flow. Recognize follow-ups
             content: userMessage
           }
         ],
+        tools: [intentTool],
+        tool_choice: "required",
         temperature: 0.3,
         max_tokens: 500
       });
 
-      const intentAnalysis = JSON.parse(response.choices[0].message.content);
+      const message = response.choices[0].message;
+      const toolCall = message.tool_calls?.[0];
       
-      console.log('🧠 [Reasoning Agent] Understanding:', {
+      if (!toolCall) {
+        console.warn('🧠 [Reasoning Agent] No tool call returned, using fallback');
+        return {
+          user_wants: 'General crypto information',
+          to_answer_need: ['price', 'trending'],
+          entities_mentioned: { tokens: [], blockchains: [], other: [] },
+          urgency: 'medium',
+          reasoning: 'Fallback - no tool call returned',
+          is_follow_up: false,
+          continuation_context: ''
+        };
+      }
+
+      const intentAnalysis = JSON.parse(toolCall.function.arguments);
+      
+      // Ensure entities_mentioned has all required fields
+      if (!intentAnalysis.entities_mentioned) {
+        intentAnalysis.entities_mentioned = { tokens: [], blockchains: [], other: [] };
+      }
+      if (!intentAnalysis.entities_mentioned.tokens) {
+        intentAnalysis.entities_mentioned.tokens = [];
+      }
+      if (!intentAnalysis.entities_mentioned.blockchains) {
+        intentAnalysis.entities_mentioned.blockchains = [];
+      }
+      if (!intentAnalysis.entities_mentioned.other) {
+        intentAnalysis.entities_mentioned.other = [];
+      }
+      
+      console.log('🧠 [Reasoning Agent] tool_call: extract_intent', {
         userWants: intentAnalysis.user_wants,
         needsData: intentAnalysis.to_answer_need,
         entities: intentAnalysis.entities_mentioned,
-        urgency: intentAnalysis.urgency
+        urgency: intentAnalysis.urgency,
+        isFollowUp: intentAnalysis.is_follow_up || false
       });
       
       return intentAnalysis;
@@ -145,13 +225,15 @@ Be intelligent. Understand nuance. Track conversation flow. Recognize follow-ups
     } catch (error) {
       console.error('🧠 [Reasoning Agent] Error:', error);
       
-      // Fallback: basic understanding
+      // Safe fallback: basic understanding
       return {
         user_wants: 'General crypto information',
         to_answer_need: ['price', 'trending'],
-        entities_mentioned: {},
+        entities_mentioned: { tokens: [], blockchains: [], other: [] },
         urgency: 'medium',
-        reasoning: 'Fallback - could not parse intent'
+        reasoning: 'Fallback - error in intent extraction',
+        is_follow_up: false,
+        continuation_context: ''
       };
     }
   }

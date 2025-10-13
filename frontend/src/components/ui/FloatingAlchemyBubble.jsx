@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
+
 import PropTypes from 'prop-types';
 import { Coins, Database, Loader } from 'lucide-react';
 import { useAccount } from 'wagmi';
@@ -377,7 +377,7 @@ const FloatingAlchemyBubble = ({
   const bubble = (
     <div 
       ref={bubbleRef}
-      className={`fixed pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isDragging ? '' : 'transition-all duration-150 ease-in-out'}`}
+      className={`absolute pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isDragging ? '' : 'transition-all duration-1000 ease-in-out'}`}
       style={{ 
         left: `${position.x}px`,
         top: `${position.y}px`,
@@ -485,7 +485,7 @@ const FloatingAlchemyBubble = ({
       </div>
     </div>
   );
-  return createPortal(bubble, document.body);
+  return bubble;
 };
 
 FloatingAlchemyBubble.propTypes = {

@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { createPortal } from 'react-dom';
+
 import React, { useState, useEffect } from 'react';
 import useFloatToTop from '../../hooks/useFloatToTop';
 import ReactMarkdown from 'react-markdown';
@@ -79,7 +79,7 @@ const FloatingHederaBubble = ({ isOpen, onClose, title = 'Hedera', content = '',
   
   const bubble = (
     <div 
-      className={`fixed pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isDragging ? '' : 'transition-all duration-150 ease-in-out'}`}
+      className={`absolute pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isDragging ? '' : 'transition-all duration-1000 ease-in-out'}`}
       style={{ 
         left: `${position.x}px`,
         top: `${position.y}px`,
@@ -182,7 +182,7 @@ const FloatingHederaBubble = ({ isOpen, onClose, title = 'Hedera', content = '',
       </div>
     </div>
   );
-  return createPortal(bubble, document.body);
+  return bubble;
 };
 
 FloatingHederaBubble.propTypes = {

@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, memo } from "react";
 import PropTypes from "prop-types";
 import * as d3 from "d3";
 
-export default function FloatingBubbles({ data, height = 500, onBubbleClick, timeframe = '24h', loadingToken = null }) {
+function FloatingBubbles({ data, height = 500, onBubbleClick, timeframe = '24h', loadingToken = null }) {
   const svgRef = useRef(null);
   const containerRef = useRef(null);
   const [hoveredBubble, setHoveredBubble] = useState(null);
@@ -10,22 +10,38 @@ export default function FloatingBubbles({ data, height = 500, onBubbleClick, tim
   const simulationRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
-  // Update dimensions on resize
+  // Update dimensions on resize - with stability check
   useEffect(() => {
     if (!containerRef.current) return;
 
     const updateDimensions = () => {
       if (containerRef.current) {
-        setDimensions({
-          width: containerRef.current.clientWidth,
-          height: height
+        const newWidth = containerRef.current.clientWidth;
+        const newHeight = height;
+        
+        // Only update if dimensions changed significantly (more than 5px)
+        setDimensions(prev => {
+          if (Math.abs(prev.width - newWidth) > 5 || Math.abs(prev.height - newHeight) > 5) {
+            return { width: newWidth, height: newHeight };
+          }
+          return prev; // Keep previous dimensions if change is negligible
         });
       }
     };
 
-    updateDimensions();
-    window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
+    // Debounce dimension updates
+    let timeoutId;
+    const debouncedUpdate = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(updateDimensions, 100);
+    };
+
+    updateDimensions(); // Initial
+    window.addEventListener('resize', debouncedUpdate);
+    return () => {
+      window.removeEventListener('resize', debouncedUpdate);
+      clearTimeout(timeoutId);
+    };
   }, [height]);
 
   // Apply visual feedback when a bubble is loading
@@ -287,7 +303,7 @@ export default function FloatingBubbles({ data, height = 500, onBubbleClick, tim
       }
       d3.select(svgRef.current).selectAll("*").remove();
     };
-  }, [data, dimensions, height, onBubbleClick, timeframe]);
+  }, [data, dimensions, height, timeframe]); // Removed onBubbleClick - don't reset simulation when callback changes
 
   return (
     <div
@@ -350,3 +366,6 @@ FloatingBubbles.propTypes = {
   timeframe: PropTypes.string,
   loadingToken: PropTypes.string,
 };
+
+// Wrap in memo to prevent re-renders when parent re-renders but props haven't changed
+export default memo(FloatingBubbles);

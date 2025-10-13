@@ -144,41 +144,85 @@ if (typeof window !== 'undefined') {
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   
   if (isMobile) {
-    // Handle page visibility changes (when user returns from wallet app)
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) {
-        // User returned to the page - check connection status
-        setTimeout(() => {
-          // Force a connection check
-          if (window.appKitModal && window.appKitModal.getIsConnected) {
-            window.appKitModal.getIsConnected().then(isConnected => {
-              if (isConnected) {
-                // Successfully connected - close modal if open
-                if (window.appKitModal.getIsOpen && window.appKitModal.getIsOpen()) {
-                  window.appKitModal.close();
-                }
-              }
-            }).catch(console.error);
-          }
-        }, 1000); // Give wallet time to update connection status
-      }
-    });
+    // Track if we've already handled a mobile return (prevents multiple fires)
+    let mobileReturnHandled = false;
+    let visibilityCheckTimer = null;
     
-    // Handle focus events (alternative to visibility change)
-    window.addEventListener('focus', () => {
-      setTimeout(() => {
-        // Check if we should refresh connection status
-        if (window.appKitModal) {
-          // Trigger a refresh of the modal state
-          try {
-            window.appKitModal.subscribeState(() => {
-              // State change handler - will update UI automatically
-            });
-          } catch (error) {
-            console.log('Modal state subscription not available');
-          }
+    // Handle page visibility changes (when user returns from wallet app)
+    const handleVisibilityChange = () => {
+      // Only proceed if:
+      // 1. Page is now visible (not hidden)
+      // 2. We haven't already handled this return
+      // 3. User is on login page
+      if (
+        !document.hidden && 
+        !mobileReturnHandled &&
+        (window.location.pathname === '/login' || window.location.pathname === '/')
+      ) {
+        console.log('📱 Mobile: User returned from wallet app');
+        
+        // Clear any existing timer
+        if (visibilityCheckTimer) {
+          clearTimeout(visibilityCheckTimer);
         }
-      }, 500);
+        
+        // Wait for wallet connection to stabilize
+        visibilityCheckTimer = setTimeout(() => {
+          // Re-check visibility (user might have left again)
+          if (document.hidden) {
+            console.log('📱 Mobile: User left again, aborting');
+            return;
+          }
+          
+          // Check connection status
+          if (window.appKitModal && window.appKitModal.getIsConnected) {
+            window.appKitModal.getIsConnected()
+              .then(isConnected => {
+                console.log('📱 Mobile: Connection status:', isConnected);
+                
+                if (isConnected) {
+                  // Mark as handled (prevents duplicate runs)
+                  mobileReturnHandled = true;
+                  
+                  // Close modal if open
+                  if (window.appKitModal.getIsOpen && window.appKitModal.getIsOpen()) {
+                    window.appKitModal.close();
+                    console.log('📱 Mobile: Modal closed');
+                  }
+                  
+                  // Dispatch custom event for Login.jsx to handle
+                  // (This lets React handle navigation, cleaner than direct window.location)
+                  window.dispatchEvent(new CustomEvent('wallet-mobile-return', {
+                    detail: { isConnected: true, timestamp: Date.now() }
+                  }));
+                  
+                  console.log('📱 Mobile: Dispatched wallet-mobile-return event');
+                }
+              })
+              .catch(err => {
+                console.error('📱 Mobile: Connection check failed:', err);
+              });
+          }
+        }, 1500); // Wait 1.5s for wallet to fully connect
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Reset handler when user navigates away from login
+    const resetMobileHandler = () => {
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+        mobileReturnHandled = false;
+        console.log('📱 Mobile: Reset handler (left login page)');
+      }
+    };
+    
+    // Listen for navigation events
+    window.addEventListener('popstate', resetMobileHandler);
+    
+    // Also reset on focus (in case navigation detection misses)
+    window.addEventListener('focus', () => {
+      setTimeout(resetMobileHandler, 100);
     });
     
     // Prevent zoom on modal open

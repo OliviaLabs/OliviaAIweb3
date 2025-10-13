@@ -2,11 +2,12 @@
 import { useAuth } from '../contexts/AuthContext';
 import { useInternetIdentity } from '../contexts/InternetIdentityContext';
 import Button from '../components/ui/Button';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAccount, useDisconnect } from 'wagmi';
 import { Wallet, Shield, UserCheck, LogOut } from 'lucide-react';
 import { useAppKit } from '@reown/appkit/react';
+
 export default function Login() {
   // Authentication context
   const { setUserAuthenticated, setUserData, loginAsGuest, setIsGuestUser, userAuthenticated, logout } = useAuth();
@@ -15,6 +16,10 @@ export default function Login() {
   const { disconnect } = useDisconnect();
   const navigate = useNavigate();
   const { open } = useAppKit();
+  
+  // Use ref to track if we've already initiated wallet login (prevents loops)
+  const walletLoginAttemptedRef = useRef(false);
+  const navigationTimerRef = useRef(null);
 
 
   useEffect(() => {
@@ -68,34 +73,81 @@ export default function Login() {
       setUserAuthenticated(true);
       navigate('/home');
     }
-  }, [isAuthenticated, principal, iiLoading, setUserData, setIsGuestUser, setUserAuthenticated, navigate]);
+  }, [isAuthenticated, principal, iiLoading]);
 
-  // Watch for Web3 wallet connection and auto-login
+  // ROBUST WALLET AUTO-LOGIN (Mobile-Safe)
   useEffect(() => {
-    // Check if wallet is connected
-    if (isConnected && address) {
-      console.log('Web3 wallet connected:', address);
-      
-      // Set user data
-      const userData = {
-        user_id: address,
-        first_name: `${address.slice(0, 6)}...${address.slice(-4)}`,
-        last_name: '',
-        email: '',
-        auth_method: 'web3',
-        wallet_address: address,
-        connector: connector?.name,
-        is_guest: false
-      };
-      
-      setUserData(userData);
-      setIsGuestUser(false);
-      setUserAuthenticated(true);
-      
-      // Navigate after state is set
-      navigate('/home');
+    // Guard: Only proceed if wallet connected, has address, user NOT authenticated, and haven't tried yet
+    if (!isConnected || !address || userAuthenticated || walletLoginAttemptedRef.current) {
+      return;
     }
-  }, [isConnected, address]); // ONLY watch connection state - NO SETTERS
+
+    console.log('📱 Wallet detected:', address.slice(0, 6) + '...' + address.slice(-4), 'connector:', connector?.name);
+    
+    // Mark that we're attempting login (prevents re-runs)
+    walletLoginAttemptedRef.current = true;
+    
+    // Set user data
+    const userData = {
+      user_id: address,
+      first_name: `${address.slice(0, 6)}...${address.slice(-4)}`,
+      last_name: '',
+      email: '',
+      auth_method: 'web3',
+      wallet_address: address,
+      connector: connector?.name,
+      is_guest: false
+    };
+    
+    setUserData(userData);
+    setIsGuestUser(false);
+    setUserAuthenticated(true);
+    
+    console.log('✅ User authenticated with wallet');
+    
+    // Primary navigation (React Router)
+    navigate('/home');
+    
+    // Detect if mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    // Mobile-only fallback with proper checks
+    if (isMobile) {
+      console.log('📱 Mobile detected: Setting up fallback navigation');
+      
+      navigationTimerRef.current = setTimeout(() => {
+        // Triple-check before fallback:
+        // 1. Still on login page?
+        // 2. Wallet still connected?
+        // 3. Haven't navigated yet?
+        if (
+          (window.location.pathname === '/login' || window.location.pathname === '/') &&
+          isConnected &&
+          address
+        ) {
+          console.log('🔄 Mobile fallback: React Router didn\'t trigger, using direct navigation');
+          window.location.href = '/home';
+        } else {
+          console.log('✅ Mobile fallback: Not needed, already navigated');
+        }
+      }, 1200);
+    }
+    
+    // Cleanup function
+    return () => {
+      if (navigationTimerRef.current) {
+        clearTimeout(navigationTimerRef.current);
+      }
+    };
+  }, [isConnected, address, connector, userAuthenticated]);
+  
+  // Reset walletLoginAttemptedRef when wallet disconnects
+  useEffect(() => {
+    if (!isConnected && !address) {
+      walletLoginAttemptedRef.current = false;
+      console.log('🔌 Wallet disconnected, reset login flag');
+    }
+  }, [isConnected, address]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900 flex items-center justify-center relative overflow-hidden">

@@ -1,17 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { twitterService } from '../../../api/services/twitter.service';
 import FloatingBubbles from './FloatingBubbles';
 
 const microserviceUrl = import.meta.env.VITE_MICROSERVICE_URL || 'http://localhost:3000';
 
-export default function BubbleMapSection({ onTokenClick, loadingToken }) {
+function BubbleMapSection({ onTokenClick, loadingToken, setUserInput, handleSendMessageRef }) {
   const [bubbleIsLoading, setBubbleIsLoading] = useState(true);
   const [bubbleData, setBubbleData] = useState([]);
   const timeframe = '24h'; // Fixed to 24 hours only
   const [error, setError] = useState(null);
+  const hasFetched = useRef(false);
 
   useEffect(() => {
+    // Prevent double fetch on React StrictMode
+    if (hasFetched.current) {
+      return;
+    }
+    
     const fetchBubbleData = async () => {
+      hasFetched.current = true; // Mark as fetched immediately
       setBubbleIsLoading(true);
       setError(null);
       
@@ -88,11 +95,22 @@ export default function BubbleMapSection({ onTokenClick, loadingToken }) {
       return;
     }
     
-    // Show loading state immediately
+    // 1. SEND TO AI FIRST - Ask Olivia about this token
+    if (setUserInput && handleSendMessageRef?.current) {
+      console.log(`🤖 Sending to AI: "Tell me about ${tokenSymbol}"`);
+      setUserInput(`Tell me about ${tokenSymbol}`);
+      // Small delay to ensure input is set
+      setTimeout(() => {
+        handleSendMessageRef.current?.();
+      }, 50);
+    }
+    
+    // 2. Show loading state for Twitter section
     if (onTokenClick) {
       onTokenClick(tokenSymbol, 'loading');
     }
     
+    // 3. Fetch Twitter results in background
     try {
       // Search Twitter for this token with 'Top' to get high engagement tweets
       const results = await twitterService.searchTweets(`$${tokenSymbol}`, 'Top');
@@ -156,3 +174,6 @@ export default function BubbleMapSection({ onTokenClick, loadingToken }) {
     </>
   );
 }
+
+// Wrap in memo to prevent re-renders when parent re-renders but props haven't changed
+export default memo(BubbleMapSection);

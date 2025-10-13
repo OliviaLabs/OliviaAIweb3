@@ -32,6 +32,18 @@ router.post('/multi-agent',
 );
 
 /**
+ * POST /api/openai/smart-chat
+ * Smart routing: auto-classifies input and routes to trading or multi-agent path
+ * Features: input normalization, language detection, full observability
+ */
+router.post('/smart-chat',
+  openaiRateLimit,
+  authenticateAdmin,
+  validateOrigin,
+  OpenAIController.smartChat
+);
+
+/**
  * POST /api/openai/extract-trading
  * Extract trading parameters from natural language input
  */

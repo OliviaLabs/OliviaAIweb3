@@ -9,6 +9,7 @@ function getTopSlots() {
 
 export default function useFloatToTop({ id, isOpen, isDragging, isExpanded, position, setPosition, topBarrier = 20, delayMs = 80, bubbleWidth = 140, gap = 2, margin = 8 }) {
   const triggeredRef = useRef(false);
+  const bubbleHeight = 140; // Same as bubbleWidth for collision detection
 
   useEffect(() => {
     // Reset when closed
@@ -31,49 +32,70 @@ export default function useFloatToTop({ id, isOpen, isDragging, isExpanded, posi
     if (position.y <= topBarrier) return;
 
     const to = setTimeout(() => {
-      // Compute target X to avoid overlaps along the top row
-      const vw = typeof window !== 'undefined' ? window.innerWidth : 1024;
+      // Use container bounds if available (HARD WALL for desktop columns)
+      const bounds = window.bubbleContainerBounds || { width: window.innerWidth };
+      const vw = bounds.width || 1024;
       const minX = margin;
       const maxX = Math.max(margin, vw - bubbleWidth - margin);
       const slots = getTopSlots();
 
-      const intersects = (x) => {
+      // Check if position (x, y) collides with any existing bubble - HARD BORDERS
+      const intersects = (x, y) => {
         const a1 = x, a2 = x + bubbleWidth;
+        const b1 = y, b2 = y + bubbleHeight;
         for (const s of slots) {
-          const b1 = s.x, b2 = s.x + s.w;
-          if (Math.max(a1, b1) < Math.min(a2, b2)) return s; // overlap
+          const c1 = s.x, c2 = s.x + s.w;
+          const d1 = s.y, d2 = s.y + s.h;
+          // Check both X and Y overlap - true hard collision
+          if (Math.max(a1, c1) < Math.min(a2, c2) && 
+              Math.max(b1, d1) < Math.min(b2, d2)) {
+            return s;
+          }
         }
         return null;
       };
 
-      // Start from current desired x (clamped)
       let x = Math.min(Math.max(position.x, minX), maxX);
-      let guard = 0;
-      let hit;
-      while ((hit = intersects(x)) && guard++ < 50) {
-        const shiftRight = hit.x + hit.w + gap;
-        const shiftLeft = hit.x - bubbleWidth - gap;
-        const distR = Math.abs(shiftRight - x);
-        const distL = Math.abs(x - shiftLeft);
-        // Prefer nearer direction that stays within bounds
-        if (shiftRight <= maxX && (distR <= distL || shiftLeft < minX)) {
-          x = shiftRight;
-        } else if (shiftLeft >= minX) {
-          x = shiftLeft;
-        } else {
-          // No room; clamp to nearest bound
-          x = Math.min(Math.max(x, minX), maxX);
-          break;
+      let y = topBarrier;
+      let foundSpot = false;
+
+      // Try up to 5 rows - stack bubbles vertically if horizontal space runs out
+      for (let row = 0; row < 5 && !foundSpot; row++) {
+        y = topBarrier + (row * (bubbleHeight + gap));
+        x = minX; // Start from left edge for each row
+        
+        let guard = 0;
+        while (guard++ < 100) {
+          if (!intersects(x, y)) {
+            foundSpot = true;
+            break;
+          }
+          
+          // Move right by one bubble width + gap
+          x += bubbleWidth + gap;
+          
+          // If we've gone past the right edge, try next row
+          if (x > maxX) {
+            break;
+          }
         }
+        
+        if (foundSpot) break;
       }
 
-      // Register slot
-      slots.push({ id, x, w: bubbleWidth });
+      // If still no spot found (unlikely), stack at end
+      if (!foundSpot) {
+        x = minX;
+        y = topBarrier + (5 * (bubbleHeight + gap));
+      }
 
-      // Glide to top with updated x
-      setPosition(prev => ({ x, y: topBarrier }));
+      // Register slot with both X and Y - HARD BORDER TRACKING
+      slots.push({ id, x, y, w: bubbleWidth, h: bubbleHeight });
+
+      // Glide to found position
+      setPosition({ x, y });
       triggeredRef.current = true;
-    }, delayMs + Math.random() * 80);
+    }, delayMs); // No random delay - all bubbles move in sync
 
     return () => clearTimeout(to);
   }, [id, isOpen, isDragging, isExpanded, position.x, position.y, setPosition, topBarrier, delayMs, bubbleWidth, gap, margin]);

@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import ReactMarkdown from 'react-markdown';
-import { createPortal } from 'react-dom';
+
 import React, { useState, useEffect, useRef } from 'react';
 import useFloatToTop from '../../hooks/useFloatToTop';
 import lurkyCharacter from '../../assets/lurky-character.png';
@@ -143,7 +143,7 @@ const FloatingLurkyBubble = ({ isOpen, onClose, title = 'Lurky', content = '', l
   const bubble = (
     <div 
       ref={containerRef}
-      className={`fixed pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isDragging ? '' : 'transition-all duration-150 ease-in-out'}`}
+      className={`absolute pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isDragging ? '' : 'transition-all duration-1000 ease-in-out'}`}
       style={{ 
         left: `${position.x}px`,
         top: `${position.y}px`,
@@ -247,7 +247,7 @@ const FloatingLurkyBubble = ({ isOpen, onClose, title = 'Lurky', content = '', l
       </div>
     </div>
   );
-  return createPortal(bubble, document.body);
+  return bubble;
 };
 
 FloatingLurkyBubble.propTypes = {

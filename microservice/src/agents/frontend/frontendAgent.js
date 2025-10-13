@@ -17,9 +17,10 @@ export class FrontendAgent {
    * @param {object} understanding - User understanding from Reasoning Agent
    * @param {Array} conversationHistory - Previous messages
    * @param {object} userContext - User context with plugin data
+   * @param {object} webSearchResults - Real-time web search results (optional)
    * @returns {Promise<string>} Natural language response
    */
-  static async formatResponse(userMessage, filteredData, understanding, conversationHistory = [], userContext = {}) {
+  static async formatResponse(userMessage, filteredData, understanding, conversationHistory = [], userContext = {}, webSearchResults = null) {
     console.log('💬 [Frontend Agent] Formatting response for user...');
     
     try {
@@ -31,6 +32,32 @@ export class FrontendAgent {
       
       // Analyze data relationships for comprehensive insights
       const dataAnalysis = DataAnalyzer.analyzeDataRelationships(allAvailableData, understanding);
+      
+      // Extract language from context for multilingual support
+      const userLanguage = userContext.language || 'English';
+      
+      // Extract previously mentioned items for follow-up intelligence
+      const previouslyMentioned = this.extractPreviouslyMentionedItems(conversationHistory);
+      
+      console.log('💬 [Frontend Agent] Context:', {
+        language: userLanguage,
+        isFollowUp: understanding.is_follow_up,
+        previousItemsCount: previouslyMentioned.length,
+        hasWebSearch: !!webSearchResults,
+        webSearchIsRealTime: webSearchResults?.isRealTime
+      });
+      
+      // Build web search context if available
+      let webSearchContext = '';
+      if (webSearchResults && webSearchResults.success) {
+        webSearchContext = `\n\n🌐 REAL-TIME WEB SEARCH RESULTS (${webSearchResults.isRealTime ? 'LIVE from the web' : 'from AI knowledge'}):\n`;
+        webSearchContext += `Query optimized: "${webSearchResults.originalQuery}" → "${webSearchResults.optimizedQuery}"\n`;
+        webSearchContext += `\nSearch Results:\n${webSearchResults.searchResults}\n`;
+        if (webSearchResults.citations && webSearchResults.citations.length > 0) {
+          webSearchContext += `\nSources: ${webSearchResults.citations.slice(0, 3).join(', ')}\n`;
+        }
+        webSearchContext += `\n⚠️ IMPORTANT: This is ${webSearchResults.isRealTime ? 'CURRENT, REAL-TIME' : 'NOT real-time'} information. Use this as your PRIMARY source for answering the user's question about recent events.\n`;
+      }
       
       // Convert merged data to a readable format
       const dataContext = Object.keys(allAvailableData).length > 0
@@ -44,6 +71,9 @@ export class FrontendAgent {
             role: 'system',
             content: `You are Olivia, a helpful crypto trading assistant having a natural conversation.
 
+🌐 RESPOND IN: ${userLanguage}
+Use the user's language naturally and fluently.
+
 WHAT THE USER WANTS:
 ${understanding.user_wants}
 
@@ -53,8 +83,11 @@ ${understanding.reasoning}
 ${understanding.is_follow_up ? `
 ⚠️ THIS IS A FOLLOW-UP QUESTION:
 The user is continuing the conversation about: ${understanding.continuation_context || 'the previous topic'}
-Check conversation history to see what you ALREADY mentioned, then show DIFFERENT items from the data.
+PREVIOUSLY MENTIONED ITEMS (DO NOT REPEAT THESE): ${previouslyMentioned.join(', ') || 'none'}
+Show DIFFERENT items from the data that were NOT already mentioned.
 ` : ''}
+
+${webSearchContext}
 
 ${dataContext}
 
@@ -145,6 +178,42 @@ Respond naturally to the user's question using the available data.`
       onChunk(word);
       await new Promise(resolve => setTimeout(resolve, 50));
     }
+  }
+
+  /**
+   * Extract items previously mentioned in conversation for follow-up intelligence
+   * @param {Array} conversationHistory - Previous messages
+   * @returns {Array} - List of previously mentioned items (tokens, names, etc.)
+   */
+  static extractPreviouslyMentionedItems(conversationHistory) {
+    if (!conversationHistory || conversationHistory.length === 0) {
+      return [];
+    }
+
+    const mentionedItems = new Set();
+    
+    // Look at assistant's last 2 messages
+    const recentAssistantMessages = conversationHistory
+      .filter(msg => msg.role === 'assistant')
+      .slice(-2);
+
+    for (const msg of recentAssistantMessages) {
+      if (!msg.content) continue;
+
+      // Extract token symbols (2-5 uppercase letters)
+      const tokens = msg.content.match(/\b[A-Z]{2,5}\b/g) || [];
+      tokens.forEach(t => mentionedItems.add(t));
+
+      // Extract common token names (Bitcoin, Ethereum, etc.)
+      const tokenNames = ['Bitcoin', 'Ethereum', 'Solana', 'Cardano', 'Polkadot', 'Avalanche', 'Polygon', 'Chainlink'];
+      for (const name of tokenNames) {
+        if (msg.content.includes(name)) {
+          mentionedItems.add(name);
+        }
+      }
+    }
+
+    return Array.from(mentionedItems);
   }
 }
 

@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { createPortal } from 'react-dom';
+
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import changeNowLogo from '../../assets/changenow.jpeg';
@@ -464,7 +464,7 @@ const FloatingChangeNowBubble = ({ isOpen, onClose, title = 'ChangeNOW', content
     </div>
   );
 
-  return createPortal(bubble, document.body);
+  return bubble;
 };
 
 FloatingChangeNowBubble.propTypes = {

@@ -19,15 +19,24 @@ export class CallEverythingAgent {
     const tokens = entities.tokens || [];
     const blockchains = entities.blockchains || [];
     
+    // Enrich entities for downstream use
+    const enrichedEntities = {
+      tokens: tokens || [],
+      blockchains: blockchains || [],
+      other: entities.other || []
+    };
+    
     if (tokens.length === 0) {
       console.log('⚠️ [Call Everything Agent] No tokens detected, calling general APIs');
-      return this.getGeneralAPIs();
+      return this.getGeneralAPIs(enrichedEntities);
     }
     
     const token = tokens[0].toLowerCase();
     const tokenUpper = tokens[0].toUpperCase();
     
-    console.log(`🎯 [Call Everything Agent] Calling ALL APIs for token: ${token}`);
+    console.log(`🎯 [Call Everything Agent] Calling ALL APIs for token: ${token}`, {
+      entities: enrichedEntities
+    });
     
     // Build comprehensive list of ALL possible API calls
     const allAPICalls = [];
@@ -219,14 +228,19 @@ export class CallEverythingAgent {
       blockchainData: allAPICalls.filter(c => c.dataType === 'blockchainData').length
     });
     
-    return allAPICalls;
+    // Attach entities to every API call for proper caching and resolution
+    return allAPICalls.map(call => ({
+      ...call,
+      entities: enrichedEntities
+    }));
   }
   
   /**
    * Get general APIs when no specific token is detected
+   * @param {object} enrichedEntities - Entities object to attach to calls
    */
-  static getGeneralAPIs() {
-    return [
+  static getGeneralAPIs(enrichedEntities = { tokens: [], blockchains: [], other: [] }) {
+    const generalAPIs = [
       {
         dataType: 'trending',
         endpoint: '/api/coingecko/trending',
@@ -256,5 +270,11 @@ export class CallEverythingAgent {
         priority: 'medium'
       }
     ];
+    
+    // Attach entities to every general API call
+    return generalAPIs.map(call => ({
+      ...call,
+      entities: enrichedEntities
+    }));
   }
 }

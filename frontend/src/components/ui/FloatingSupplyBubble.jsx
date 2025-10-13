@@ -1,35 +1,27 @@
 import PropTypes from 'prop-types';
-import { createPortal } from 'react-dom';
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { Coins } from 'lucide-react';
 import useFloatToTop from '../../hooks/useFloatToTop';
 
 const FloatingSupplyBubble = ({ isOpen, onClose, title = 'Supply Info', availableSupply = 0, totalSupply = 0, tokenName = '', symbol = '', addParticlesToSwarm }) => {
   const bubbleId = useState(() => `supply-${Date.now()}-${Math.random()}`)[0];
+  const delayMs = useState(() => 80 + Math.random() * 100)[0]; // Stable random delay
   const [position, setPosition] = useState(() => {
     const startX = Math.random() * (window.innerWidth - 300) + 100;
-    const startY = window.innerHeight - Math.random() * 300 - 100;
+    const startY = window.innerHeight - Math.random() * 300 - 100; // Random between bottom 100-400px
     return { x: startX, y: startY };
   });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isExpanded, setIsExpanded] = useState(false);
   const [lastClickTime, setLastClickTime] = useState(0);
+  const containerRef = useRef(null);
 
-  useFloatToTop({
-    id: bubbleId,
-    isOpen,
-    isDragging,
-    isExpanded,
-    position,
-    setPosition,
-    topBarrier: 20,
-    speed: 0.2,
-    delayMs: 0,
-    bubbleWidth: 140,
-    gap: 4,
-    margin: 8
-  });
+  // Remove auto-floating
+  useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
+
+  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs, bubbleWidth: 140, gap: 4, margin: 8 });
 
   const createPopEffect = () => {
     let bubbleSize = 140;
@@ -128,20 +120,18 @@ const FloatingSupplyBubble = ({ isOpen, onClose, title = 'Supply Info', availabl
   const circulationPercent = totalSupply > 0 ? ((availableSupply / totalSupply) * 100).toFixed(1) : 0;
   
   const bubble = (
-    <div 
-      className={`fixed pointer-events-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${isDragging ? '' : 'transition-all duration-150 ease-in-out'}`}
-      style={{ 
+    <div
+      ref={containerRef}
+      className={`absolute z-50 pointer-events-auto transition-all duration-1000 ease-in-out ${
+        isExpanded ? 'w-48 h-48' : 'w-36 h-36'
+      } ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} select-none`}
+      style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        width: `${bubbleWidth}px`,
-        height: `${bubbleHeight}px`,
-        zIndex: 2147483639,
-        willChange: isDragging ? 'transform' : 'auto'
+        transform: isDragging ? 'scale(1.05)' : 'scale(1)',
       }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
-      data-bubble="supply"
-      data-bubble-id={bubbleId}
     >
       <div className="w-full h-full bg-gradient-to-br from-black/80 via-black/90 to-black/95 border-0 rounded-full shadow-2xl flex flex-col overflow-hidden relative backdrop-blur-sm" style={{boxShadow: `0 0 30px ${scoreColor}, inset 0 0 20px ${scoreColor}33`}}>
         <div className="absolute inset-0 rounded-full border-0/60 animate-pulse" style={{boxShadow: `0 0 25px ${scoreColor}, 0 0 50px ${scoreColor}4d`}}></div>
@@ -169,12 +159,12 @@ const FloatingSupplyBubble = ({ isOpen, onClose, title = 'Supply Info', availabl
                   <div className="text-[12px] font-bold" style={{color: scoreColor}}>{tokenName}</div>
                 </div>
                 
-                <div className="flex-1 px-4 overflow-y-auto flex items-center justify-center">
-                  <div className="text-center space-y-3">
-                    <div className="text-white/90 leading-tight space-y-2">
-                      <p className="text-[16px]"><span className="font-semibold" style={{color: scoreColor}}>Circulating:</span> {formatSupply(availableSupply)} {symbol}</p>
-                      <p className="text-[16px]"><span className="font-semibold" style={{color: scoreColor}}>Total:</span> {formatSupply(totalSupply)} {symbol}</p>
-                      <p className="text-[16px] mt-2"><span className="font-bold" style={{color: scoreColor}}>{circulationPercent}%</span> in circulation</p>
+                <div className="flex-1 px-4 flex items-center justify-center">
+                  <div className="text-center space-y-1">
+                    <div className="text-white/90 leading-tight space-y-1">
+                      <p className="text-[10px]"><span className="font-semibold" style={{color: scoreColor}}>Circulating:</span> {formatSupply(availableSupply)} {symbol}</p>
+                      <p className="text-[10px]"><span className="font-semibold" style={{color: scoreColor}}>Total:</span> {formatSupply(totalSupply)} {symbol}</p>
+                      <p className="text-[11px] mt-1"><span className="font-bold" style={{color: scoreColor}}>{circulationPercent}%</span> in circulation</p>
                     </div>
                   </div>
                 </div>
@@ -185,7 +175,7 @@ const FloatingSupplyBubble = ({ isOpen, onClose, title = 'Supply Info', availabl
       </div>
     </div>
   );
-  return createPortal(bubble, document.body);
+  return bubble;
 };
 
 FloatingSupplyBubble.propTypes = {
