@@ -7,7 +7,7 @@ import { useHomeInput } from '../../contexts/HomeInputContext';
 import { useWebSocket } from '../../contexts/WebSocketContext';
 import ConnectWalletModalComponent from '../ui/ConnectWalletModalComponent';
 // import { startOliviaChat } from '../../utils/olivia';
-import { Home, Puzzle, Search, User } from 'lucide-react';
+import { Home, Puzzle, Search, User, Monitor } from 'lucide-react';
 import { getPluginCounts } from '../../utils/pluginManager';
 
 export default function BottomNavigation({ 
@@ -160,14 +160,20 @@ export default function BottomNavigation({
       route: '/plugins',
       icon: Puzzle,
       isActive: location.pathname === '/plugins'
-    }
-    ,
+    },
     {
       id: 'profile',
       label: 'Profile',
       route: '/profile',
       icon: User,
       isActive: location.pathname === '/profile'
+    },
+    {
+      id: 'desktop',
+      label: 'Desktop',
+      route: '/desktop',
+      icon: Monitor,
+      isActive: location.pathname === '/desktop'
     }
   ];
 

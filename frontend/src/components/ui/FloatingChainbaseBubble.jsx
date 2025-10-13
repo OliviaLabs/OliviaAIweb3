@@ -410,7 +410,7 @@ const FloatingChainbaseBubble = ({ isOpen, onClose, title = 'Chainbase', content
   
   // Bubble ALWAYS stays circular - never bigger than screen (match ICP/CoinGecko)
   const maxSize = Math.min(300, window.innerWidth - 40, window.innerHeight - 100);
-  const bubbleSize = isExpanded ? maxSize : 140;
+  const bubbleSize = isExpanded ? maxSize : 70;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
 

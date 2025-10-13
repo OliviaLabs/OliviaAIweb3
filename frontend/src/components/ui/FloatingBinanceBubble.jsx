@@ -32,7 +32,7 @@ const FloatingBinanceBubble = ({
   // Remove auto-floating
   useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
 
-  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs: 80, bubbleWidth: 140, gap: 4, margin: 8 });
+  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs: 80, bubbleWidth: 70, gap: 4, margin: 8 });
 
   // Create pop particles and add them to main swarm
   const createPopEffect = () => {
@@ -87,7 +87,7 @@ const FloatingBinanceBubble = ({
     if (!isDragging) return;
     
     const bounds = window.bubbleContainerBounds || { width: window.innerWidth, height: window.innerHeight, left: 0, top: 0 };
-    const bubbleSize = isExpanded ? 192 : 144; // w-48 h-48 : w-36 h-36
+    const bubbleSize = isExpanded ? 192 : 72; // w-48 h-48 : w-18 h-18
     
     // Calculate new position relative to container
     let newX = e.clientX - dragOffset.x - (bounds.left || 0);
@@ -155,7 +155,7 @@ const FloatingBinanceBubble = ({
     <div
       ref={containerRef}
       className={`absolute z-50 pointer-events-auto transition-all duration-1000 ease-in-out ${
-        isExpanded ? 'w-48 h-48' : 'w-36 h-36'
+        isExpanded ? 'w-48 h-48' : 'w-18 h-18'
       } ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} select-none`}
       style={{
         left: `${position.x}px`,
@@ -205,17 +205,17 @@ const FloatingBinanceBubble = ({
               {/* Price data */}
               {priceInfo && (
                 <div>
-                  <div className="text-white/90 text-xs font-semibold truncate">{priceInfo.symbol}</div>
-                  <div className="text-yellow-400 text-sm font-bold">{priceInfo.formatted}</div>
+                  <div className="text-white/90 text-[10px] font-semibold truncate">{priceInfo.symbol}</div>
+                  <div className="text-yellow-400 text-[20px] font-bold">{priceInfo.formatted}</div>
                 </div>
               )}
 
               {/* Ticker data */}
               {tickerInfo && (
                 <div className="space-y-1">
-                  <div className="text-white/90 text-xs font-semibold truncate">{tickerInfo.symbol}</div>
-                  <div className="text-yellow-400 text-sm font-bold">${parseFloat(tickerInfo.price).toLocaleString()}</div>
-                  <div className={`text-xs font-medium ${parseFloat(tickerInfo.change) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  <div className="text-white/90 text-[10px] font-semibold truncate">{tickerInfo.symbol}</div>
+                  <div className="text-yellow-400 text-[20px] font-bold">${parseFloat(tickerInfo.price).toLocaleString()}</div>
+                  <div className={`text-[10px] font-medium ${parseFloat(tickerInfo.change) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {tickerInfo.change >= 0 ? '+' : ''}{tickerInfo.change}%
                   </div>
                 </div>
@@ -224,8 +224,8 @@ const FloatingBinanceBubble = ({
               {/* Error content */}
               {!priceInfo && !tickerInfo && content && (
                 <div className="text-center space-y-1">
-                  <div className="text-red-400 text-xs font-semibold">Error</div>
-                  <div className="text-white/70 text-xs break-words px-2">
+                  <div className="text-red-400 text-[10px] font-semibold">Error</div>
+                  <div className="text-white/70 text-[10px] break-words px-2">
                     {content.includes('Failed to fetch') ? 'Connection failed' : content}
                   </div>
                 </div>
@@ -233,14 +233,14 @@ const FloatingBinanceBubble = ({
 
               {/* No data message */}
               {!priceInfo && !tickerInfo && !content && (
-                <div className="text-white/60 text-xs">No data</div>
+                <div className="text-white/60 text-[10px]">No data</div>
               )}
             </div>
           )}
 
           {/* Footer */}
           <div className="mt-auto text-center pt-2">
-            <div className="text-yellow-400/80 text-xs font-medium">Binance Exchange</div>
+            <div className="text-yellow-400/80 text-[10px] font-medium">Binance Exchange</div>
             {originalQuery && (
               <div className="text-white/50 text-xs mt-1 truncate">"{originalQuery}"</div>
             )}

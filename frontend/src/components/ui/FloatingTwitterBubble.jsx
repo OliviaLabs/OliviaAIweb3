@@ -21,14 +21,14 @@ const FloatingTwitterBubble = ({ isOpen, onClose, title = 'Twitter/X', content =
   // Remove auto-floating movement
   useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
   // Gentle float to top with barrier, like other bubbles
-  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs: 80, bubbleWidth: 140, gap: 4, margin: 8 });
+  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs: 80, bubbleWidth: 70, gap: 4, margin: 8 });
 
   // Create pop particles and add them to main swarm
   const createPopEffect = () => {
     if (!addParticlesToSwarm) return;
     
-    // Use same dynamic sizing logic
-    let bubbleSize = 128;
+  // Use same dynamic sizing logic
+  let bubbleSize = 64;
     if (isExpanded && typeof content === 'string') {
       const lines = content.split('\n').length;
       const avgLineLength = content.length / lines;

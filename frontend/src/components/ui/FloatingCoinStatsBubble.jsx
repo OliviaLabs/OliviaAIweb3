@@ -21,13 +21,13 @@ const FloatingCoinStatsBubble = ({ isOpen, onClose, title = 'CoinStats', content
   useEffect(() => { if (!isOpen || isDragging) return; return undefined;
   }, [isOpen, isDragging, isExpanded, bubbleId]);
 
-  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs: 80, bubbleWidth: 140, gap: 4, margin: 8 });
+  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs: 80, bubbleWidth: 70, gap: 4, margin: 8 });
 
   // Create pop particles and add them to main swarm
   const createPopEffect = () => {
     if (!addParticlesToSwarm) return;
     
-    // Use same dynamic sizing logic\n    let bubbleSize = 128;\n    if (isExpanded && typeof content === 'string') {\n      const lines = content.split('\\n').length;\n      const avgLineLength = content.length / lines;\n      const estimatedWidth = Math.max(250, Math.min(400, avgLineLength * 8 + 100));\n      const estimatedHeight = Math.max(200, lines * 20 + 80);\n      bubbleSize = Math.max(estimatedWidth, estimatedHeight);\n    } else if (isExpanded) {\n      bubbleSize = 280;\n    }
+    // Use same dynamic sizing logic\n    let bubbleSize = 64;\n    if (isExpanded && typeof content === 'string') {\n      const lines = content.split('\\n').length;\n      const avgLineLength = content.length / lines;\n      const estimatedWidth = Math.max(250, Math.min(400, avgLineLength * 8 + 100));\n      const estimatedHeight = Math.max(200, lines * 20 + 80);\n      bubbleSize = Math.max(estimatedWidth, estimatedHeight);\n    } else if (isExpanded) {\n      bubbleSize = 280;\n    }
     const bubbleCenter = {
       x: position.x + bubbleSize / 2, // Actual bubble center
       y: position.y + bubbleSize / 2  // Actual bubble center

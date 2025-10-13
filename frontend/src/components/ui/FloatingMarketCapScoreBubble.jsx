@@ -21,10 +21,10 @@ const FloatingMarketCapScoreBubble = ({ isOpen, onClose, title = 'Market Cap Sco
   // Remove auto-floating
   useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
 
-  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs, bubbleWidth: 140, gap: 4, margin: 8 });
+  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs, bubbleWidth: 70, gap: 4, margin: 8 });
 
   const createPopEffect = () => {
-    let bubbleSize = 140;
+    let bubbleSize = 70;
     if (isExpanded) bubbleSize = 160;
     const bubbleCenter = {
       x: position.x + bubbleSize / 2,
@@ -103,7 +103,7 @@ const FloatingMarketCapScoreBubble = ({ isOpen, onClose, title = 'Market Cap Sco
 
   if (!isOpen) return null;
   
-  let bubbleSize = 140;
+  let bubbleSize = 70;
   if (isExpanded) bubbleSize = 280;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;
@@ -120,7 +120,7 @@ const FloatingMarketCapScoreBubble = ({ isOpen, onClose, title = 'Market Cap Sco
     <div
       ref={containerRef}
       className={`absolute z-50 pointer-events-auto transition-all duration-1000 ease-in-out ${
-        isExpanded ? 'w-48 h-48' : 'w-36 h-36'
+        isExpanded ? 'w-48 h-48' : 'w-18 h-18'
       } ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} select-none`}
       style={{
         left: `${position.x}px`,
@@ -139,8 +139,8 @@ const FloatingMarketCapScoreBubble = ({ isOpen, onClose, title = 'Market Cap Sco
             {!isExpanded ? (
               <div className="flex flex-col items-center justify-center">
                 <div className="relative mb-2">
-                  <div className="w-8 h-8 rounded-full overflow-hidden border-0 shadow-none bg-transparent flex items-center justify-center" style={{backgroundColor: `${scoreColor}20`}}>
-                    <TrendingUp size={20} style={{color: scoreColor}} />
+                  <div className="w-4 h-4 rounded-full overflow-hidden border-0 shadow-none bg-transparent flex items-center justify-center" style={{backgroundColor: `${scoreColor}20`}}>
+                    <TrendingUp size={10} style={{color: scoreColor}} />
                   </div>
                 </div>
                 <div className="text-center">

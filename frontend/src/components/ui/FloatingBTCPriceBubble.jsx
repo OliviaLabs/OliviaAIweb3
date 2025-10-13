@@ -19,7 +19,7 @@ const FloatingBTCPriceBubble = ({ isOpen, onClose, title = 'BTC Price', priceBtc
   useFloatToTop({ isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, speed: 0.6 });
 
   const createPopEffect = () => {
-    const bubbleSize = isExpanded ? 160 : 140;
+    const bubbleSize = isExpanded ? 160 : 70;
     const bubbleCenter = { x: position.x + bubbleSize / 2, y: position.y + bubbleSize / 2 };
     if (addParticlesToSwarm) {
       const newParticles = Array.from({ length: 8 }, (_, i) => {
@@ -80,7 +80,7 @@ const FloatingBTCPriceBubble = ({ isOpen, onClose, title = 'BTC Price', priceBtc
   
   // Bubble ALWAYS stays circular - never bigger than screen (match ICP/CoinGecko)
   const maxSize = Math.min(300, window.innerWidth - 40, window.innerHeight - 100);
-  const bubbleSize = isExpanded ? maxSize : 140;
+  const bubbleSize = isExpanded ? maxSize : 70;
   const scoreColor = '#f7931a'; // bitcoin orange
   
   const bubble = (

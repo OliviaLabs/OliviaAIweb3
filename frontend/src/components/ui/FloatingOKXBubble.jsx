@@ -124,7 +124,7 @@ const FloatingOKXBubble = ({ isOpen, onClose, title = 'OKX DEX', content = '', l
   // Remove auto-floating
   useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
 
-  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs: 80, bubbleWidth: 140, gap: 4, margin: 8 });
+  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs: 80, bubbleWidth: 70, gap: 4, margin: 8 });
 
   useEffect(() => {
     // Add flag to prevent duplicate calls in React StrictMode
@@ -174,7 +174,7 @@ const FloatingOKXBubble = ({ isOpen, onClose, title = 'OKX DEX', content = '', l
     const newX = e.clientX - dragOffset.x;
     const newY = e.clientY - dragOffset.y;
 
-    let bubbleSize = 140; // Halved
+    let bubbleSize = 70; // Halved
     if (isExpanded) bubbleSize = 160; // Halved
 
     setPosition({

@@ -49,7 +49,7 @@ const FloatingChangeNowBubble = ({ isOpen, onClose, title = 'ChangeNOW', content
     if (!addParticlesToSwarm) return;
     
     // Dynamic bubble size based on expanded state
-    let bubbleSize = 140;
+    let bubbleSize = 70;
     if (isExpanded) bubbleSize = 160;
     const bubbleCenter = {
       x: position.x + bubbleSize / 2, // Actual bubble center
@@ -142,7 +142,7 @@ const FloatingChangeNowBubble = ({ isOpen, onClose, title = 'ChangeNOW', content
   if (!isOpen) return null;
 
   // Dynamic bubble size based on expanded state
-  let bubbleSize = 140;
+  let bubbleSize = 70;
   if (isExpanded) bubbleSize = 160;
 
   const bubble = (

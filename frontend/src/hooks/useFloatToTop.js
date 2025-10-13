@@ -7,9 +7,9 @@ function getTopSlots() {
   return window.__bubbleTopSlots;
 }
 
-export default function useFloatToTop({ id, isOpen, isDragging, isExpanded, position, setPosition, topBarrier = 20, delayMs = 80, bubbleWidth = 140, gap = 2, margin = 8 }) {
+export default function useFloatToTop({ id, isOpen, isDragging, isExpanded, position, setPosition, topBarrier = 20, delayMs = 80, bubbleWidth = 70, gap = 2, margin = 8 }) {
   const triggeredRef = useRef(false);
-  const bubbleHeight = 140; // Same as bubbleWidth for collision detection
+  const bubbleHeight = 70; // Same as bubbleWidth for collision detection
 
   useEffect(() => {
     // Reset when closed

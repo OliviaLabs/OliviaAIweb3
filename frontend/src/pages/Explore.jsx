@@ -65,6 +65,7 @@ export default function Explore() {
         loadingToken={loadingToken}
         setUserInput={setUserInput}
         handleSendMessageRef={handleSendMessageRef}
+        sendMessage={sendMessage}
       />
       <TradingInfluencersSection 
         selectedToken={selectedToken}

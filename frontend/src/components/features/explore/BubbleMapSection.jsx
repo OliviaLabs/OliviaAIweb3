@@ -4,7 +4,7 @@ import FloatingBubbles from './FloatingBubbles';
 
 const microserviceUrl = import.meta.env.VITE_MICROSERVICE_URL || 'http://localhost:3000';
 
-function BubbleMapSection({ onTokenClick, loadingToken, setUserInput, handleSendMessageRef }) {
+function BubbleMapSection({ onTokenClick, loadingToken, setUserInput, handleSendMessageRef, sendMessage }) {
   const [bubbleIsLoading, setBubbleIsLoading] = useState(true);
   const [bubbleData, setBubbleData] = useState([]);
   const timeframe = '24h'; // Fixed to 24 hours only
@@ -95,14 +95,19 @@ function BubbleMapSection({ onTokenClick, loadingToken, setUserInput, handleSend
       return;
     }
     
-    // 1. SEND TO AI FIRST - Ask Olivia about this token
-    if (setUserInput && handleSendMessageRef?.current) {
-      console.log(`🤖 Sending to AI: "Tell me about ${tokenSymbol}"`);
-      setUserInput(`Tell me about ${tokenSymbol}`);
-      // Small delay to ensure input is set
-      setTimeout(() => {
-        handleSendMessageRef.current?.();
-      }, 50);
+    // 1. SEND TO AI FIRST - Ask Olivia about this token (send directly, don't wait for input)
+    const message = `Tell me about ${tokenSymbol}`;
+    console.log(`🤖 Auto-sending to AI: "${message}"`);
+    if (sendMessage) {
+      // Send directly through WebSocket
+      sendMessage(message, [], false, false).catch(err => {
+        console.error('Failed to send auto-message:', err);
+      });
+    }
+    // Also show it in the input briefly then clear
+    if (setUserInput) {
+      setUserInput(message);
+      setTimeout(() => setUserInput(''), 100);
     }
     
     // 2. Show loading state for Twitter section

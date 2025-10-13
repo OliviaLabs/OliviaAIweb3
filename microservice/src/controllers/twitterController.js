@@ -31,18 +31,18 @@ export const searchTwitter = async (req, res) => {
     let tweets = [];
     if (data.timeline && Array.isArray(data.timeline)) {
       tweets = data.timeline.map(tweet => ({
-        id: tweet.id_str || tweet.id,
-        text: tweet.full_text || tweet.text,
+        id: tweet.id_str || tweet.id || `tweet-${Math.random()}`,
+        text: tweet.full_text || tweet.text || '',
         user: {
-          username: tweet.user?.screen_name,
-          name: tweet.user?.name,
-          profile_image_url: tweet.user?.profile_image_url_https
+          username: tweet.user?.screen_name || tweet.author?.username || 'unknown',
+          name: tweet.user?.name || tweet.author?.name || 'Unknown User',
+          profile_image_url: tweet.user?.profile_image_url_https || tweet.user?.profile_image_url || tweet.author?.profile_image_url || '/Olivia-ai-LOGO.png'
         },
-        created_at: tweet.created_at,
+        created_at: tweet.created_at || new Date().toISOString(),
         favorite_count: tweet.favorite_count || 0,
         retweet_count: tweet.retweet_count || 0,
         reply_count: tweet.reply_count || 0,
-        url: `https://twitter.com/${tweet.user?.screen_name}/status/${tweet.id_str || tweet.id}`
+        url: tweet.url || `https://twitter.com/${tweet.user?.screen_name || tweet.author?.username || 'unknown'}/status/${tweet.id_str || tweet.id}`
       }));
     }
 

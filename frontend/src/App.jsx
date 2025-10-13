@@ -5,6 +5,7 @@ import Login from './pages/login';
 import Plugins from './pages/plugins';
 import Explore from './pages/explore';
 import Profile from './pages/profile';
+import Desktop from './pages/Desktop';
 
 import Layout from './components/layout/Layout';
 import { PrivateRoute, PublicRoute } from './components/auth/RouteGuards';
@@ -80,6 +81,7 @@ function App() {
                 <Route path="/explore" element={<Explore />} />
                 <Route path="/plugins" element={<Plugins />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/desktop" element={<Desktop />} />
               </Route>
             </Route>
 

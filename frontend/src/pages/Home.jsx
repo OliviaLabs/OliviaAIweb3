@@ -879,14 +879,27 @@ export default function Home() {
                 // Use CoinStats ID directly
                 data = await coinstatsService.getCoin(coinData.id);
               } else {
-                // Search by symbol to get correct CoinStats ID
-                const search = await coinstatsService.searchCoins(coinData?.symbol || searchTerm);
-                if (search && search.length > 0) {
-                  // Use the CoinStats ID from search result
-                  data = await coinstatsService.getCoin(search[0].id);
+                // Strict resolution: exact symbol/name match only; otherwise abort
+                const query = (coinData?.symbol || searchTerm || '').trim();
+                const search = await coinstatsService.searchCoins(query);
+                const results = Array.isArray(search?.coins) ? search.coins : (Array.isArray(search) ? search : []);
+                const targetSymbol = (coinData?.symbol || searchTerm || '').toUpperCase().trim();
+                const targetName = (coinData?.name || searchTerm || '').toLowerCase().trim();
+                const best = results.find(r => (r?.symbol || r?.ticker || '').toUpperCase() === targetSymbol)
+                  || results.find(r => (r?.name || r?.title || r?.id || r?.slug || '').toLowerCase() === targetName)
+                  || null;
+                if (best?.id) {
+                  data = await coinstatsService.getCoin(best.id);
                 } else {
                   data = null;
                 }
+              }
+              if (!data) {
+                setCoinstatsBubbles(prev => prev.map(b => b.id === bubbleId
+                  ? { ...b, content: `No matching token found on CoinStats for ${searchTerm}.`, loading: false }
+                  : b
+                ));
+                return; // Stop if we couldn't resolve exact token
               }
               setCoinstatsBubbles(prev => prev.map(b => b.id === bubbleId
                 ? { ...b, content: data, loading: false }

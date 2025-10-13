@@ -31,8 +31,8 @@ const FloatingProtokolsBubble = ({
   const createPopEffect = () => {
     if (!addParticlesToSwarm) return;
     
-    // Use same dynamic sizing logic
-    let bubbleSize = 128;
+  // Use same dynamic sizing logic
+  let bubbleSize = 64;
     if (isExpanded && typeof content === 'string') {
       const lines = content.split('\n').length;
       const avgLineLength = content.length / lines;
@@ -130,7 +130,7 @@ const FloatingProtokolsBubble = ({
   if (!isOpen) return null;
   
   // Dynamic bubble size based on content length and expanded state
-  let bubbleSize = 140;
+  let bubbleSize = 70;
   if (isExpanded) bubbleSize = 160;
   const bubbleWidth = bubbleSize;
   const bubbleHeight = bubbleSize;

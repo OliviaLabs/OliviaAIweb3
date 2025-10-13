@@ -1,4 +1,4 @@
-// Desktop 4-Column Dashboard Layout - 3 COLUMNS + 1 BLANK
+// Desktop 4-Column Dashboard Layout - Home | Explore | Blank | Plugins
 // Only visible on screens ≥1024px (lg breakpoint)
 import React, { Suspense } from 'react';
 import { Search, Puzzle } from 'lucide-react';
@@ -38,8 +38,13 @@ export default function DesktopDashboard() {
           </div>
         </div>
 
-        {/* COLUMN 3 - PLUGINS */}
-        <div className="flex-1 border-r border-gray-800 flex flex-col overflow-hidden min-w-0">
+        {/* COLUMN 3 - BLANK */}
+        <div className="flex-1 border-r border-gray-800 flex flex-col overflow-hidden min-w-0 bg-black">
+          {/* Empty column */}
+        </div>
+
+        {/* COLUMN 4 - PLUGINS */}
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           <div className="p-3 border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm shrink-0 z-10">
             <h3 className="text-white font-semibold flex items-center gap-2">
               <Puzzle className="w-4 h-4 text-purple-400" />
@@ -53,11 +58,6 @@ export default function DesktopDashboard() {
               </Suspense>
             </div>
           </div>
-        </div>
-
-        {/* COLUMN 4 - BLANK (Profile is a separate page) */}
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-black">
-          {/* Empty column - Profile accessed via navigation */}
         </div>
 
       </div>

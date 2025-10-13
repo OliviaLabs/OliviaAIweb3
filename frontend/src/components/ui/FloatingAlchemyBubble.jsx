@@ -321,7 +321,7 @@ const FloatingAlchemyBubble = ({
   if (!isOpen) return null;
 
   // Dynamic bubble size
-  const bubbleSize = 140;
+  const bubbleSize = 70;
   const bubbleWidth = isExpanded ? Math.min(500, window.innerWidth - 40) : bubbleSize;
   const bubbleHeight = isExpanded ? Math.min(400, window.innerHeight - 100) : bubbleSize;
   

@@ -23,12 +23,12 @@ const FloatingICPBubble = ({ isOpen, onClose, title = 'ICP Status', content = ''
   // Remove auto-floating
   useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
 
-  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs: 80, bubbleWidth: 140, gap: 4, margin: 8 });
+  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs: 80, bubbleWidth: 70, gap: 4, margin: 8 });
 
   // Create pop particles and add them to main swarm
   const createPopEffect = () => {
     // Dynamic bubble size based on expanded state
-    let bubbleSize = 140; // Base collapsed size
+    let bubbleSize = 70; // Base collapsed size
     if (isExpanded) {
       bubbleSize = 320; // Fixed size for visual status display
     }

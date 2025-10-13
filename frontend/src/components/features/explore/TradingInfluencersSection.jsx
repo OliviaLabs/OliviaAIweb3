@@ -125,6 +125,10 @@ export default function TradingInfluencersSection({ selectedToken, tokenTweets, 
                           src={influencer.image}
                           alt={influencer.name}
                           className="min-w-12 w-12 min-h-12 h-12 object-cover"
+                          onError={(e) => {
+                            e.target.onerror = null; // Prevent infinite loop
+                            e.target.src = '/Olivia-ai-LOGO.png';
+                          }}
                         />
                       </div>
                       <div className="flex flex-col gap-0.5 flex-1">
@@ -200,6 +204,10 @@ export default function TradingInfluencersSection({ selectedToken, tokenTweets, 
                             src={selectedInfluencer.image}
                             alt={selectedInfluencer.name}
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.onerror = null; // Prevent infinite loop
+                              e.target.src = '/Olivia-ai-LOGO.png';
+                            }}
                           />
                         </div>
                         <div className="flex flex-col justify-center items-center">

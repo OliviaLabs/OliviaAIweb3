@@ -80,30 +80,25 @@ export default function Layout() {
     setShowWelcomeDrawer(isNewUser || false)
   }, [userData, telegramUser, isGuestUser])
 
-  // Apply desktop layout to main app pages (Home, Explore, Plugins, Profile)
-  const desktopPages = ['/home', '/explore', '/plugins', '/profile'];
-  const useDesktopLayout = desktopPages.includes(location.pathname);
+  // Desktop page needs full-screen layout without padding
+  const isDesktopPage = location.pathname === '/desktop';
 
   return (
     <div className={`h-screen hide-scrollbar w-full flex flex-col relative`}>
-      {/* Top Navigation - Hidden on desktop (≥1024px) for main pages */}
-      <div className={useDesktopLayout ? "lg:hidden" : ""}>
+      {/* Top Navigation */}
+      <div>
         <TopNavigation />
       </div>
 
       {/* Main content */}
-      <main className={`flex-1 ${useDesktopLayout ? 'overflow-hidden p-0' : 'overflow-y-auto px-4'}`}>
-        {useDesktopLayout ? (
-          <ResponsiveHomeWrapper>
-            <Outlet />
-          </ResponsiveHomeWrapper>
-        ) : (
+      <main className={`flex-1 ${isDesktopPage ? 'overflow-hidden p-0' : 'overflow-y-auto px-4'}`}>
+        <ResponsiveHomeWrapper>
           <Outlet />
-        )}
+        </ResponsiveHomeWrapper>
       </main>
 
-      {/* Bottom Navigation - Always visible */}
-      <BottomNavigation 
+      {/* Bottom Navigation - Always visible (includes AI chat) */}
+      <BottomNavigation
         showInput={showInput}
         userInput={userInput}
         onInputChange={setUserInput}

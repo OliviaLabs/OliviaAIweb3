@@ -27,7 +27,7 @@ const FloatingLurkyBubble = ({ isOpen, onClose, title = 'Lurky', content = '', l
   const createPopEffect = () => {
     if (!addParticlesToSwarm) return;
     
-    // Use same dynamic sizing logic\n    let bubbleSize = 128;\n    if (isExpanded && typeof content === 'string') {\n      const lines = content.split('\\n').length;\n      const avgLineLength = content.length / lines;\n      const estimatedWidth = Math.max(300, Math.min(500, avgLineLength * 8 + 120));\n      const estimatedHeight = Math.max(250, lines * 22 + 100);\n      bubbleSize = Math.max(estimatedWidth, estimatedHeight);\n    } else if (isExpanded) {\n      bubbleSize = 350;\n    }
+    // Use same dynamic sizing logic\n    let bubbleSize = 64;\n    if (isExpanded && typeof content === 'string') {\n      const lines = content.split('\\n').length;\n      const avgLineLength = content.length / lines;\n      const estimatedWidth = Math.max(300, Math.min(500, avgLineLength * 8 + 120));\n      const estimatedHeight = Math.max(250, lines * 22 + 100);\n      bubbleSize = Math.max(estimatedWidth, estimatedHeight);\n    } else if (isExpanded) {\n      bubbleSize = 350;\n    }
     const bubbleCenter = {
       x: position.x + bubbleSize / 2, // Actual bubble center
       y: position.y + bubbleSize / 2  // Actual bubble center

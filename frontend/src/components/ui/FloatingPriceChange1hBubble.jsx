@@ -21,7 +21,7 @@ const FloatingPriceChange1hBubble = ({ isOpen, onClose, title = '1h Change', cha
   // Remove auto-floating
   useEffect(() => { return undefined; }, [isOpen, isDragging, isExpanded]);
 
-  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs, bubbleWidth: 140, gap: 4, margin: 8 });
+  useFloatToTop({ id: bubbleId, isOpen, isDragging, isExpanded, position, setPosition, topBarrier: 20, delayMs, bubbleWidth: 70, gap: 4, margin: 8 });
 
   const createPopEffect = () => {
     const bubbleSize = isExpanded ? 280 : 140;
@@ -92,7 +92,7 @@ const FloatingPriceChange1hBubble = ({ isOpen, onClose, title = '1h Change', cha
     <div
       ref={containerRef}
       className={`absolute z-50 pointer-events-auto transition-all duration-1000 ease-in-out ${
-        isExpanded ? 'w-48 h-48' : 'w-36 h-36'
+        isExpanded ? 'w-48 h-48' : 'w-18 h-18'
       } ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} select-none`}
       style={{
         left: `${position.x}px`,
@@ -110,8 +110,8 @@ const FloatingPriceChange1hBubble = ({ isOpen, onClose, title = '1h Change', cha
           {!isExpanded ? (
             <div className="flex flex-col items-center justify-center">
               <div className="relative mb-2">
-                <div className="w-8 h-8 rounded-full border-0 shadow-none bg-transparent flex items-center justify-center" style={{backgroundColor: `${scoreColor}20`}}>
-                  <Icon size={20} style={{color: scoreColor}} />
+                <div className="w-4 h-4 rounded-full border-0 shadow-none bg-transparent flex items-center justify-center" style={{backgroundColor: `${scoreColor}20`}}>
+                  <Icon size={10} style={{color: scoreColor}} />
                 </div>
               </div>
               
