@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { twitterService } from '../../../api/services/twitter.service';
 import FloatingBubbles from './FloatingBubbles';
+import { useHomeInput } from '../../../contexts/HomeInputContext';
 
 const microserviceUrl = import.meta.env.VITE_MICROSERVICE_URL || 'http://localhost:3000';
 
@@ -10,6 +11,7 @@ function BubbleMapSection({ onTokenClick, loadingToken, setUserInput, handleSend
   const timeframe = '24h'; // Fixed to 24 hours only
   const [error, setError] = useState(null);
   const hasFetched = useRef(false);
+  const { addInlineBubble } = useHomeInput();
 
   useEffect(() => {
     // Prevent double fetch on React StrictMode
@@ -98,6 +100,16 @@ function BubbleMapSection({ onTokenClick, loadingToken, setUserInput, handleSend
     // 1. SEND TO AI FIRST - Ask Olivia about this token (send directly, don't wait for input)
     const message = `Tell me about ${tokenSymbol}`;
     console.log(`🤖 Auto-sending to AI: "${message}"`);
+    // Add a user message bubble immediately in the global chat
+    try {
+      addInlineBubble({
+        id: `user-${Date.now()}`,
+        type: 'user',
+        content: message,
+        timestamp: Date.now(),
+        isComplete: true
+      });
+    } catch (_) {}
     if (sendMessage) {
       // Send directly through WebSocket
       sendMessage(message, [], false, false).catch(err => {
