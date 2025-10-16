@@ -171,7 +171,7 @@ export default function Login() {
 
 
         {/* Sleek Login Options */}
-        <div className="w-full space-y-2 max-w-sm mx-auto">
+        <div className="w-full space-y-3 max-w-sm mx-auto" style={{ position: 'relative', zIndex: 100 }}>
           {/* Connect Wallet Button - Top Priority */}
           <button
             onClick={() => {
@@ -186,11 +186,12 @@ export default function Login() {
                 }
               }
             }}
-            className="group w-full bg-gray-900 hover:bg-gray-800 rounded-lg px-4 py-2.5 transition-all duration-200 border border-gray-800 hover:border-gray-700"
+            className="group w-full bg-gray-900 hover:bg-gray-800 rounded-lg px-6 py-4 transition-all duration-200 border-2 border-white/30 hover:border-white/50"
+            style={{ display: 'block', visibility: 'visible', opacity: 1 }}
           >
             <div className="flex items-center gap-3">
-              <Wallet className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
-              <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">Connect Wallet</span>
+              <Wallet className="w-5 h-5 text-white" />
+              <span className="text-base font-semibold text-white">Connect Wallet</span>
             </div>
           </button>
 
@@ -198,11 +199,12 @@ export default function Login() {
           <button
             onClick={handleInternetIdentityLogin}
             disabled={iiLoading}
-            className="group w-full bg-gray-950 hover:bg-gray-900 rounded-lg px-4 py-2.5 transition-all duration-200 border border-gray-800 hover:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="group w-full bg-gray-800 hover:bg-gray-700 rounded-lg px-6 py-4 transition-all duration-200 border-2 border-white/30 hover:border-white/50 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ display: 'block', visibility: 'visible', opacity: 1 }}
           >
             <div className="flex items-center gap-3">
-              <Shield className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
-              <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">
+              <Shield className="w-5 h-5 text-white" />
+              <span className="text-base font-semibold text-white">
                 {iiLoading ? 'Authenticating...' : 'Internet Identity'}
               </span>
             </div>
@@ -211,11 +213,12 @@ export default function Login() {
           {/* Guest Button */}
           <button
             onClick={handleGuestLogin}
-            className="group w-full bg-black hover:bg-gray-950 rounded-lg px-4 py-2.5 transition-all duration-200 border border-gray-800 hover:border-gray-700"
+            className="group w-full bg-gray-700 hover:bg-gray-600 rounded-lg px-6 py-4 transition-all duration-200 border-2 border-white/30 hover:border-white/50"
+            style={{ display: 'block', visibility: 'visible', opacity: 1 }}
           >
             <div className="flex items-center gap-3">
-              <UserCheck className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
-              <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">Guest Access</span>
+              <UserCheck className="w-5 h-5 text-white" />
+              <span className="text-base font-semibold text-white">Guest Access</span>
             </div>
           </button>
         </div>

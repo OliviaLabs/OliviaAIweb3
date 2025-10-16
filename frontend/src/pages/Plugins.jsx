@@ -105,6 +105,39 @@ const Plugins = () => {
           </p>
         </div>
 
+        {/* Plan Selection */}
+        <div className="mb-6">
+          <h3 className="font-semibold text-white mb-3">Choose Your Plan</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { name: 'Free', price: '$0', plugins: 2 },
+              { name: 'Starter', price: '$5', plugins: 4 },
+              { name: 'Pro', price: '$10', plugins: 8 },
+              { name: 'Unlimited', price: '$15', plugins: 'All' }
+            ].map(plan => (
+              <div 
+                key={plan.name}
+                onClick={() => {
+                  const planKey = plan.name.toLowerCase();
+                  setSelectedPlan(planKey);
+                  localStorage.setItem('olivia-selected-plan', planKey);
+                }}
+                className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                  selectedPlan === plan.name.toLowerCase()
+                    ? 'border-brand bg-brand/10'
+                    : 'border-white/10 bg-white/5 hover:border-white/30'
+                }`}
+              >
+                <div className="text-center">
+                  <h4 className="font-bold text-white text-lg">{plan.name}</h4>
+                  <p className="text-2xl font-bold text-brand my-2">{plan.price}</p>
+                  <p className="text-white/70 text-sm">{plan.plugins} Plugins</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Plugin Stats */}
         <div className="mb-4 bg-white/5 rounded-lg p-3 border border-white/10">
           <div className="flex items-center justify-between text-sm">

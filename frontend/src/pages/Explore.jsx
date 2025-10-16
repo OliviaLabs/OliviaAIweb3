@@ -59,7 +59,7 @@ export default function Explore() {
   }, [setShowInput, handleSendMessageRef, handleSendMessage]); // handleSendMessage is now stable (uses ref for input)
 
   return (
-    <div className="flex flex-col gap-6 relative pb-10 h-full w-full overflow-hidden">
+    <div className="flex flex-col gap-6 relative pb-10 h-full w-full overflow-hidden" style={{ maxWidth: '100%', boxSizing: 'border-box' }}>
       <BubbleMapSection 
         onTokenClick={handleTokenClick} 
         loadingToken={loadingToken}

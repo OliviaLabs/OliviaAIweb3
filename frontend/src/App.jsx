@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import Home from './pages/home';
-import Login from './pages/login';
+import Login from './pages/Login.jsx';
 import Plugins from './pages/plugins';
 import Explore from './pages/explore';
 import Profile from './pages/profile';
@@ -15,9 +15,22 @@ import { HomeInputProvider } from './contexts/HomeInputContext';
 import React, { useState, useEffect } from 'react';
 import QrCode from './pages/qrcode';
 
+// Placeholder components for WEB2 dash pages
+const Dashboard = () => <div className="p-8 text-white">Dashboard Page</div>;
+const Conversations = () => <div className="p-8 text-white">Conversations Page</div>;
+const Leads = () => <div className="p-8 text-white">Leads Page</div>;
+const Agents = () => <div className="p-8 text-white">Agents Page</div>;
+const Playground = () => <div className="p-8 text-white">Playground Page</div>;
+const SmsCampaign = () => <div className="p-8 text-white">SMS Campaign Page</div>;
+const EmailCampaign = () => <div className="p-8 text-white">Email Campaign Page</div>;
+const Extensions = () => <div className="p-8 text-white">Extensions Page</div>;
+const WhatsappTemplates = () => <div className="p-8 text-white">WhatsApp Templates Page</div>;
+const Staff = () => <div className="p-8 text-white">Staff Page</div>;
+const ApiKeys = () => <div className="p-8 text-white">API Keys Page</div>;
+const Ask = () => <div className="p-8 text-white">Ask Page</div>;
+
 function App() {
   const [showQrCode, setShowQrCode] = useState(false);
-  const location = useLocation();
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
@@ -36,10 +49,6 @@ function App() {
     setShowQrCode(false);
   }, []);
 
-  if (location.pathname === '/' || location.pathname === '') {
-    return <Navigate to="/login" replace />;
-  }
-
   return (
     <TokenInfluencerProvider>
       <Routes>
@@ -47,24 +56,24 @@ function App() {
           <Route path="/*" element={<QrCode />} />
         ) : (
           <>
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/" element={<Login />} />
             <Route path="/login" element={<Login />} />
 
             <Route element={<PrivateRoute />}>
-              <Route element={<DashLayoutLite />}>
-                {/* WEB2 dash sections (placeholders) */}
-                <Route path="/dashboard" element={<div className="p-6 text-white">Dashboard page</div>} />
-                <Route path="/conversations" element={<div className="p-6 text-white">Conversations</div>} />
-                <Route path="/leads" element={<div className="p-6 text-white">Leads</div>} />
-                <Route path="/agents" element={<div className="p-6 text-white">Agents</div>} />
-                <Route path="/playground" element={<div className="p-6 text-white">AI Playground</div>} />
-                <Route path="/campaigns/sms" element={<div className="p-6 text-white">SMS Campaign</div>} />
-                <Route path="/campaigns/email" element={<div className="p-6 text-white">Email Campaign</div>} />
-                <Route path="/integrations" element={<div className="p-6 text-white">Integrations</div>} />
-                <Route path="/whatsapp-templates" element={<div className="p-6 text-white">WhatsApp Templates</div>} />
-                <Route path="/staff" element={<div className="p-6 text-white">Staff</div>} />
-                <Route path="/api-keys" element={<div className="p-6 text-white">API Keys</div>} />
-                <Route path="/ask" element={<div className="p-6 text-white">Ask</div>} />
+            <Route element={<DashLayoutLite />}>
+              {/* WEB2 dash sections - REAL pages */}
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/conversations" element={<Conversations />} />
+              <Route path="/leads" element={<Leads />} />
+              <Route path="/agents" element={<Agents />} />
+              <Route path="/playground/:agentId?" element={<Playground />} />
+              <Route path="/campaigns/sms" element={<SmsCampaign />} />
+              <Route path="/campaigns/email" element={<EmailCampaign />} />
+              <Route path="/integrations" element={<Extensions />} />
+              <Route path="/whatsapp-templates" element={<WhatsappTemplates />} />
+              <Route path="/staff" element={<Staff />} />
+              <Route path="/api-keys" element={<ApiKeys />} />
+              <Route path="/ask" element={<Ask />} />
 
                 {/* Your existing app pages inside the new shell */}
                 <Route element={

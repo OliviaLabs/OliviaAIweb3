@@ -26,17 +26,17 @@ createRoot(document.getElementById('root')).render(
               v7_relativeSplatPath: true
             }}
           >
-            <AuthProviderLogin>
-              <InternetIdentityProvider>
-                <WebSocketProvider>
-                  <ChatProvider>
-                    <main className="dark text-foreground bg-background">
-                      <App />
-                    </main>
-                  </ChatProvider>
-                </WebSocketProvider>
-              </InternetIdentityProvider>
-            </AuthProviderLogin>
+              <AuthProviderLogin>
+                <InternetIdentityProvider>
+                  <WebSocketProvider>
+                    <ChatProvider>
+                      <main className="dark text-foreground bg-background">
+                        <App />
+                      </main>
+                    </ChatProvider>
+                  </WebSocketProvider>
+                </InternetIdentityProvider>
+              </AuthProviderLogin>
           </BrowserRouter>
         </AppKitProvider>
       </HeroUIProvider>

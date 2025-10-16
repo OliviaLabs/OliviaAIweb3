@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, MessageSquare, Users, Sparkles, Code2, UserCog, User, ChevronLeft, ChevronRight, Bot, Boxes, Mail
+  LayoutDashboard, MessageSquare, Users, Sparkles, Code2, UserCog, User, ChevronLeft, ChevronRight, Bot, Boxes, Mail, Home as HomeIcon, Search, Puzzle, Monitor
 } from 'lucide-react';
 import logo from '../../assets/logos/Olivia-ai-LOGO.png';
 
@@ -11,14 +11,17 @@ export default function DashSidebarLite({ isCollapsed, onCollapse, userEmail }) 
     {
       title: 'Main',
       items: [
-        { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-        { name: 'Home', icon: MessageSquare, path: '/home' },
-        { name: 'Explore', icon: Users, path: '/explore' },
+        { name: 'Home', icon: HomeIcon, path: '/home' },
+        { name: 'Explore', icon: Search, path: '/explore' },
+        { name: 'Plugins', icon: Puzzle, path: '/plugins', badge: 12 },
+        { name: 'Profile', icon: User, path: '/profile' },
+        { name: 'Desktop', icon: Monitor, path: '/desktop' },
       ],
     },
     {
-      title: 'Communication',
+      title: 'Dashboard',
       items: [
+        { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
         { name: 'Conversations', icon: MessageSquare, path: '/conversations' },
         { name: 'Leads', icon: Users, path: '/leads' },
       ],
@@ -50,7 +53,6 @@ export default function DashSidebarLite({ isCollapsed, onCollapse, userEmail }) 
       items: [
         { name: 'API Keys', icon: Code2, path: '/api-keys' },
         { name: 'Staff', icon: UserCog, path: '/staff' },
-        { name: 'Profile', icon: User, path: '/profile' },
       ],
     },
   ];
@@ -90,23 +92,43 @@ export default function DashSidebarLite({ isCollapsed, onCollapse, userEmail }) 
                       to={item.path}
                       className={`relative group flex items-center justify-between p-2 rounded-lg transition-all duration-250 ${
                         isActive(item.path)
-                          ? 'bg-gradient-to-tr from-brand to-brand-secondary text-black'
-                          : 'hover:bg-gray-900 text-gray-400'
+                          ? 'bg-gradient-to-tr from-brand to-brand-secondary'
+                          : 'hover:bg-gray-900'
                       }`}
                     >
                       {isActive(item.path) && (
                         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-brand rounded-r-full" />
                       )}
                       <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${isActive(item.path) ? 'bg-black/20' : 'group-hover:bg-gray-800'}`}>
-                          <item.icon className={`w-4 h-4 ${isActive(item.path) ? 'text-black' : 'text-gray-400 group-hover:text-white'}`} />
+                        <div className="p-2 rounded-lg">
+                          <item.icon 
+                            className="w-4 h-4" 
+                            style={{ 
+                              color: isActive(item.path) ? '#000000' : '#FFFFFF',
+                              opacity: 1,
+                              visibility: 'visible'
+                            }}
+                          />
                         </div>
                         {!isCollapsed && (
-                          <span className={`font-medium text-sm ${isActive(item.path) ? 'text-black' : 'text-gray-400 group-hover:text-white'}`}>
+                          <span 
+                            className="font-medium text-sm" 
+                            style={{ 
+                              color: isActive(item.path) ? '#000000' : '#FFFFFF',
+                              opacity: 1,
+                              visibility: 'visible',
+                              display: 'block'
+                            }}
+                          >
                             {item.name}
                           </span>
                         )}
                       </div>
+                      {!isCollapsed && item.badge && (
+                        <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-green-500 text-black text-xs font-bold flex items-center justify-center">
+                          {item.badge}
+                        </span>
+                      )}
                     </Link>
                   ))}
                 </div>

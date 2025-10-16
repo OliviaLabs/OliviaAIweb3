@@ -4601,7 +4601,7 @@ export default function Home() {
 
 
   return (
-    <div className="relative flex flex-col h-full w-full bg-black overflow-hidden">
+    <div className="relative flex flex-col h-full w-full bg-black overflow-hidden" style={{ maxWidth: '100%', boxSizing: 'border-box' }}>
       
       {/* WebSocket Status Debug (bottom-right) - Development Only */}
       {import.meta.env.VITE_NODE === 'development' && (
@@ -4629,7 +4629,7 @@ export default function Home() {
 
       
       {/* Animated Particles Background */}
-      <div className="absolute inset-0 pointer-events-none z-0">
+      <div className="absolute top-0 left-0 right-0 bottom-0 pointer-events-none z-0">
         {particles.map(particle => (
           <div
             key={particle.id}
@@ -4740,7 +4740,7 @@ export default function Home() {
         </div>
 
       {/* BUBBLE CONTAINER - Hard boundaries for desktop column only */}
-      <div ref={bubbleContainerRef} className="absolute inset-0 lg:overflow-hidden pointer-events-none" style={{ isolation: 'isolate', zIndex: 100 }}>
+      <div ref={bubbleContainerRef} className="absolute top-0 left-0 right-0 bottom-0 pointer-events-none overflow-hidden" style={{ isolation: 'isolate', zIndex: 100 }}>
       {/* Render all Lurky bubble instances - only if plugin enabled */}
       {isPluginEnabled('lurky') && lurkyBubbles.map(bubble => (
         <FloatingLurkyBubble

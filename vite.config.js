@@ -16,7 +16,8 @@ export default defineConfig({
       // Allow importing files from the WEB2 dash directory outside the Vite root
       allow: [
         '..',
-        path.resolve(__dirname, 'WEB2 dash')
+        path.join(__dirname, 'WEB2 dash'),
+        __dirname
       ]
     }
   },
@@ -37,10 +38,10 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      // Alias to the WEB2 dash source directory
-      '@dash': path.resolve(__dirname, 'WEB2 dash/src'),
+      // Alias to the WEB2 dash source directory (using path.join for spaces in directory name)
+      '@dash': path.join(__dirname, 'WEB2 dash', 'src'),
       // Alias to frontend assets for shared use across both apps
-      '@frontAssets': path.resolve(__dirname, 'frontend/src/assets')
+      '@frontAssets': path.join(__dirname, 'frontend', 'src', 'assets')
     }
   }
 })

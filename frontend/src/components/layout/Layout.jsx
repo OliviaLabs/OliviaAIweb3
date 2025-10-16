@@ -84,13 +84,24 @@ export default function Layout() {
   const isDesktopPage = location.pathname === '/desktop';
 
   return (
-    <div className="h-full w-full flex flex-col relative">
+    <div className="h-full w-full flex flex-col relative overflow-hidden" style={{ maxWidth: '100%', boxSizing: 'border-box' }}>
       {/* Main content - fills the right column */}
-      <main className={`flex-1 ${isDesktopPage ? 'overflow-hidden p-0' : 'overflow-y-auto px-4'}`}>
+      <main className={`flex-1 w-full ${isDesktopPage ? 'overflow-hidden p-0' : 'overflow-y-auto px-4'}`} style={{ maxWidth: '100%', boxSizing: 'border-box' }}>
         <ResponsiveHomeWrapper>
           <Outlet />
         </ResponsiveHomeWrapper>
       </main>
+
+      {/* Bottom Navigation with AI Chat - Constrained to right column */}
+      <div className="flex-shrink-0 relative" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+        <BottomNavigation
+          showInput={showInput}
+          userInput={userInput}
+          onInputChange={setUserInput}
+          onSendMessage={() => handleSendMessageRef.current?.()}
+          inputRef={inputRef}
+        />
+      </div>
 
       {/* Welcome Drawer */}
       <WelcomeDrawer
