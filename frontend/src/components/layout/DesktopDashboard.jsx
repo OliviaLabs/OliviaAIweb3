@@ -10,7 +10,7 @@ const Plugins = React.lazy(() => import('../../pages/Plugins'));
 
 export default function DesktopDashboard() {
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden">
+    <div className="flex flex-col h-full w-full overflow-hidden">
       {/* 4 VERTICAL COLUMNS ROW */}
       <div className="flex-1 flex gap-0 overflow-hidden relative">
         

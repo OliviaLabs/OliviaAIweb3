@@ -165,7 +165,7 @@ export default function TopNavigation() {
     <>
       {/* Wallet authentication modal functionality removed */}
 
-      <div className="px-4 py-4" style={{ zIndex: 2147483646 }}>
+      <div className="px-4 py-4" style={{ zIndex: 20 }}>
         <div className="flex justify-between items-center">
           {/* Left side - empty (Plugins button removed) */}
           <div />
@@ -197,7 +197,7 @@ export default function TopNavigation() {
                       data-dropdown="icp-guest"
                       className="absolute right-0 mt-2 w-80 bg-gray-800 rounded-lg shadow-xl border border-gray-700"
                       style={{ 
-                        zIndex: 2147483647,
+                        zIndex: 30,
                         pointerEvents: 'auto'
                       }}
                       onMouseDown={(e) => e.stopPropagation()}
@@ -306,7 +306,7 @@ export default function TopNavigation() {
                     data-dropdown="internet-identity"
                     className="absolute right-0 mt-2 w-80 bg-gray-800 rounded-lg shadow-xl border border-gray-700"
                       style={{ 
-                        zIndex: 2147483647,
+                        zIndex: 30,
                         pointerEvents: 'auto'
                       }}
                     onMouseDown={(e) => e.stopPropagation()}
