@@ -90,23 +90,35 @@ export default function DashSidebarLite({ isCollapsed, onCollapse, userEmail }) 
                     <Link
                       key={item.path}
                       to={item.path}
-                      className={`relative group flex items-center justify-between p-2 rounded-lg transition-all duration-250 ${
-                        isActive(item.path)
-                          ? 'bg-gradient-to-tr from-brand to-brand-secondary'
-                          : 'hover:bg-gray-900'
-                      }`}
+                      className={`relative group flex items-center justify-between p-2 rounded-lg transition-all duration-250`}
+                      style={{
+                        background: isActive(item.path) 
+                          ? 'linear-gradient(to top right, #10b981, #34d399)'
+                          : 'transparent'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isActive(item.path)) {
+                          e.currentTarget.style.background = '#1F2937';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive(item.path)) {
+                          e.currentTarget.style.background = 'transparent';
+                        }
+                      }}
                     >
                       {isActive(item.path) && (
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-brand rounded-r-full" />
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-white rounded-r-full" />
                       )}
                       <div className="flex items-center gap-3">
                         <div className="p-2 rounded-lg">
                           <item.icon 
                             className="w-4 h-4" 
                             style={{ 
-                              color: isActive(item.path) ? '#000000' : '#FFFFFF',
+                              color: isActive(item.path) ? '#FFFFFF' : '#9CA3AF',
                               opacity: 1,
-                              visibility: 'visible'
+                              visibility: 'visible',
+                              display: 'inline-block'
                             }}
                           />
                         </div>
@@ -114,10 +126,10 @@ export default function DashSidebarLite({ isCollapsed, onCollapse, userEmail }) 
                           <span 
                             className="font-medium text-sm" 
                             style={{ 
-                              color: isActive(item.path) ? '#000000' : '#FFFFFF',
+                              color: isActive(item.path) ? '#FFFFFF' : '#9CA3AF',
                               opacity: 1,
                               visibility: 'visible',
-                              display: 'block'
+                              display: 'inline-block'
                             }}
                           >
                             {item.name}

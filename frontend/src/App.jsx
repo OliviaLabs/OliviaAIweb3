@@ -15,11 +15,11 @@ import { HomeInputProvider } from './contexts/HomeInputContext';
 import React, { useState, useEffect } from 'react';
 import QrCode from './pages/qrcode';
 
-// Placeholder components for WEB2 dash pages
-const Dashboard = () => <div className="p-8 text-white">Dashboard Page</div>;
-const Conversations = () => <div className="p-8 text-white">Conversations Page</div>;
-const Leads = () => <div className="p-8 text-white">Leads Page</div>;
-const Agents = () => <div className="p-8 text-white">Agents Page</div>;
+// Import real Dashboard, Conversations, Leads, and Agents pages
+import Dashboard from './pages/Dashboard';
+import Conversations from './pages/Conversations';
+import Leads from './pages/Leads';
+import Agents from './pages/Agents';
 const Playground = () => <div className="p-8 text-white">Playground Page</div>;
 const SmsCampaign = () => <div className="p-8 text-white">SMS Campaign Page</div>;
 const EmailCampaign = () => <div className="p-8 text-white">Email Campaign Page</div>;
