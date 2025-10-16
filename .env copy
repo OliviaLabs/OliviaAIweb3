@@ -1,0 +1,26 @@
+# --------------- OLIVIA ENV ------------------- #
+
+# VITE_SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhc3JxY25ydmJvZHl3aXFldWViIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTYwODcyMzcsImV4cCI6MjAxMTY2MzIzN30.p_kqyt_MjrbIIEQ38Os4U_00P6QPdP4GsTmr7NUGAqQ
+VITE_SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtxa3N5cnhrendjY3RxZ3R4dXF6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczOTg5MTAxOCwiZXhwIjoyMDU1NDY3MDE4fQ.fDV7C3n-GKQtDLbmkdnPB_qDWvcrJ-lNejCVdeRYEbU
+VITE_SUPABASE_API_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtxa3N5cnhrendjY3RxZ3R4dXF6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczOTg5MTAxOCwiZXhwIjoyMDU1NDY3MDE4fQ.fDV7C3n-GKQtDLbmkdnPB_qDWvcrJ-lNejCVdeRYEbU
+VITE_SUPABASE_S_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtxa3N5cnhrendjY3RxZ3R4dXF6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczOTg5MTAxOCwiZXhwIjoyMDU1NDY3MDE4fQ.fDV7C3n-GKQtDLbmkdnPB_qDWvcrJ-lNejCVdeRYEbU
+VITE_SUPABASE_URL = https://kwgghheyoxiyojjxnnwr.supabase.co
+
+
+
+VITE_SHOW_UPGRADE_PAGE=True
+
+VITE_LOGO_URL="https://kwgghheyoxiyojjxnnwr.supabase.co/storage/v1/object/public/defaultImage/olivia-network-logo.png"
+VITE_LOGO_ICON_URL="https://asdasd.com"
+VITE_BRAND_PRIMARY_COLOR="#000"
+VITE_BRAND_TEXT_COLOR="#fff"
+VITE_DOMAIN_URL=https://app.olivianetwork.ai
+
+
+# SUBSCRIPTION ENDPOINTS
+#API-Gateway Env
+VITE_API_GATEWAY_URL=http://localhost:2000
+VITE_API_GATEWAY_JWT=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.FJWDolD_U1gQLJiBZVC1j_ld6dlTW7p8V-xDhgo0JO8
+
+#Playgorund Chat API Key:
+VITE_CHAT_DEMO_API_KEY=sk-as263-2345agf3-a0-ai-2023
