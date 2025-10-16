@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import Home from './pages/home';
 import Login from './pages/login';
@@ -8,26 +8,21 @@ import Profile from './pages/profile';
 import Desktop from './pages/Desktop';
 
 import Layout from './components/layout/Layout';
-import { PrivateRoute, PublicRoute } from './components/auth/RouteGuards';
+import DashLayoutLite from './components/layout/DashLayoutLite.jsx';
+import { PrivateRoute } from './components/auth/RouteGuards';
 import { TokenInfluencerProvider } from './contexts/TokenInfluencerContext';
 import { HomeInputProvider } from './contexts/HomeInputContext';
 import React, { useState, useEffect } from 'react';
 import QrCode from './pages/qrcode';
 
 function App() {
-  console.log('📱 App component rendering...');
   const [showQrCode, setShowQrCode] = useState(false);
-  console.log('📱 App component state initialized');
+  const location = useLocation();
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
-
     if (tg && tg.initData && tg.initDataUnsafe) {
-      // Check if they're on Telegram WebApp
-      // platform might be: 'android', 'ios', 'web', etc.
       if (tg.platform && tg.platform !== "web") {
-        // => Official Telegram in‐app browser (mobile or desktop),
-        //    not Telegram Web (browser).
         tg.expand();
         tg.disableVerticalSwipes();
         tg.onEvent("viewportChanged", () => {
@@ -35,57 +30,57 @@ function App() {
             tg.expand();
           }
         });
-        return; // Keep normal flow
+        return;
       }
     }
-
-    // If we reach here:
-    // 1) window.Telegram.WebApp is not defined at all, OR
-    // 2) platform === "web" (Telegram Web in a browser, not in-app)
     setShowQrCode(false);
   }, []);
+
+  if (location.pathname === '/' || location.pathname === '') {
+    return <Navigate to="/login" replace />;
+  }
 
   return (
     <TokenInfluencerProvider>
       <Routes>
         {showQrCode ? (
-          // Redirect users to the QR Code page if they're not using Telegram.
           <Route path="/*" element={<QrCode />} />
         ) : (
           <>
-            <Route
-              path="/"
-              element={
-                <PublicRoute>
-                  <Login />
-                </PublicRoute>
-              }
-            />
-            <Route
-              path="/login"
-              element={
-                <PublicRoute>
-                  <Login />
-                </PublicRoute>
-              }
-            />
-
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/login" element={<Login />} />
 
             <Route element={<PrivateRoute />}>
-              <Route element={
-                <HomeInputProvider>
-                  <Layout />
-                </HomeInputProvider>
-              }>
-                <Route path="/home" element={<Home />} />
-                <Route path="/explore" element={<Explore />} />
-                <Route path="/plugins" element={<Plugins />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/desktop" element={<Desktop />} />
+              <Route element={<DashLayoutLite />}>
+                {/* WEB2 dash sections (placeholders) */}
+                <Route path="/dashboard" element={<div className="p-6 text-white">Dashboard page</div>} />
+                <Route path="/conversations" element={<div className="p-6 text-white">Conversations</div>} />
+                <Route path="/leads" element={<div className="p-6 text-white">Leads</div>} />
+                <Route path="/agents" element={<div className="p-6 text-white">Agents</div>} />
+                <Route path="/playground" element={<div className="p-6 text-white">AI Playground</div>} />
+                <Route path="/campaigns/sms" element={<div className="p-6 text-white">SMS Campaign</div>} />
+                <Route path="/campaigns/email" element={<div className="p-6 text-white">Email Campaign</div>} />
+                <Route path="/integrations" element={<div className="p-6 text-white">Integrations</div>} />
+                <Route path="/whatsapp-templates" element={<div className="p-6 text-white">WhatsApp Templates</div>} />
+                <Route path="/staff" element={<div className="p-6 text-white">Staff</div>} />
+                <Route path="/api-keys" element={<div className="p-6 text-white">API Keys</div>} />
+                <Route path="/ask" element={<div className="p-6 text-white">Ask</div>} />
+
+                {/* Your existing app pages inside the new shell */}
+                <Route element={
+                  <HomeInputProvider>
+                    <Layout />
+                  </HomeInputProvider>
+                }>
+                  <Route path="/home" element={<Home />} />
+                  <Route path="/explore" element={<Explore />} />
+                  <Route path="/plugins" element={<Plugins />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/desktop" element={<Desktop />} />
+                </Route>
               </Route>
             </Route>
 
-            {/* Catch-all route for deleted/unknown pages */}
             <Route path="/icp-setup" element={<Navigate to="/home" replace />} />
             <Route path="*" element={<Navigate to="/login" replace />} />
           </>

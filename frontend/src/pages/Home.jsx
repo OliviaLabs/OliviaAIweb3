@@ -4601,7 +4601,7 @@ export default function Home() {
 
 
   return (
-    <div className="relative flex flex-col h-full bg-black overflow-visible lg:overflow-hidden">
+    <div className="relative flex flex-col h-full w-full bg-black overflow-hidden">
       
       {/* WebSocket Status Debug (bottom-right) - Development Only */}
       {import.meta.env.VITE_NODE === 'development' && (

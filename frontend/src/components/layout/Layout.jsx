@@ -84,30 +84,16 @@ export default function Layout() {
   const isDesktopPage = location.pathname === '/desktop';
 
   return (
-    <div className={`h-screen hide-scrollbar w-full flex flex-col relative`}>
-      {/* Top Navigation */}
-      <div>
-        <TopNavigation />
-      </div>
-
-      {/* Main content */}
+    <div className="h-full w-full flex flex-col relative">
+      {/* Main content - fills the right column */}
       <main className={`flex-1 ${isDesktopPage ? 'overflow-hidden p-0' : 'overflow-y-auto px-4'}`}>
         <ResponsiveHomeWrapper>
           <Outlet />
         </ResponsiveHomeWrapper>
       </main>
 
-      {/* Bottom Navigation - Always visible (includes AI chat) */}
-      <BottomNavigation
-        showInput={showInput}
-        userInput={userInput}
-        onInputChange={setUserInput}
-        onSendMessage={() => handleSendMessageRef.current?.()}
-        inputRef={inputRef}
-      />
-
       {/* Welcome Drawer */}
-      < WelcomeDrawer
+      <WelcomeDrawer
         isOpen={showWelcomeDrawer}
         onClose={() => setShowWelcomeDrawer(false)}
       />
@@ -118,7 +104,6 @@ export default function Layout() {
         onClose={dismissUpgradePrompt}
         onUpgradeSuccess={handleUpgradeSuccess}
       />
-
     </div>
   )
 }

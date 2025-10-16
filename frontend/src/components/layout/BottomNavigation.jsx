@@ -201,7 +201,7 @@ export default function BottomNavigation({
         onClose={() => setIsConnectModalOpen(false)}
       />
 
-      <div className="fixed bottom-0 left-0 right-0 z-40">
+      <div className="relative bottom-0 z-40 w-full">
         {/* Unified Module: AI Input + Navigation Bar */}
         <div className="bg-black/50 backdrop-blur-md border-t border-white/20 relative">
           {/* Collapse/expand handle */}
