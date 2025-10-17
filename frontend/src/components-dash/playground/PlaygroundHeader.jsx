@@ -13,7 +13,7 @@ import {
   Breadcrumbs,
   BreadcrumbItem,
 } from "@heroui/react";
-import DeployAgentModal from "../../components/DeployAgentModal";
+import DeployAgentModal from "../DeployAgentModal";
 import {
   ChevronDown,
   Search,

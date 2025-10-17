@@ -15,7 +15,7 @@ import {
   Globe,
   ArrowRight,
 } from "lucide-react";
-// import { agents } from "../../components/playground/utils/mockData";
+// import { agents } from "../playground/utils/mockData";
 import { toast } from "sonner";
 import { UserDataContext } from "../../context-dash/UserDataContext";
 import { chatService } from "../../api-dash/services/chat.service";

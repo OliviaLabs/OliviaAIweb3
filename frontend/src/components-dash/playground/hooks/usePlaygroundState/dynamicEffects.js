@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { setValueAtPath } from "../../../../utils/chatUtils";
+import { setValueAtPath } from "../../../../utils-dash/chatUtils";
 
 export const useDynamicEffects = (selectedAgent, setSelectedAgent, botName, introMessage, showLeadForm, selectedModel, selectedGoal, brandColor, responseDelay, webhook, countryCode, companyServices, guidelinesArray, qualificationQuestions, chatType, selectedModelV2, calendarLink, customToolsInstructions, avatarMessage) => {
 

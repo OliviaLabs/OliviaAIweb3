@@ -1,8 +1,8 @@
 import { useEffect } from "react";
-import { chatService } from "../../../../api/services/chat.service";
-import { agentConfigService } from "../../../../api/services/agentConfig.service";
-import { chatConfigService } from "../../../../api/services/chatConfig.service";
-import { webhookService } from "../../../../api/services/webhook.service";
+import { chatService } from "../../../../api-dash/services/chat.service";
+import { agentConfigService } from "../../../../api-dash/services/agentConfig.service";
+import { chatConfigService } from "../../../../api-dash/services/chatConfig.service";
+import { webhookService } from "../../../../api-dash/services/webhook.service";
 
 export const useDataFetching = (userData, chatAgents, setChatAgents, dataFetchedRef, selectedAgent) => {
   // Fetch chat data only once when component mounts

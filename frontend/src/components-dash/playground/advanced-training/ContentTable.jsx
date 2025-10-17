@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useContext } from "react";
 import { Card, CardBody, Input, Button, Chip, Spinner, Progress, Badge } from "@heroui/react";
 import { Search, ChevronDown, ChevronUp, ExternalLink, RotateCw, Trash2, FileText, Globe, HelpCircle } from "lucide-react";
-import { webScraperService } from "../../../api/services/webscraper.service";
+import { webScraperService } from "../../../api-dash/services/webscraper.service";
 import { toast } from "sonner";
-import { UserDataContext } from "../../../context/UserDataContext";
+import { UserDataContext } from "../../../context-dash/UserDataContext";
 
 const ContentTable = ({
   scrapedUrls,

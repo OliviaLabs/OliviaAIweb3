@@ -1,10 +1,10 @@
 import React, { useContext, useState, useRef, useEffect } from "react";
 import { Card, CardBody, Tabs, Tab, Input, Button, Modal, ModalContent, ModalHeader, ModalBody, useDisclosure, ModalFooter, Textarea } from "@heroui/react";
 import { FileText, Globe, Upload, HelpCircle as FAQ, RotateCw, FileJson } from "lucide-react";
-import { webScraperService } from "../../../api/services/webscraper.service";
+import { webScraperService } from "../../../api-dash/services/webscraper.service";
 import { toast } from "sonner";
-import { UserDataContext } from "../../../context/UserDataContext";
-import { contentScraperService } from "../../../api/services/content-scraper.service";
+import { UserDataContext } from "../../../context-dash/UserDataContext";
+import { contentScraperService } from "../../../api-dash/services/content-scraper.service";
 
 const TrainingTabs = ({
   activeTrainingTab,

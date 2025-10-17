@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useContext } from "react";
-import { chatService } from "../../../api/services/chat.service";
-import { aiService } from "../../../api";
+import { chatService } from "../../../api-dash/services/chat.service";
+import { aiService } from "../../../api-dash";
 import { Card, CardBody, Input, Button, Tooltip, Chip, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
 import { Bot, Copy, Trash2, Sparkles, RefreshCw, CloudCog, FileText, ExternalLink } from "lucide-react";
 import CorrectionModal from "./CorrectionModal";
@@ -8,7 +8,7 @@ import SaveResponseButton from "./SaveResponseButton";
 import MessageContent from "../../Ask/MessageContent";
 import CardsDisplay from "./CardsDisplay";
 import { toast } from "sonner";
-import { UserDataContext } from "../../../context/UserDataContext";
+import { UserDataContext } from "../../../context-dash/UserDataContext";
 
 const ChatPreview = ({
   botName, // TODO: Rename to agentName in props

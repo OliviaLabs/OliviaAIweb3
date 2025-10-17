@@ -1,13 +1,13 @@
 import { useState, useMemo, useContext, useEffect, useRef } from "react";
 import { aiModels, aiGoals } from "../../utils/configData";
-import { UserDataContext } from "../../../../context/UserDataContext";
+import { UserDataContext } from "../../../../context-dash/UserDataContext";
 import {
   findMatchingGoalKey,
   normalizeGoalString,
   findMatchingModelKey,
   normalizeModelString
-} from "../../../../utils/formatUtils";
-import { chatService } from "../../../../api/services/chat.service";
-import { webScraperService } from "../../../../api/services/webscraper.service";
-import { setValueAtPath } from "../../../../utils/chatUtils";
-import { supabase } from "../../../../lib/supabase";
+} from "../../../../utils-dash/formatUtils";
+import { chatService } from "../../../../api-dash/services/chat.service";
+import { webScraperService } from "../../../../api-dash/services/webscraper.service";
+import { setValueAtPath } from "../../../../utils-dash/chatUtils";
+import { supabase } from "../../../../lib-dash/supabase";

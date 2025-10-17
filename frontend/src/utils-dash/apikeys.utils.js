@@ -1,4 +1,4 @@
-import { SCOPE_GROUPS } from '../api/types/apikey.types';
+import { SCOPE_GROUPS } from '../api-dash/types/apikey.types';
 
 /**
  * Helper function to get group key from group object

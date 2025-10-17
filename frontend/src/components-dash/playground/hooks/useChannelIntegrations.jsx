@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from "react";
-import { UserDataContext } from "../../../context/UserDataContext";
-import { chatService, clientExtensionService, facebookService, instagramService, integrationService } from "../../../api";
+import { UserDataContext } from "../../../context-dash/UserDataContext";
+import { chatService, clientExtensionService, facebookService, instagramService, integrationService } from "../../../api-dash";
 
 
 /**

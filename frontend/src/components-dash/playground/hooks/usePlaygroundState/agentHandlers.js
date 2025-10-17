@@ -1,4 +1,4 @@
-import { findMatchingGoalKey, findMatchingModelKey } from "../../../../utils/formatUtils";
+import { findMatchingGoalKey, findMatchingModelKey } from "../../../../utils-dash/formatUtils";
 import { aiGoals, aiModels, aiModelsV2 } from "../../utils/configData";
 
 export const useAgentHandlers = (

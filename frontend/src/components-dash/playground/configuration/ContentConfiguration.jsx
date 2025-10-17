@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Accordion, AccordionItem, Textarea, Button, Tooltip } from "@heroui/react";
 import { MessageSquare, Plus, X, HelpCircle, Pencil, HelpCircle as QuestionMark } from "lucide-react";
-import { setValueAtPath } from "../../../utils/chatUtils";
+import { setValueAtPath } from "../../../utils-dash/chatUtils";
 
 const ContentConfiguration = ({
   companyServices,

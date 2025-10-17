@@ -20,14 +20,14 @@ import Dashboard from './pages/Dashboard';
 import Conversations from './pages/Conversations';
 import Leads from './pages/Leads';
 import Agents from './pages/Agents';
-const Playground = () => <div className="p-8 text-white">Playground Page</div>;
-const SmsCampaign = () => <div className="p-8 text-white">SMS Campaign Page</div>;
-const EmailCampaign = () => <div className="p-8 text-white">Email Campaign Page</div>;
-const Extensions = () => <div className="p-8 text-white">Extensions Page</div>;
-const WhatsappTemplates = () => <div className="p-8 text-white">WhatsApp Templates Page</div>;
-const Staff = () => <div className="p-8 text-white">Staff Page</div>;
-const ApiKeys = () => <div className="p-8 text-white">API Keys Page</div>;
-const Ask = () => <div className="p-8 text-white">Ask Page</div>;
+import Playground from './pages/Playground';
+import SmsCampaign from './pages/SmsCampaign';
+import EmailCampaign from './pages/EmailCampaign';
+import Extensions from './pages/Extensions';
+import WhatsappTemplates from './pages/WhatsappTemplates';
+import Staff from './pages/Staff';
+import ApiKeys from './pages/ApiKeys';
+import Ask from './pages/Ask';
 
 function App() {
   const [showQrCode, setShowQrCode] = useState(false);

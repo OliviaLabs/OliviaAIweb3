@@ -20,14 +20,14 @@ import {
 } from "@heroui/react";
 import { MessageSquare, Palette, Link, Globe, Trash2 } from "lucide-react";
 import { aiModels, aiModelsV2, aiGoals } from "../utils/configData";
-import { countries } from "../../../utils/countryData";
-import { UserDataContext } from "../../../context/UserDataContext";
+import { countries } from "../../../utils-dash/countryData";
+import { UserDataContext } from "../../../context-dash/UserDataContext";
 
 import Joyride from 'react-joyride';
 import useTourController from "../../../Demo/utils/useTourController";
 import MyCustomTooltip from "../../../Demo/CustomTooltip/MyCustomTooltip";
 import { aiConfigurationSteps } from "../../../Demo/Playground/aiConfiguration.demo";
-import { chatService } from "../../../api";
+import { chatService } from "../../../api-dash";
 
 
 const AIConfiguration = ({

@@ -15,7 +15,7 @@ import {
     normalizeTelegramRef,
     verifyTelegram
 } from "../../telegramUtils/utils";
-import { integrationService } from "../../../api";
+import { integrationService } from "../../../api-dash";
 import { toast } from "sonner";
 
 const FB_EXT_ID = "9e9de118-8aa5-408a-960c-74074c66cd8e";

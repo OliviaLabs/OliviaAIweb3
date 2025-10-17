@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import DeleteAgentModal from "../../components/DeleteAgentModal";
+import DeleteAgentModal from "../DeleteAgentModal";
 import { usePlaygroundState } from "./hooks/usePlaygroundState";
 import PlaygroundHeader from "./PlaygroundHeader";
 import BotIdentity from "./configuration/BotIdentity";

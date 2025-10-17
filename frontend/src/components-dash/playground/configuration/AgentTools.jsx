@@ -2,9 +2,9 @@ import React, { useState, useEffect, useContext } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Accordion, AccordionItem, Button, Switch, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, Textarea, Select, SelectItem, Chip } from "@heroui/react";
 import { Wrench, Search, Plus, Edit, Trash2, Code, CheckCircle, XCircle, Play, Copy } from "lucide-react";
-import { chatService } from "../../../api/services/chat.service.js";
-import { setValueAtPath } from "../../../utils/chatUtils.js";
-import { UserDataContext } from "../../../context/UserDataContext.jsx";
+import { chatService } from "../../../api-dash/services/chat.service.js";
+import { setValueAtPath } from "../../../utils-dash/chatUtils.js";
+import { UserDataContext } from "../../../context-dash/UserDataContext.jsx";
 import ImageSupportConfig from './ImageSupportConfig.jsx';
 
 const AgentTools = ({

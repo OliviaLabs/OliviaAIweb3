@@ -8,7 +8,7 @@ import {
     Info,
 } from "lucide-react";
 import { CustomRadio } from "../../DeploymentWizard";
-import { UserDataContext } from "../../../context/UserDataContext";
+import { UserDataContext } from "../../../context-dash/UserDataContext";
 
 export const ChannelForm = ({
     agent,

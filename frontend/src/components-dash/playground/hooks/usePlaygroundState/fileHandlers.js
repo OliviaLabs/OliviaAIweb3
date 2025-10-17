@@ -1,10 +1,10 @@
 import { useRef } from "react";
-import { agentConfigService } from "../../../../api/services/agentConfig.service";
-import { chatService } from "../../../../api/services/chat.service";
-import { chatConfigService } from "../../../../api/services/chatConfig.service";
-import { supabase } from "../../../../lib/supabase";
-import { setValueAtPath } from "../../../../utils/chatUtils";
-import { webhookService } from "../../../../api/services/webhook.service";
+import { agentConfigService } from "../../../../api-dash/services/agentConfig.service";
+import { chatService } from "../../../../api-dash/services/chat.service";
+import { chatConfigService } from "../../../../api-dash/services/chatConfig.service";
+import { supabase } from "../../../../lib-dash/supabase";
+import { setValueAtPath } from "../../../../utils-dash/chatUtils";
+import { webhookService } from "../../../../api-dash/services/webhook.service";
 import { toast } from "sonner";
 
 export const useFileHandlers = (selectedAgent, setSelectedAgent, setAvatarImage, setSaveAvatarImage, avatarImage, saveAvatarImage, webhook, deployChannelConfigs, channelConfigs, setErrors) => {

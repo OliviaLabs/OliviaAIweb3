@@ -31,13 +31,13 @@ import {
   Plus,
 } from "lucide-react";
 import { toast } from "sonner";
-import { UserDataContext } from "../../../context/UserDataContext";
+import { UserDataContext } from "../../../context-dash/UserDataContext";
 import DetailViewModal from "./DetailViewModal";
-import { supabase } from "../../../lib/supabase";
-import { webScraperService } from "../../../api/services/webscraper.service";
-import { contentScraperService } from "../../../api/services/content-scraper.service";
-import { chatService } from "../../../api/services/chat.service";
-import { setValueAtPath } from "../../../utils/chatUtils";
+import { supabase } from "../../../lib-dash/supabase";
+import { webScraperService } from "../../../api-dash/services/webscraper.service";
+import { contentScraperService } from "../../../api-dash/services/content-scraper.service";
+import { chatService } from "../../../api-dash/services/chat.service";
+import { setValueAtPath } from "../../../utils-dash/chatUtils";
 
 const ContentTableV2 = ({
   scrapedUrls,

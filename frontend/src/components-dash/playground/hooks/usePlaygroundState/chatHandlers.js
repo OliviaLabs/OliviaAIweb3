@@ -1,4 +1,4 @@
-import { chatService } from "../../../../api/services/chat.service";
+import { chatService } from "../../../../api-dash/services/chat.service";
 
 export const useChatHandlers = (chatMessages, setChatMessages, userInput, setUserInput, setIsTyping, responseDelay) => {
   // Handle sending a message in the chat widget

@@ -1,5 +1,5 @@
-import { clientService } from "../api/services/client.service";
-import { staffService } from "../api/services/staff.service";
+import { clientService } from "../api-dash/services/client.service";
+import { staffService } from "../api-dash/services/staff.service";
 
 const setCurrentUserData = async (user_id, setUserData, setIsStaff) => {
     const userData = await clientService.fetchClientDataByAudId(user_id);

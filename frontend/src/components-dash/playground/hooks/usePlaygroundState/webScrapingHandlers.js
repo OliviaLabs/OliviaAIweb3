@@ -1,11 +1,11 @@
 import { useRef } from "react";
-import { webScraperService } from "../../../../api/services/webscraper.service";
-import { setValueAtPath } from "../../../../utils/chatUtils";
-import { supabase } from "../../../../lib/supabase";
+import { webScraperService } from "../../../../api-dash/services/webscraper.service";
+import { setValueAtPath } from "../../../../utils-dash/chatUtils";
+import { supabase } from "../../../../lib-dash/supabase";
 import { toast } from "sonner";
-import { contentScraperService } from "../../../../api/services/content-scraper.service";
-import { chatService } from "../../../../api/services/chat.service";
-import { pineconeMicroService } from "../../../../api/services/pineconeMicroservie.service";
+import { contentScraperService } from "../../../../api-dash/services/content-scraper.service";
+import { chatService } from "../../../../api-dash/services/chat.service";
+import { pineconeMicroService } from "../../../../api-dash/services/pineconeMicroservie.service";
 
 export const useWebScrapingHandlers = (
   websiteUrl,

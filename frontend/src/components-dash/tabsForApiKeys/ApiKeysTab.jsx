@@ -51,7 +51,7 @@ import {
   convertApiScopesToUI,
   formatDate,
   isExpired
-} from '../../utils/apikeys.utils';
+} from '../../utils-dash/apikeys.utils';
 
 export default function ApiKeysTab() {
   const { userData } = useContext(UserDataContext);
