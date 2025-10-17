@@ -15,7 +15,6 @@ export default function DashSidebarLite({ isCollapsed, onCollapse, userEmail }) 
         { name: 'Explore', icon: Search, path: '/explore' },
         { name: 'Plugins', icon: Puzzle, path: '/plugins', badge: 12 },
         { name: 'Profile', icon: User, path: '/profile' },
-        { name: 'Desktop', icon: Monitor, path: '/desktop' },
       ],
     },
     {
@@ -53,6 +52,7 @@ export default function DashSidebarLite({ isCollapsed, onCollapse, userEmail }) 
       items: [
         { name: 'API Keys', icon: Code2, path: '/api-keys' },
         { name: 'Staff', icon: UserCog, path: '/staff' },
+        { name: 'Acuraus', icon: Monitor, path: '/desktop', badge: 'β' },
       ],
     },
   ];
