@@ -281,10 +281,17 @@ export async function handleToolCall({ functionName, functionArgs, session }) {
 
 }
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: config.openaiApiKey,
-});
+// Initialize OpenAI client for Azure or standard OpenAI
+const openai = config.azureOpenAIKey
+  ? new OpenAI({
+      apiKey: config.azureOpenAIKey,
+      baseURL: `${config.azureOpenAIEndpoint}openai/deployments/${config.azureOpenAIDeployment}`,
+      defaultQuery: { 'api-version': config.azureOpenAIVersion },
+      defaultHeaders: { 'api-key': config.azureOpenAIKey },
+    })
+  : new OpenAI({
+      apiKey: config.openaiApiKey,
+    });
 
 /**
  * OpenAI Controller class

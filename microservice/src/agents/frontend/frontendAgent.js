@@ -2,7 +2,15 @@ import OpenAI from 'openai';
 import { config } from '../../config/config.js';
 import { DataAnalyzer } from '../utils/dataAnalyzer.js';
 
-const openai = new OpenAI({ apiKey: config.openaiApiKey });
+// Configure OpenAI client for Azure or standard OpenAI
+const openai = config.azureOpenAIKey
+  ? new OpenAI({
+      apiKey: config.azureOpenAIKey,
+      baseURL: `${config.azureOpenAIEndpoint}openai/deployments/${config.azureOpenAIDeployment}`,
+      defaultQuery: { 'api-version': config.azureOpenAIVersion },
+      defaultHeaders: { 'api-key': config.azureOpenAIKey },
+    })
+  : new OpenAI({ apiKey: config.openaiApiKey });
 
 /**
  * Frontend Agent

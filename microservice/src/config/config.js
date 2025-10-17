@@ -44,6 +44,11 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   adminAccessSecret: process.env.ADMIN_ACCESS_SECRET,
   openaiApiKey: process.env.OPENAI_API_KEY,
+  // Azure OpenAI Configuration
+  azureOpenAIEndpoint: process.env.AZURE_OPENAI_API_ENDPOINT,
+  azureOpenAIKey: process.env.AZURE_OPENAI_API_KEY,
+  azureOpenAIVersion: process.env.AZURE_OPENAI_API_VERSION,
+  azureOpenAIDeployment: process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o-mini',
   changeNowApiKey: process.env.CHANGENOW_API_KEY,
   coinStatsApiKey: process.env.COINSTATS_API_KEY,
   lurkyApiKey: process.env.LURKY_API_KEY,
@@ -82,8 +87,12 @@ if (!config.adminAccessSecret) {
   console.warn('⚠️  ADMIN_ACCESS_SECRET is not set. Using default for development.');
 }
 
-if (!config.openaiApiKey) {
-  console.warn('Warning: OPENAI_API_KEY is not set. You will need to set this to use OpenAI features.');
+if (!config.openaiApiKey && !config.azureOpenAIKey) {
+  console.warn('Warning: Neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY is set. You will need to set one to use AI features.');
+} else if (config.azureOpenAIKey) {
+  console.log('✅ Using Azure OpenAI');
+} else if (config.openaiApiKey) {
+  console.log('✅ Using OpenAI');
 }
 
 if (!config.changeNowApiKey) {
