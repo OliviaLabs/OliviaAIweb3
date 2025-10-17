@@ -59,20 +59,27 @@ export default function Explore() {
   }, [setShowInput, handleSendMessageRef, handleSendMessage]); // handleSendMessage is now stable (uses ref for input)
 
   return (
-    <div className="flex flex-col gap-6 relative pb-10 h-full w-full overflow-hidden" style={{ maxWidth: '100%', boxSizing: 'border-box' }}>
-      <BubbleMapSection 
-        onTokenClick={handleTokenClick} 
-        loadingToken={loadingToken}
-        setUserInput={setUserInput}
-        handleSendMessageRef={handleSendMessageRef}
-        sendMessage={sendMessage}
-      />
-      <TradingInfluencersSection 
-        selectedToken={selectedToken}
-        tokenTweets={tokenTweets}
-        isSearching={isSearching}
-        onClear={handleClear}
-      />
+    <div className="flex flex-row gap-6 relative pb-10 h-full w-full overflow-hidden" style={{ maxWidth: '100%', boxSizing: 'border-box' }}>
+      {/* Left side - Bubble Map */}
+      <div className="flex-1 min-w-0">
+        <BubbleMapSection 
+          onTokenClick={handleTokenClick} 
+          loadingToken={loadingToken}
+          setUserInput={setUserInput}
+          handleSendMessageRef={handleSendMessageRef}
+          sendMessage={sendMessage}
+        />
+      </div>
+      
+      {/* Right side - Trading Influencers */}
+      <div className="w-[380px] flex-shrink-0 overflow-y-auto">
+        <TradingInfluencersSection 
+          selectedToken={selectedToken}
+          tokenTweets={tokenTweets}
+          isSearching={isSearching}
+          onClear={handleClear}
+        />
+      </div>
     </div>
   )
 }

@@ -10,7 +10,7 @@ function FloatingBubbles({ data, height = 500, onBubbleClick, timeframe = '24h',
   const simulationRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
-  // Update dimensions on resize - with stability check
+  // Update dimensions on container resize using ResizeObserver
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -22,25 +22,37 @@ function FloatingBubbles({ data, height = 500, onBubbleClick, timeframe = '24h',
         // Only update if dimensions changed significantly (more than 5px)
         setDimensions(prev => {
           if (Math.abs(prev.width - newWidth) > 5 || Math.abs(prev.height - newHeight) > 5) {
+            console.log('📐 Bubble map dimensions updated:', { width: newWidth, height: newHeight });
             return { width: newWidth, height: newHeight };
           }
-          return prev; // Keep previous dimensions if change is negligible
+          return prev;
         });
       }
     };
 
-    // Debounce dimension updates
-    let timeoutId;
-    const debouncedUpdate = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(updateDimensions, 100);
-    };
+    // Use ResizeObserver to detect container size changes
+    const resizeObserver = new ResizeObserver((entries) => {
+      // Debounce the update
+      if (window.bubbleResizeTimeout) {
+        clearTimeout(window.bubbleResizeTimeout);
+      }
+      window.bubbleResizeTimeout = setTimeout(() => {
+        updateDimensions();
+      }, 50); // Faster response time
+    });
 
-    updateDimensions(); // Initial
-    window.addEventListener('resize', debouncedUpdate);
+    // Observe the container
+    resizeObserver.observe(containerRef.current);
+    
+    // Initial dimension update (with slight delay to ensure container is rendered)
+    setTimeout(updateDimensions, 10);
+    updateDimensions();
+
     return () => {
-      window.removeEventListener('resize', debouncedUpdate);
-      clearTimeout(timeoutId);
+      resizeObserver.disconnect();
+      if (window.bubbleResizeTimeout) {
+        clearTimeout(window.bubbleResizeTimeout);
+      }
     };
   }, [height]);
 

@@ -315,15 +315,16 @@ export default function BottomNavigation({
           )}
 
           {/* Thin white line separator */}
-          {showInput && (
+          {showInput && !['/', '/home', '/explore', '/plugins', '/profile'].includes(location.pathname) && (
             <div className="border-t border-white/20 mx-4"></div>
           )}
           
-          {/* Navigation Bar */}
-          <nav className="safe-bottom" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
-            <div className="px-3 py-2" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
-              <div className="flex justify-between items-center">
-                {navItems.map((item) => {
+          {/* Navigation Bar - Hide on Home, Explore, Plugins, Profile pages */}
+          {!['/', '/home', '/explore', '/plugins', '/profile'].includes(location.pathname) && (
+            <nav className="safe-bottom" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+              <div className="px-3 py-2" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                <div className="flex justify-between items-center">
+                  {navItems.map((item) => {
                   const Icon = item.icon;
                   return (
                     <button
@@ -362,9 +363,10 @@ export default function BottomNavigation({
                     </button>
                   );
                 })}
+                </div>
               </div>
-            </div>
-          </nav>
+            </nav>
+          )}
         </div>
       </div>
     </>
